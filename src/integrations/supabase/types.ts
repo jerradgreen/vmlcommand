@@ -21,9 +21,12 @@ export type Database = {
           cognito_form: string
           created_at: string
           email: string | null
+          email_domain: string | null
           email_norm: string | null
           id: string
           lead_id: string
+          match_text: string | null
+          match_tokens: string[] | null
           name: string | null
           notes: string | null
           phone: string | null
@@ -32,6 +35,7 @@ export type Database = {
           sign_style: string | null
           size_text: string | null
           status: string | null
+          strong_tokens: string[] | null
           submitted_at: string | null
         }
         Insert: {
@@ -40,9 +44,12 @@ export type Database = {
           cognito_form: string
           created_at?: string
           email?: string | null
+          email_domain?: string | null
           email_norm?: string | null
           id?: string
           lead_id: string
+          match_text?: string | null
+          match_tokens?: string[] | null
           name?: string | null
           notes?: string | null
           phone?: string | null
@@ -51,6 +58,7 @@ export type Database = {
           sign_style?: string | null
           size_text?: string | null
           status?: string | null
+          strong_tokens?: string[] | null
           submitted_at?: string | null
         }
         Update: {
@@ -59,9 +67,12 @@ export type Database = {
           cognito_form?: string
           created_at?: string
           email?: string | null
+          email_domain?: string | null
           email_norm?: string | null
           id?: string
           lead_id?: string
+          match_text?: string | null
+          match_tokens?: string[] | null
           name?: string | null
           notes?: string | null
           phone?: string | null
@@ -70,6 +81,7 @@ export type Database = {
           sign_style?: string | null
           size_text?: string | null
           status?: string | null
+          strong_tokens?: string[] | null
           submitted_at?: string | null
         }
         Relationships: []
@@ -79,49 +91,64 @@ export type Database = {
           created_at: string
           date: string | null
           email: string | null
+          email_domain: string | null
           email_norm: string | null
           id: string
           lead_id: string | null
           match_confidence: number | null
           match_method: string | null
           match_reason: string | null
+          match_text: string | null
+          match_tokens: string[] | null
           order_id: string
+          order_text: string | null
           product_name: string | null
           raw_payload: Json | null
           revenue: number | null
           sale_type: string
+          strong_tokens: string[] | null
         }
         Insert: {
           created_at?: string
           date?: string | null
           email?: string | null
+          email_domain?: string | null
           email_norm?: string | null
           id?: string
           lead_id?: string | null
           match_confidence?: number | null
           match_method?: string | null
           match_reason?: string | null
+          match_text?: string | null
+          match_tokens?: string[] | null
           order_id: string
+          order_text?: string | null
           product_name?: string | null
           raw_payload?: Json | null
           revenue?: number | null
           sale_type?: string
+          strong_tokens?: string[] | null
         }
         Update: {
           created_at?: string
           date?: string | null
           email?: string | null
+          email_domain?: string | null
           email_norm?: string | null
           id?: string
           lead_id?: string | null
           match_confidence?: number | null
           match_method?: string | null
           match_reason?: string | null
+          match_text?: string | null
+          match_tokens?: string[] | null
           order_id?: string
+          order_text?: string | null
           product_name?: string | null
           raw_payload?: Json | null
           revenue?: number | null
           sale_type?: string
+          strong_tokens?: string[] | null
         }
         Relationships: [
           {
@@ -138,7 +165,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      array_intersect: { Args: { a: string[]; b: string[] }; Returns: string[] }
       backfill_email_matches: { Args: never; Returns: number }
+      backfill_smart_matches: {
+        Args: { lookback_days?: number; min_gap?: number; min_score?: number }
+        Returns: Json
+      }
+      extract_domain: { Args: { email: string }; Returns: string }
+      get_match_suggestions: {
+        Args: { limit_n?: number; lookback_days?: number; p_sale_id: string }
+        Returns: {
+          lead_email: string
+          lead_id: string
+          lead_name: string
+          lead_phrase: string
+          lead_submitted_at: string
+          reasons: string[]
+          score: number
+        }[]
+      }
+      is_free_email_domain: { Args: { domain: string }; Returns: boolean }
+      normalize_text: { Args: { t: string }; Returns: string }
+      remove_stopwords: { Args: { tokens: string[] }; Returns: string[] }
+      search_leads: {
+        Args: { limit_n?: number; search_term: string }
+        Returns: {
+          lead_email: string
+          lead_id: string
+          lead_name: string
+          lead_phrase: string
+          lead_submitted_at: string
+          lead_text_id: string
+        }[]
+      }
+      strong_tokens_fn: { Args: { tokens: string[] }; Returns: string[] }
+      tokenize_text: { Args: { t: string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never

@@ -43,7 +43,40 @@ interface ParsedSale {
   email_norm: string | null;
   product_name: string | null;
   revenue: number | null;
+  order_text: string | null;
   raw_payload: Record<string, any>;
+}
+
+// Columns to exclude when building order_text
+const ORDER_TEXT_EXCLUDE = new Set([
+  'revenue','total','tax','shipping','discount','amount','qty','quantity',
+  'zip','postal','phone','price','cost','profit','manufacturing',
+  'order_id','date','email','email_norm','order id','order number','order #',
+]);
+
+function isMoneyOrNumeric(val: string): boolean {
+  return /^[\$\d,.\-\s]+$/.test(val.trim());
+}
+
+function buildOrderText(row: Record<string, any>, excludeHeaders: Set<string>): string | null {
+  const parts: string[] = [];
+  for (const [key, val] of Object.entries(row)) {
+    const normKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Check if this header should be excluded
+    let skip = false;
+    for (const ex of excludeHeaders) {
+      if (normKey.includes(ex.replace(/[^a-z0-9]/g, ''))) { skip = true; break; }
+    }
+    if (skip) continue;
+    const strVal = String(val ?? '').trim();
+    if (!strVal) continue;
+    // Must contain at least one letter
+    if (!/[a-zA-Z]/.test(strVal)) continue;
+    // Skip money-like values
+    if (isMoneyOrNumeric(strVal)) continue;
+    parts.push(strVal);
+  }
+  return parts.length > 0 ? parts.join(' ') : null;
 }
 
 interface ValidationIssue {
@@ -341,6 +374,7 @@ export default function Import() {
         email_norm: normalizeEmail(emailRaw),
         product_name: productCol ? row[productCol] || null : null,
         revenue: isNaN(rev) ? null : rev,
+        order_text: buildOrderText(row, ORDER_TEXT_EXCLUDE),
         raw_payload: row,
       });
     });
@@ -485,6 +519,7 @@ export default function Import() {
           email: s.email,
           product_name: s.product_name,
           revenue: s.revenue,
+          order_text: s.order_text,
           raw_payload: s.raw_payload,
           sale_type: "unknown",
         })),
@@ -902,12 +937,26 @@ export default function Import() {
   );
 }
 
-/** Auto-match unmatched sales to leads by exact email (server-side RPC) */
+/** Auto-match unmatched sales to leads by exact email + smart matching */
 async function runAutoMatching() {
-  const { data, error } = await supabase.rpc("backfill_email_matches");
-  if (error) {
-    console.error("Auto-matching failed:", error);
+  // 1. Exact email matches
+  const { data: emailCount, error: emailErr } = await supabase.rpc("backfill_email_matches");
+  if (emailErr) {
+    console.error("Email matching failed:", emailErr);
   } else {
-    console.log(`Auto-matched ${data} sales by email`);
+    console.log(`Auto-matched ${emailCount} sales by email`);
+  }
+
+  // 2. Smart multi-signal matches
+  const { data: smartResult, error: smartErr } = await supabase.rpc("backfill_smart_matches", {
+    lookback_days: 120,
+    min_score: 95,
+    min_gap: 20,
+  });
+  if (smartErr) {
+    console.error("Smart matching failed:", smartErr);
+  } else {
+    const result = smartResult as any;
+    console.log(`Smart-matched ${result?.linked_count ?? 0} additional sales`);
   }
 }

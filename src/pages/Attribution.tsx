@@ -1,15 +1,22 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Check, X, RefreshCw, Zap, Database } from "lucide-react";
-import { getSmartSuggestions, shouldAutoApply, type SmartSuggestion } from "@/lib/smartMatch";
+import { Check, X, RefreshCw, Zap, Database, Link2, Search } from "lucide-react";
 
 const DISMISSED_KEY = "vml-dismissed-sales";
 
@@ -30,6 +37,7 @@ export default function Attribution() {
   const queryClient = useQueryClient();
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(loadDismissed);
   const [showDismissed, setShowDismissed] = useState(false);
+  const [linkingSaleId, setLinkingSaleId] = useState<string | null>(null);
 
   const { data: unmatchedSales, isLoading } = useQuery({
     queryKey: ["unmatched-sales"],
@@ -40,19 +48,6 @@ export default function Attribution() {
         .eq("sale_type", "unknown")
         .is("lead_id", null)
         .order("date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: candidateLeads } = useQuery({
-    queryKey: ["candidate-leads"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("submitted_at", { ascending: false })
-        .limit(2000);
       if (error) throw error;
       return data;
     },
@@ -86,6 +81,7 @@ export default function Attribution() {
     },
     onSuccess: () => {
       toast.success("Match confirmed");
+      setLinkingSaleId(null);
       queryClient.invalidateQueries({ queryKey: ["unmatched-sales"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["unmatched-sales-count"] });
@@ -114,19 +110,38 @@ export default function Attribution() {
     },
   });
 
-  const backfillMutation = useMutation({
+  const backfillEmailMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("backfill_email_matches");
       if (error) throw error;
       return data as number;
     },
     onSuccess: (count) => {
-      toast.success(`Backfill matched ${count} sales by exact email`);
+      toast.success(`Email backfill matched ${count} sales`);
       queryClient.invalidateQueries({ queryKey: ["unmatched-sales"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["unmatched-sales-count"] });
     },
-    onError: (err: any) => toast.error(`Backfill failed: ${err.message}`),
+    onError: (err: any) => toast.error(`Email backfill failed: ${err.message}`),
+  });
+
+  const backfillSmartMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("backfill_smart_matches", {
+        lookback_days: 120,
+        min_score: 95,
+        min_gap: 20,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (result) => {
+      toast.success(`Smart backfill linked ${result?.linked_count ?? 0} sales (${result?.still_unmatched_after ?? '?'} remaining)`);
+      queryClient.invalidateQueries({ queryKey: ["unmatched-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["unmatched-sales-count"] });
+    },
+    onError: (err: any) => toast.error(`Smart backfill failed: ${err.message}`),
   });
 
   const handleDismiss = useCallback((orderId: string) => {
@@ -139,17 +154,6 @@ export default function Attribution() {
     toast("Sale dismissed from view");
   }, []);
 
-  // Memoised smart suggestions per sale
-  const suggestionsMap = useMemo(() => {
-    if (!unmatchedSales || !candidateLeads) return new Map<string, SmartSuggestion[]>();
-    const map = new Map<string, SmartSuggestion[]>();
-    for (const sale of unmatchedSales) {
-      map.set(sale.id, getSmartSuggestions(sale, candidateLeads, 3));
-    }
-    return map;
-  }, [unmatchedSales, candidateLeads]);
-
-  // Filter dismissed
   const visibleSales = (unmatchedSales ?? []).filter((s) => {
     const isDismissed = dismissedIds.has(s.order_id);
     return showDismissed || !isDismissed;
@@ -172,11 +176,20 @@ export default function Attribution() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => backfillMutation.mutate()}
-            disabled={backfillMutation.isPending}
+            onClick={() => backfillEmailMutation.mutate()}
+            disabled={backfillEmailMutation.isPending}
           >
             <Database className="h-3 w-3 mr-1" />
-            {backfillMutation.isPending ? "Running…" : "Backfill Email Matches"}
+            {backfillEmailMutation.isPending ? "Running…" : "Backfill Email"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => backfillSmartMutation.mutate()}
+            disabled={backfillSmartMutation.isPending}
+          >
+            <Zap className="h-3 w-3 mr-1" />
+            {backfillSmartMutation.isPending ? "Running…" : "Backfill Smart Matches"}
           </Button>
           <Switch checked={showDismissed} onCheckedChange={setShowDismissed} />
           <span className="text-sm text-muted-foreground">Show dismissed</span>
@@ -194,13 +207,11 @@ export default function Attribution() {
       ) : (
         <div className="space-y-4">
           {visibleSales.map((sale) => {
-            const suggestions = suggestionsMap.get(sale.id) ?? [];
             const isDismissed = dismissedIds.has(sale.order_id);
             return (
               <SaleCard
                 key={sale.id}
                 sale={sale}
-                suggestions={suggestions}
                 isDismissed={isDismissed}
                 onConfirm={(leadId, method, confidence, reason) =>
                   confirmMatch.mutate({
@@ -213,31 +224,51 @@ export default function Attribution() {
                 }
                 onMarkRepeat={() => markRepeat.mutate(sale.id)}
                 onDismiss={() => handleDismiss(sale.order_id)}
+                onLink={() => setLinkingSaleId(sale.id)}
               />
             );
           })}
         </div>
       )}
+
+      {/* Link Modal */}
+      {linkingSaleId && (
+        <LinkModal
+          saleId={linkingSaleId}
+          onClose={() => setLinkingSaleId(null)}
+          onConfirm={(leadId, score, reason) =>
+            confirmMatch.mutate({
+              saleId: linkingSaleId,
+              leadId,
+              matchMethod: "manual",
+              confidence: score,
+              reason,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
 
-// ── Sale Card component ─────────────────────────────────
+// ── Sale Card ─────────────────────────────────────────────
 function SaleCard({
   sale,
-  suggestions,
   isDismissed,
   onConfirm,
   onMarkRepeat,
   onDismiss,
+  onLink,
 }: {
   sale: any;
-  suggestions: SmartSuggestion[];
   isDismissed: boolean;
   onConfirm: (leadId: string, method: string, confidence: number, reason: string) => void;
   onMarkRepeat: () => void;
   onDismiss: () => void;
+  onLink: () => void;
 }) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   return (
     <Card className={isDismissed ? "opacity-50" : ""}>
       <CardHeader className="pb-3">
@@ -259,66 +290,20 @@ function SaleCard({
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
-        {suggestions.length > 0 ? (
-          <>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <Zap className="h-3 w-3" /> Smart Suggestions
-            </p>
-            {suggestions.map((s) => {
-              const autoApply = shouldAutoApply(s, sale);
-              return (
-                <div
-                  key={s.lead.id}
-                  className="flex items-start justify-between rounded-md border p-3 gap-3"
-                >
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <p className="text-sm font-medium">
-                      {s.lead.name || "Unknown"}
-                      {autoApply && (
-                        <Badge className="ml-2 text-xs" variant="default">Auto-eligible</Badge>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {s.lead.email} · {s.lead.phrase || "No phrase"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {s.lead.submitted_at ? format(new Date(s.lead.submitted_at), "MMM d, yyyy") : "—"}
-                      {" · "}{s.lead.cognito_form || "—"}
-                      {" · "}<span className="font-mono">{s.lead.lead_id}</span>
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {s.score}pts
-                      </Badge>
-                      {s.reasons.map((r, i) => (
-                        <Badge key={i} variant="outline" className="text-xs font-normal">
-                          {r}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      onConfirm(
-                        s.lead.id,
-                        "smart_suggested",
-                        s.score,
-                        s.reasons.join("; ")
-                      )
-                    }
-                  >
-                    <Check className="h-3 w-3 mr-1" /> Confirm
-                  </Button>
-                </div>
-              );
-            })}
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">No suggested leads found.</p>
+        {showSuggestions && (
+          <InlineSuggestions
+            saleId={sale.id}
+            onConfirm={onConfirm}
+          />
         )}
 
         <div className="flex gap-2 pt-2 border-t">
+          <Button variant="outline" size="sm" onClick={() => setShowSuggestions(!showSuggestions)}>
+            <Zap className="h-3 w-3 mr-1" /> {showSuggestions ? "Hide" : "Suggestions"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onLink}>
+            <Link2 className="h-3 w-3 mr-1" /> Link
+          </Button>
           <Button variant="outline" size="sm" onClick={onMarkRepeat}>
             <RefreshCw className="h-3 w-3 mr-1" /> Repeat/Direct
           </Button>
@@ -328,5 +313,211 @@ function SaleCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ── Inline Suggestions (loaded on-demand) ─────────────────
+function InlineSuggestions({
+  saleId,
+  onConfirm,
+}: {
+  saleId: string;
+  onConfirm: (leadId: string, method: string, confidence: number, reason: string) => void;
+}) {
+  const { data: suggestions, isLoading } = useQuery({
+    queryKey: ["match-suggestions", saleId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_match_suggestions", {
+        p_sale_id: saleId,
+        lookback_days: 180,
+        limit_n: 5,
+      });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Loading suggestions…</p>;
+  if (!suggestions || suggestions.length === 0) {
+    return <p className="text-sm text-muted-foreground">No suggested leads found.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+        <Zap className="h-3 w-3" /> Server Suggestions
+      </p>
+      {suggestions.map((s: any) => (
+        <SuggestionRow
+          key={s.lead_id}
+          suggestion={s}
+          onConfirm={() =>
+            onConfirm(s.lead_id, "smart_suggested", s.score, (s.reasons || []).join("; "))
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Suggestion Row ────────────────────────────────────────
+function SuggestionRow({
+  suggestion,
+  onConfirm,
+}: {
+  suggestion: any;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between rounded-md border p-3 gap-3">
+      <div className="space-y-1 min-w-0 flex-1">
+        <p className="text-sm font-medium">{suggestion.lead_name || "Unknown"}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {suggestion.lead_email} · {suggestion.lead_phrase || "No phrase"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {suggestion.lead_submitted_at
+            ? format(new Date(suggestion.lead_submitted_at), "MMM d, yyyy")
+            : "—"}
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          <Badge variant="secondary" className="text-xs">{suggestion.score}pts</Badge>
+          {(suggestion.reasons || []).map((r: string, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs font-normal">{r}</Badge>
+          ))}
+        </div>
+      </div>
+      <Button size="sm" onClick={onConfirm}>
+        <Check className="h-3 w-3 mr-1" /> Confirm
+      </Button>
+    </div>
+  );
+}
+
+// ── Link Modal ────────────────────────────────────────────
+function LinkModal({
+  saleId,
+  onClose,
+  onConfirm,
+}: {
+  saleId: string;
+  onClose: () => void;
+  onConfirm: (leadId: string, score: number, reason: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+
+  const { data: suggestions, isLoading } = useQuery({
+    queryKey: ["link-suggestions", saleId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_match_suggestions", {
+        p_sale_id: saleId,
+        lookback_days: 180,
+        limit_n: 5,
+      });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
+    setSearching(true);
+    const { data, error } = await supabase.rpc("search_leads", {
+      search_term: searchTerm.trim(),
+      limit_n: 20,
+    });
+    setSearching(false);
+    if (error) {
+      toast.error("Search failed: " + error.message);
+      return;
+    }
+    setSearchResults(data as any[]);
+  };
+
+  const hasSuggestions = suggestions && suggestions.length > 0;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Link Sale to Lead</DialogTitle>
+          <DialogDescription>
+            Confirm a suggested lead or search manually.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Suggestions */}
+        {isLoading && <p className="text-sm text-muted-foreground">Loading suggestions…</p>}
+        {hasSuggestions && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Suggested Leads
+            </p>
+            {suggestions!.map((s: any) => (
+              <SuggestionRow
+                key={s.lead_id}
+                suggestion={s}
+                onConfirm={() => onConfirm(s.lead_id, s.score, (s.reasons || []).join("; "))}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Search fallback */}
+        <div className="space-y-3 pt-3 border-t">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {hasSuggestions ? "Or search manually" : "Search for a lead"}
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search by name, email, or phrase…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+            <Button variant="outline" onClick={handleSearch} disabled={searching}>
+              <Search className="h-4 w-4 mr-1" />
+              {searching ? "…" : "Search"}
+            </Button>
+          </div>
+
+          {searchResults && searchResults.length === 0 && (
+            <p className="text-sm text-muted-foreground">No leads found.</p>
+          )}
+          {searchResults && searchResults.length > 0 && (
+            <div className="space-y-2">
+              {searchResults.map((lead: any) => (
+                <div
+                  key={lead.lead_id}
+                  className="flex items-center justify-between rounded-md border p-3 gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{lead.lead_name || "Unknown"}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {lead.lead_email} · {lead.lead_phrase || "No phrase"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {lead.lead_submitted_at
+                        ? format(new Date(lead.lead_submitted_at), "MMM d, yyyy")
+                        : "—"}
+                      {" · "}
+                      <span className="font-mono">{lead.lead_text_id}</span>
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => onConfirm(lead.lead_id, 0, "manual_search")}
+                  >
+                    <Link2 className="h-3 w-3 mr-1" /> Link
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
