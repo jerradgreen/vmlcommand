@@ -902,53 +902,12 @@ export default function Import() {
   );
 }
 
-/** Auto-match unmatched sales to leads by email within 60-day window */
+/** Auto-match unmatched sales to leads by exact email (server-side RPC) */
 async function runAutoMatching() {
-  const { data: unmatchedSales } = await supabase
-    .from("sales")
-    .select("id, email_norm, date")
-    .eq("sale_type", "unknown")
-    .is("lead_id", null);
-
-  if (!unmatchedSales?.length) return;
-
-  const { data: allLeads } = await supabase
-    .from("leads")
-    .select("id, email_norm, submitted_at");
-
-  if (!allLeads?.length) return;
-
-  const updates: { id: string; lead_id: string }[] = [];
-
-  for (const sale of unmatchedSales) {
-    if (!sale.email_norm || !sale.date) continue;
-    const saleDate = new Date(sale.date);
-    const sixtyDaysBefore = new Date(saleDate);
-    sixtyDaysBefore.setDate(sixtyDaysBefore.getDate() - 60);
-
-    const matches = allLeads
-      .filter((l) => {
-        if (!l.email_norm || !l.submitted_at) return false;
-        const leadDate = new Date(l.submitted_at);
-        return l.email_norm === sale.email_norm && leadDate >= sixtyDaysBefore && leadDate <= saleDate;
-      })
-      .sort((a, b) => new Date(b.submitted_at!).getTime() - new Date(a.submitted_at!).getTime());
-
-    if (matches.length > 0) {
-      updates.push({ id: sale.id, lead_id: matches[0].id });
-    }
-  }
-
-  for (const u of updates) {
-    await supabase
-      .from("sales")
-      .update({
-        lead_id: u.lead_id,
-        match_method: "email_exact",
-        match_confidence: 95,
-        match_reason: "Auto-matched by email within 60-day window",
-        sale_type: "new_lead",
-      })
-      .eq("id", u.id);
+  const { data, error } = await supabase.rpc("backfill_email_matches");
+  if (error) {
+    console.error("Auto-matching failed:", error);
+  } else {
+    console.log(`Auto-matched ${data} sales by email`);
   }
 }

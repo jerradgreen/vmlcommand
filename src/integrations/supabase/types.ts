@@ -138,7 +138,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      backfill_email_matches: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
