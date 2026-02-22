@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Check, X, RefreshCw, Zap } from "lucide-react";
+import { Check, X, RefreshCw, Zap, Database } from "lucide-react";
 import { getSmartSuggestions, shouldAutoApply, type SmartSuggestion } from "@/lib/smartMatch";
 
 const DISMISSED_KEY = "vml-dismissed-sales";
@@ -114,6 +114,21 @@ export default function Attribution() {
     },
   });
 
+  const backfillMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("backfill_email_matches");
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (count) => {
+      toast.success(`Backfill matched ${count} sales by exact email`);
+      queryClient.invalidateQueries({ queryKey: ["unmatched-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["unmatched-sales-count"] });
+    },
+    onError: (err: any) => toast.error(`Backfill failed: ${err.message}`),
+  });
+
   const handleDismiss = useCallback((orderId: string) => {
     setDismissedIds((prev) => {
       const next = new Set(prev);
@@ -153,7 +168,16 @@ export default function Attribution() {
             {visibleSales.length} unmatched sales to review
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => backfillMutation.mutate()}
+            disabled={backfillMutation.isPending}
+          >
+            <Database className="h-3 w-3 mr-1" />
+            {backfillMutation.isPending ? "Running…" : "Backfill Email Matches"}
+          </Button>
           <Switch checked={showDismissed} onCheckedChange={setShowDismissed} />
           <span className="text-sm text-muted-foreground">Show dismissed</span>
         </div>
