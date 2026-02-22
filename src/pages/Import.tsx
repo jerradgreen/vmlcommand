@@ -937,7 +937,7 @@ export default function Import() {
   );
 }
 
-/** Auto-match unmatched sales to leads by exact email + smart matching */
+/** Auto-match unmatched sales to leads by exact email + deterministic rules */
 async function runAutoMatching() {
   // 1. Exact email matches
   const { data: emailCount, error: emailErr } = await supabase.rpc("backfill_email_matches");
@@ -947,16 +947,14 @@ async function runAutoMatching() {
     console.log(`Auto-matched ${emailCount} sales by email`);
   }
 
-  // 2. Smart multi-signal matches
+  // 2. Deterministic matching (domain, phrase)
   const { data: smartResult, error: smartErr } = await supabase.rpc("backfill_smart_matches", {
     lookback_days: 120,
-    min_score: 95,
-    min_gap: 20,
   });
   if (smartErr) {
-    console.error("Smart matching failed:", smartErr);
+    console.error("Deterministic matching failed:", smartErr);
   } else {
     const result = smartResult as any;
-    console.log(`Smart-matched ${result?.linked_count ?? 0} additional sales`);
+    console.log(`Deterministic-matched ${result?.linked_count ?? 0} additional sales`);
   }
 }
