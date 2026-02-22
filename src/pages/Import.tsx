@@ -13,6 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { Upload, FileUp, ChevronDown, AlertCircle, AlertTriangle, Info } from "lucide-react";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { COGNITO_FORMS, FORM_COLUMN_MAPPINGS } from "@/lib/cognitoMappings";
 
 // ── Types ──────────────────────────────────────────────
@@ -121,7 +122,30 @@ export default function Import() {
 
   // ── LEADS PARSING ────────────────────────────────────
 
-  function handleLeadsFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  function parseFileToRows(file: File): Promise<Record<string, any>[]> {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext === "xlsx" || ext === "xls") {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const wb = XLSX.read(ev.target?.result, { type: "array" });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+          resolve(rows);
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+    return new Promise((resolve) => {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (result) => resolve(result.data as Record<string, any>[]),
+      });
+    });
+  }
+
+  async function handleLeadsFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files) return;
     setLeadsFileCount(files.length);
@@ -131,55 +155,47 @@ export default function Import() {
     const allLeads: ParsedLead[] = [];
     const mapping = FORM_COLUMN_MAPPINGS[cognitoForm];
 
-    let completed = 0;
-    Array.from(files).forEach((file) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (result) => {
-          const headers = result.meta.fields ?? [];
-          const entryCol = findColumn(headers, ...mapping.entry_number);
-          const dateCol = findColumn(headers, ...mapping.submitted_at);
-          const nameCol = findColumn(headers, ...mapping.name);
-          const emailCol = findColumn(headers, ...mapping.email);
-          const phoneCol = findColumn(headers, ...mapping.phone);
-          const phraseCol = mapping.phrase.length ? findColumn(headers, ...mapping.phrase) : undefined;
-          const styleCol = mapping.sign_style.length ? findColumn(headers, ...mapping.sign_style) : undefined;
-          const sizeCol = mapping.size_text.length ? findColumn(headers, ...mapping.size_text) : undefined;
-          const budgetCol = mapping.budget_text.length ? findColumn(headers, ...mapping.budget_text) : undefined;
-          const statusCol = findColumn(headers, ...mapping.status);
-          const notesCol = findColumn(headers, ...mapping.notes);
+    for (const file of Array.from(files)) {
+      const rows = await parseFileToRows(file);
+      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const entryCol = findColumn(headers, ...mapping.entry_number);
+      const dateCol = findColumn(headers, ...mapping.submitted_at);
+      const nameCol = findColumn(headers, ...mapping.name);
+      const emailCol = findColumn(headers, ...mapping.email);
+      const phoneCol = findColumn(headers, ...mapping.phone);
+      const phraseCol = mapping.phrase.length ? findColumn(headers, ...mapping.phrase) : undefined;
+      const styleCol = mapping.sign_style.length ? findColumn(headers, ...mapping.sign_style) : undefined;
+      const sizeCol = mapping.size_text.length ? findColumn(headers, ...mapping.size_text) : undefined;
+      const budgetCol = mapping.budget_text.length ? findColumn(headers, ...mapping.budget_text) : undefined;
+      const statusCol = findColumn(headers, ...mapping.status);
+      const notesCol = findColumn(headers, ...mapping.notes);
 
-          result.data.forEach((row: any) => {
-            const entry = entryCol ? String(row[entryCol] ?? "").trim() : "";
-            if (!entry) return;
-            const emailRaw = emailCol ? row[emailCol] || null : null;
-            allLeads.push({
-              cognito_form: cognitoForm,
-              cognito_entry_number: entry,
-              lead_id: `CF-${cognitoForm}-${entry}`,
-              submitted_at: dateCol ? row[dateCol] || null : null,
-              status: statusCol ? row[statusCol] || null : null,
-              name: nameCol ? row[nameCol] || null : null,
-              email: emailRaw,
-              email_norm: normalizeEmail(emailRaw),
-              phone: phoneCol ? row[phoneCol] || null : null,
-              phrase: phraseCol ? row[phraseCol] || null : null,
-              sign_style: styleCol ? row[styleCol] || null : null,
-              size_text: sizeCol ? row[sizeCol] || null : null,
-              budget_text: budgetCol ? row[budgetCol] || null : null,
-              notes: notesCol ? row[notesCol] || null : null,
-              raw_payload: row,
-            });
-          });
-          completed++;
-          if (completed === files.length) {
-            setLeadsParsed([...allLeads]);
-            validateAndSummarizeLeads(allLeads);
-          }
-        },
+      rows.forEach((row: any) => {
+        const entry = entryCol ? String(row[entryCol] ?? "").trim() : "";
+        if (!entry) return;
+        const emailRaw = emailCol ? row[emailCol] || null : null;
+        allLeads.push({
+          cognito_form: cognitoForm,
+          cognito_entry_number: entry,
+          lead_id: `CF-${cognitoForm}-${entry}`,
+          submitted_at: dateCol ? row[dateCol] || null : null,
+          status: statusCol ? row[statusCol] || null : null,
+          name: nameCol ? row[nameCol] || null : null,
+          email: emailRaw,
+          email_norm: normalizeEmail(emailRaw),
+          phone: phoneCol ? row[phoneCol] || null : null,
+          phrase: phraseCol ? row[phraseCol] || null : null,
+          sign_style: styleCol ? row[styleCol] || null : null,
+          size_text: sizeCol ? row[sizeCol] || null : null,
+          budget_text: budgetCol ? row[budgetCol] || null : null,
+          notes: notesCol ? row[notesCol] || null : null,
+          raw_payload: row,
+        });
       });
-    });
+    }
+
+    setLeadsParsed([...allLeads]);
+    validateAndSummarizeLeads(allLeads);
   }
 
   function validateAndSummarizeLeads(leads: ParsedLead[]) {
@@ -221,44 +237,39 @@ export default function Import() {
 
   // ── SALES PARSING ────────────────────────────────────
 
-  function handleSalesFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleSalesFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setDryRunComplete(false);
     setImportSummary(null);
     setDbDuplicates(null);
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (result) => {
-        const headers = result.meta.fields ?? [];
-        const orderCol = findColumn(headers, "Order ID", "order_id", "OrderID", "Order Number", "Order #");
-        const dateCol = findColumn(headers, "Date", "Order Date", "date", "Date Paid");
-        const emailCol = findColumn(headers, "Email", "Customer Email", "email", "Buyer Email");
-        const productCol = findColumn(headers, "Product", "Product Name", "product_name", "Item", "Description");
-        const revenueCol = findColumn(headers, "Revenue", "Total", "Amount", "revenue", "Price", "Order Total");
+    const rows = await parseFileToRows(file);
+    const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+    const orderCol = findColumn(headers, "Order ID", "order_id", "OrderID", "Order Number", "Order #");
+    const dateCol = findColumn(headers, "Date", "Order Date", "date", "Date Paid");
+    const emailCol = findColumn(headers, "Email", "Customer Email", "email", "Buyer Email");
+    const productCol = findColumn(headers, "Product", "Product Name", "product_name", "Item", "Description");
+    const revenueCol = findColumn(headers, "Revenue", "Total", "Amount", "revenue", "Price", "Order Total");
 
-        const parsed: ParsedSale[] = [];
-        result.data.forEach((row: any) => {
-          const orderId = orderCol ? String(row[orderCol] ?? "").trim() : "";
-          const revenueStr = revenueCol ? String(row[revenueCol] ?? "").replace(/[$,]/g, "").trim() : "";
-          const rev = parseFloat(revenueStr);
-          const emailRaw = emailCol ? row[emailCol] || null : null;
-          parsed.push({
-            order_id: orderId,
-            date: dateCol ? row[dateCol] || null : null,
-            email: emailRaw,
-            email_norm: normalizeEmail(emailRaw),
-            product_name: productCol ? row[productCol] || null : null,
-            revenue: isNaN(rev) ? null : rev,
-            raw_payload: row,
-          });
-        });
-        setSalesParsed(parsed);
-        validateAndSummarizeSales(parsed);
-      },
+    const parsed: ParsedSale[] = [];
+    rows.forEach((row: any) => {
+      const orderId = orderCol ? String(row[orderCol] ?? "").trim() : "";
+      const revenueStr = revenueCol ? String(row[revenueCol] ?? "").replace(/[$,]/g, "").trim() : "";
+      const rev = parseFloat(revenueStr);
+      const emailRaw = emailCol ? row[emailCol] || null : null;
+      parsed.push({
+        order_id: orderId,
+        date: dateCol ? row[dateCol] || null : null,
+        email: emailRaw,
+        email_norm: normalizeEmail(emailRaw),
+        product_name: productCol ? row[productCol] || null : null,
+        revenue: isNaN(rev) ? null : rev,
+        raw_payload: row,
+      });
     });
+    setSalesParsed(parsed);
+    validateAndSummarizeSales(parsed);
   }
 
   function validateAndSummarizeSales(sales: ParsedSale[]) {
@@ -479,7 +490,7 @@ export default function Import() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Import Data</h1>
-        <p className="text-muted-foreground text-sm">Upload CSV files to import leads and sales</p>
+        <p className="text-muted-foreground text-sm">Upload CSV or Excel files to import leads and sales</p>
       </div>
 
       {/* Dry Run Toggle */}
@@ -512,7 +523,7 @@ export default function Import() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Leads Import</CardTitle>
-            <CardDescription>Select the Cognito form type, then upload one or more CSV files.</CardDescription>
+            <CardDescription>Select the Cognito form type, then upload one or more CSV/Excel files.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-3">
@@ -526,7 +537,7 @@ export default function Import() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input type="file" accept=".csv" multiple onChange={handleLeadsFiles} className="w-auto" />
+              <Input type="file" accept=".csv,.xlsx,.xls" multiple onChange={handleLeadsFiles} className="w-auto" />
             </div>
 
             {leadsParsed.length > 0 && (
@@ -583,7 +594,7 @@ export default function Import() {
             <CardDescription>Upload a sales CSV. Summary/total rows are automatically handled by validation.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input type="file" accept=".csv" onChange={handleSalesFile} className="w-auto" />
+            <Input type="file" accept=".csv,.xlsx,.xls" onChange={handleSalesFile} className="w-auto" />
 
             {salesParsed.length > 0 && (
               <>
