@@ -248,9 +248,29 @@ export function getSmartSuggestions(
     }
   }
 
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, maxResults);
+  // Deduplicate by email_norm: keep only the most recent lead per email
+  const deduped: SmartSuggestion[] = [];
+  const seenEmails = new Map<string, SmartSuggestion>();
+
+  const sorted = scored.sort((a, b) => b.score - a.score);
+
+  for (const s of sorted) {
+    const norm = s.lead.email_norm || s.lead.email?.trim().toLowerCase() || null;
+    if (!norm) {
+      deduped.push(s);
+      continue;
+    }
+
+    const existing = seenEmails.get(norm);
+    if (!existing) {
+      seenEmails.set(norm, s);
+      deduped.push(s);
+    }
+    // If same email AND identical phrase, skip (collapse)
+    // If same email but different phrase, also skip — we keep the highest-scored one
+  }
+
+  return deduped.slice(0, maxResults);
 }
 
 // ── Auto-apply check ────────────────────────────────────

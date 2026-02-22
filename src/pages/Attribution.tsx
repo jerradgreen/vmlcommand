@@ -257,6 +257,11 @@ function SaleCard({
                     <p className="text-xs text-muted-foreground truncate">
                       {s.lead.email} · {s.lead.phrase || "No phrase"}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.lead.submitted_at ? format(new Date(s.lead.submitted_at), "MMM d, yyyy") : "—"}
+                      {" · "}{s.lead.cognito_form || "—"}
+                      {" · "}<span className="font-mono">{s.lead.lead_id}</span>
+                    </p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       <Badge variant="secondary" className="text-xs">
                         {s.score}pts
