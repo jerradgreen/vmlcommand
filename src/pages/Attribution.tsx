@@ -129,8 +129,6 @@ export default function Attribution() {
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("backfill_smart_matches", {
         lookback_days: 120,
-        min_score: 95,
-        min_gap: 20,
       });
       if (error) throw error;
       return data as any;
@@ -352,7 +350,7 @@ function InlineSuggestions({
           key={s.lead_id}
           suggestion={s}
           onConfirm={() =>
-            onConfirm(s.lead_id, "smart_suggested", s.score, (s.reasons || []).join("; "))
+            onConfirm(s.lead_id, "manual", 100, (s.reasons || []).join("; "))
           }
         />
       ))}
@@ -381,7 +379,6 @@ function SuggestionRow({
             : "—"}
         </p>
         <div className="flex flex-wrap gap-1.5 mt-1">
-          <Badge variant="secondary" className="text-xs">{suggestion.score}pts</Badge>
           {(suggestion.reasons || []).map((r: string, i: number) => (
             <Badge key={i} variant="outline" className="text-xs font-normal">{r}</Badge>
           ))}
@@ -459,7 +456,7 @@ function LinkModal({
               <SuggestionRow
                 key={s.lead_id}
                 suggestion={s}
-                onConfirm={() => onConfirm(s.lead_id, s.score, (s.reasons || []).join("; "))}
+                onConfirm={() => onConfirm(s.lead_id, 100, (s.reasons || []).join("; "))}
               />
             ))}
           </div>
