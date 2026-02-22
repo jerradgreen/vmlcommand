@@ -129,7 +129,7 @@ export default function Attribution() {
     if (!unmatchedSales || !candidateLeads) return new Map<string, SmartSuggestion[]>();
     const map = new Map<string, SmartSuggestion[]>();
     for (const sale of unmatchedSales) {
-      map.set(sale.id, getSmartSuggestions(sale, candidateLeads, 5));
+      map.set(sale.id, getSmartSuggestions(sale, candidateLeads, 3));
     }
     return map;
   }, [unmatchedSales, candidateLeads]);
