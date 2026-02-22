@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Upload, FileUp, ChevronDown, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { Upload, FileUp, ChevronDown, AlertCircle, AlertTriangle, Info, Bug } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { COGNITO_FORMS, FORM_COLUMN_MAPPINGS } from "@/lib/cognitoMappings";
@@ -63,12 +63,49 @@ interface ImportSummary {
   dbDuplicates?: number;
 }
 
+interface DetectedColumns {
+  email: string | null;
+  submitted_at: string | null;
+  entry_number: string | null;
+}
+
 // ── Helpers ────────────────────────────────────────────
 
-function findColumn(headers: string[], ...candidates: string[]): string | undefined {
-  const lower = headers.map((h) => h.toLowerCase().trim());
-  for (const c of candidates) {
-    const idx = lower.indexOf(c.toLowerCase());
+function normalizeHeader(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[()]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Normalized-header candidates for leads email
+const EMAIL_CANDIDATES = [
+  'email',
+  'email address',
+  'email please check spelling before submitting',
+];
+
+// Normalized-header candidates for submitted_at
+const DATE_CANDIDATES = [
+  'date submitted',
+  'submitted at',
+  'submission date',
+  'created at',
+];
+
+// Normalized-header candidates for entry number
+const ENTRY_CANDIDATES = [
+  '#',
+  'entry number',
+  'entrynumber',
+];
+
+function findColumnNormalized(headers: string[], candidates: string[]): string | undefined {
+  for (const candidate of candidates) {
+    const normCandidate = normalizeHeader(candidate);
+    const idx = headers.findIndex(h => normalizeHeader(h) === normCandidate);
     if (idx >= 0) return headers[idx];
   }
   return undefined;
@@ -80,16 +117,20 @@ function normalizeEmail(email: string | null): string | null {
   return trimmed.includes("@") ? trimmed : null;
 }
 
-function normalizeDate(value: any): Date | null {
+function parseCognitoDate(value: any): string | null {
   if (value == null || value === "") return null;
   if (typeof value === "number") {
-    const excelEpochOffset = 25569;
-    const msPerDay = 86400 * 1000;
-    const d = new Date((value - excelEpochOffset) * msPerDay);
-    return isNaN(d.getTime()) ? null : d;
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const date = new Date(excelEpoch.getTime() + value * 86400000);
+    return isNaN(date.getTime()) ? null : date.toISOString();
   }
-  const d = new Date(String(value));
-  return isNaN(d.getTime()) ? null : d;
+  const parsed = new Date(String(value));
+  return isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function normalizeDate(value: any): Date | null {
+  const iso = parseCognitoDate(value);
+  return iso ? new Date(iso) : null;
 }
 
 function isValidDate(d: string | null): boolean {
@@ -108,6 +149,7 @@ export default function Import() {
   const [cognitoForm, setCognitoForm] = useState(COGNITO_FORMS[0]);
   const [leadsParsed, setLeadsParsed] = useState<ParsedLead[]>([]);
   const [leadsFileCount, setLeadsFileCount] = useState(0);
+  const [detectedColumns, setDetectedColumns] = useState<DetectedColumns | null>(null);
 
   // Sales state
   const [salesParsed, setSalesParsed] = useState<ParsedSale[]>([]);
@@ -162,37 +204,53 @@ export default function Import() {
     setDryRunComplete(false);
     setImportSummary(null);
     setDbDuplicates(null);
+    setDetectedColumns(null);
     const allLeads: ParsedLead[] = [];
     const mapping = FORM_COLUMN_MAPPINGS[cognitoForm];
+
+    let detected: DetectedColumns = { email: null, submitted_at: null, entry_number: null };
 
     for (const file of Array.from(files)) {
       const rows = await parseFileToRows(file);
       const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-      const entryCol = findColumn(headers, ...mapping.entry_number);
-      const dateCol = findColumn(headers, ...mapping.submitted_at);
-      const nameCol = findColumn(headers, ...mapping.name);
-      const emailCol = findColumn(headers, ...mapping.email);
-      const phoneCol = findColumn(headers, ...mapping.phone);
-      const phraseCol = mapping.phrase.length ? findColumn(headers, ...mapping.phrase) : undefined;
-      const styleCol = mapping.sign_style.length ? findColumn(headers, ...mapping.sign_style) : undefined;
-      const sizeCol = mapping.size_text.length ? findColumn(headers, ...mapping.size_text) : undefined;
-      const budgetCol = mapping.budget_text.length ? findColumn(headers, ...mapping.budget_text) : undefined;
-      const statusCol = findColumn(headers, ...mapping.status);
-      const notesCol = findColumn(headers, ...mapping.notes);
+
+      // Use normalized matching for critical fields with hardcoded candidates
+      const entryCol = findColumnNormalized(headers, ENTRY_CANDIDATES) 
+        ?? findColumnNormalized(headers, mapping.entry_number);
+      const dateCol = findColumnNormalized(headers, DATE_CANDIDATES) 
+        ?? findColumnNormalized(headers, mapping.submitted_at);
+      const emailCol = findColumnNormalized(headers, EMAIL_CANDIDATES) 
+        ?? findColumnNormalized(headers, mapping.email);
+
+      // Other fields use mapping presets with normalized matching
+      const nameCol = findColumnNormalized(headers, mapping.name);
+      const phoneCol = findColumnNormalized(headers, mapping.phone);
+      const phraseCol = mapping.phrase.length ? findColumnNormalized(headers, mapping.phrase) : undefined;
+      const styleCol = mapping.sign_style.length ? findColumnNormalized(headers, mapping.sign_style) : undefined;
+      const sizeCol = mapping.size_text.length ? findColumnNormalized(headers, mapping.size_text) : undefined;
+      const budgetCol = mapping.budget_text.length ? findColumnNormalized(headers, mapping.budget_text) : undefined;
+      const statusCol = findColumnNormalized(headers, mapping.status);
+      const notesCol = findColumnNormalized(headers, mapping.notes);
+
+      // Track detected columns (from first file)
+      if (!detected.email && emailCol) detected.email = emailCol;
+      if (!detected.submitted_at && dateCol) detected.submitted_at = dateCol;
+      if (!detected.entry_number && entryCol) detected.entry_number = entryCol;
 
       rows.forEach((row: any) => {
         const entry = entryCol ? String(row[entryCol] ?? "").trim() : "";
         if (!entry) return;
-        const emailRaw = emailCol ? row[emailCol] || null : null;
+        const emailRaw = emailCol ? (row[emailCol] ? String(row[emailCol]).trim() : null) : null;
+        const emailNorm = normalizeEmail(emailRaw);
         allLeads.push({
           cognito_form: cognitoForm,
           cognito_entry_number: entry,
           lead_id: `CF-${cognitoForm}-${entry}`,
-          submitted_at: dateCol ? (normalizeDate(row[dateCol])?.toISOString() ?? null) : null,
+          submitted_at: dateCol ? parseCognitoDate(row[dateCol]) : null,
           status: statusCol ? row[statusCol] || null : null,
           name: nameCol ? row[nameCol] || null : null,
           email: emailRaw,
-          email_norm: normalizeEmail(emailRaw),
+          email_norm: emailNorm,
           phone: phoneCol ? row[phoneCol] || null : null,
           phrase: phraseCol ? row[phraseCol] || null : null,
           sign_style: styleCol ? row[styleCol] || null : null,
@@ -204,6 +262,7 @@ export default function Import() {
       });
     }
 
+    setDetectedColumns(detected);
     setLeadsParsed([...allLeads]);
     validateAndSummarizeLeads(allLeads);
   }
@@ -227,8 +286,15 @@ export default function Import() {
       if (!l.lead_id) issues.push({ rowIndex: i, field: "lead_id", reason: "Missing lead_id", level: "error" });
       if (!l.submitted_at || !isValidDate(l.submitted_at))
         issues.push({ rowIndex: i, field: "submitted_at", reason: "Missing or invalid date", level: "error" });
-      if (!l.email_norm)
-        issues.push({ rowIndex: i, field: "email", reason: "Missing or invalid email (email_norm will be null)", level: "warning" });
+      
+      // Email: warning only, not error
+      if (!l.email_norm) {
+        if (l.email && l.email.trim()) {
+          issues.push({ rowIndex: i, field: "email", reason: "Invalid email format (email_norm = null)", level: "warning" });
+        } else {
+          issues.push({ rowIndex: i, field: "email", reason: "Missing email (email_norm will be null)", level: "warning" });
+        }
+      }
     });
 
     const errorRowIndices = new Set(issues.filter((i) => i.level === "error").map((i) => i.rowIndex));
@@ -256,11 +322,11 @@ export default function Import() {
 
     const rows = await parseFileToRows(file);
     const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-    const orderCol = findColumn(headers, "Order ID", "order_id", "OrderID", "Order Number", "Order #");
-    const dateCol = findColumn(headers, "Date", "Order Date", "date", "Date Paid");
-    const emailCol = findColumn(headers, "Email", "Customer Email", "email", "Buyer Email");
-    const productCol = findColumn(headers, "Product", "Product Name", "product_name", "Item", "Description");
-    const revenueCol = findColumn(headers, "Revenue", "Total", "Amount", "revenue", "Price", "Order Total");
+    const orderCol = findColumnNormalized(headers, ["Order ID", "order_id", "OrderID", "Order Number", "Order #"]);
+    const dateCol = findColumnNormalized(headers, ["Date", "Order Date", "date", "Date Paid"]);
+    const emailCol = findColumnNormalized(headers, ["Email", "Customer Email", "email", "Buyer Email"]);
+    const productCol = findColumnNormalized(headers, ["Product", "Product Name", "product_name", "Item", "Description"]);
+    const revenueCol = findColumnNormalized(headers, ["Revenue", "Total", "Amount", "revenue", "Price", "Order Total"]);
 
     const parsed: ParsedSale[] = [];
     rows.forEach((row: any) => {
@@ -270,7 +336,7 @@ export default function Import() {
       const emailRaw = emailCol ? row[emailCol] || null : null;
       parsed.push({
         order_id: orderId,
-        date: dateCol ? (normalizeDate(row[dateCol])?.toISOString() ?? null) : null,
+        date: dateCol ? parseCognitoDate(row[dateCol]) : null,
         email: emailRaw,
         email_norm: normalizeEmail(emailRaw),
         product_name: productCol ? row[productCol] || null : null,
@@ -343,6 +409,14 @@ export default function Import() {
     return { noLeads: false as const, matched, total: validSales.length };
   }, [activeTab, importSummary, salesParsed, existingLeads, validationIssues]);
 
+  // ── Missing email rate warning ──────────────────────
+
+  const missingEmailRate = useMemo(() => {
+    if (activeTab !== "leads" || leadsParsed.length === 0) return 0;
+    const missing = leadsParsed.filter(l => !l.email_norm).length;
+    return missing / leadsParsed.length;
+  }, [activeTab, leadsParsed]);
+
   // ── DRY RUN / IMPORT ACTIONS ─────────────────────────
 
   function handleRunDryRun() {
@@ -366,10 +440,11 @@ export default function Import() {
           lead_id: l.lead_id,
           cognito_form: l.cognito_form,
           cognito_entry_number: l.cognito_entry_number,
-          submitted_at: normalizeDate(l.submitted_at)?.toISOString() ?? null,
+          submitted_at: l.submitted_at,
           status: l.status,
           name: l.name,
           email: l.email,
+          email_norm: l.email_norm,
           phone: l.phone,
           phrase: l.phrase,
           sign_style: l.sign_style,
@@ -409,6 +484,7 @@ export default function Import() {
           order_id: s.order_id,
           date: normalizeDate(s.date)?.toISOString().split("T")[0] ?? null,
           email: s.email,
+          email_norm: s.email_norm,
           product_name: s.product_name,
           revenue: s.revenue,
           raw_payload: s.raw_payload,
@@ -460,9 +536,10 @@ export default function Import() {
           lead_id: l.lead_id,
           cognito_form: l.cognito_form,
           cognito_entry_number: l.cognito_entry_number,
-          submitted_at: normalizeDate(l.submitted_at)?.toISOString() ?? null,
+          submitted_at: l.submitted_at,
           name: l.name,
           email: l.email,
+          email_norm: l.email_norm,
           phone: l.phone,
           phrase: l.phrase,
           sign_style: l.sign_style,
@@ -483,6 +560,7 @@ export default function Import() {
           order_id: s.order_id,
           date: normalizeDate(s.date)?.toISOString().split("T")[0] ?? null,
           email: s.email,
+          email_norm: s.email_norm,
           product_name: s.product_name,
           revenue: s.revenue,
           sale_type: "unknown",
@@ -524,6 +602,23 @@ export default function Import() {
         </Alert>
       )}
 
+      {/* HIGH MISSING EMAIL WARNING */}
+      {activeTab === "leads" && leadsParsed.length > 0 && missingEmailRate > 0.2 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>High missing email rate detected</AlertTitle>
+          <AlertDescription>
+            {Math.round(missingEmailRate * 100)}% of rows have missing email. 
+            Mapping may be incorrect. Do NOT import until verified.
+            {detectedColumns && (
+              <span className="block mt-1 font-mono text-xs">
+                Detected email column: {detectedColumns.email ?? "NONE"}
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ── LEADS TAB ── */}
       {activeTab === "leads" && (
         <Card>
@@ -558,6 +653,36 @@ export default function Import() {
                   </Button>
                 </div>
 
+                {/* Debug Panel */}
+                {detectedColumns && (
+                  <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bug className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Column Detection Debug</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+                      <div>
+                        <span className="text-muted-foreground">email: </span>
+                        <span className={detectedColumns.email ? "text-green-600" : "text-destructive font-bold"}>
+                          {detectedColumns.email ?? "NOT FOUND"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">submitted_at: </span>
+                        <span className={detectedColumns.submitted_at ? "text-green-600" : "text-destructive font-bold"}>
+                          {detectedColumns.submitted_at ?? "NOT FOUND"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">entry_number: </span>
+                        <span className={detectedColumns.entry_number ? "text-green-600" : "text-destructive font-bold"}>
+                          {detectedColumns.entry_number ?? "NOT FOUND"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Preview Table */}
                 <div className="rounded-md border max-h-80 overflow-auto">
                   <Table>
@@ -566,6 +691,7 @@ export default function Import() {
                         <TableHead>Lead ID</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>email_norm</TableHead>
                         <TableHead>Phrase</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
@@ -576,6 +702,7 @@ export default function Import() {
                           <TableCell className="font-mono text-xs">{l.lead_id}</TableCell>
                           <TableCell>{l.name || "—"}</TableCell>
                           <TableCell>{l.email || "—"}</TableCell>
+                          <TableCell className="font-mono text-xs">{l.email_norm || "—"}</TableCell>
                           <TableCell className="max-w-[150px] truncate">{l.phrase || "—"}</TableCell>
                           <TableCell>{l.submitted_at || "—"}</TableCell>
                         </TableRow>
