@@ -80,10 +80,20 @@ function normalizeEmail(email: string | null): string | null {
   return trimmed.includes("@") ? trimmed : null;
 }
 
+function normalizeDate(value: any): Date | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") {
+    const excelEpochOffset = 25569;
+    const msPerDay = 86400 * 1000;
+    const d = new Date((value - excelEpochOffset) * msPerDay);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(String(value));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function isValidDate(d: string | null): boolean {
-  if (!d) return false;
-  const parsed = new Date(d);
-  return !isNaN(parsed.getTime());
+  return normalizeDate(d) !== null;
 }
 
 // ── Component ──────────────────────────────────────────
@@ -178,7 +188,7 @@ export default function Import() {
           cognito_form: cognitoForm,
           cognito_entry_number: entry,
           lead_id: `CF-${cognitoForm}-${entry}`,
-          submitted_at: dateCol ? row[dateCol] || null : null,
+          submitted_at: dateCol ? (normalizeDate(row[dateCol])?.toISOString() ?? null) : null,
           status: statusCol ? row[statusCol] || null : null,
           name: nameCol ? row[nameCol] || null : null,
           email: emailRaw,
@@ -260,7 +270,7 @@ export default function Import() {
       const emailRaw = emailCol ? row[emailCol] || null : null;
       parsed.push({
         order_id: orderId,
-        date: dateCol ? row[dateCol] || null : null,
+        date: dateCol ? (normalizeDate(row[dateCol])?.toISOString() ?? null) : null,
         email: emailRaw,
         email_norm: normalizeEmail(emailRaw),
         product_name: productCol ? row[productCol] || null : null,
@@ -356,7 +366,7 @@ export default function Import() {
           lead_id: l.lead_id,
           cognito_form: l.cognito_form,
           cognito_entry_number: l.cognito_entry_number,
-          submitted_at: l.submitted_at && isValidDate(l.submitted_at) ? new Date(l.submitted_at).toISOString() : null,
+          submitted_at: normalizeDate(l.submitted_at)?.toISOString() ?? null,
           status: l.status,
           name: l.name,
           email: l.email,
@@ -397,7 +407,7 @@ export default function Import() {
       const { data, error } = await supabase.from("sales").upsert(
         toInsert.map((s) => ({
           order_id: s.order_id,
-          date: s.date && isValidDate(s.date) ? new Date(s.date).toISOString().split("T")[0] : null,
+          date: normalizeDate(s.date)?.toISOString().split("T")[0] ?? null,
           email: s.email,
           product_name: s.product_name,
           revenue: s.revenue,
@@ -450,10 +460,9 @@ export default function Import() {
           lead_id: l.lead_id,
           cognito_form: l.cognito_form,
           cognito_entry_number: l.cognito_entry_number,
-          submitted_at: l.submitted_at && isValidDate(l.submitted_at) ? new Date(l.submitted_at).toISOString() : null,
+          submitted_at: normalizeDate(l.submitted_at)?.toISOString() ?? null,
           name: l.name,
           email: l.email,
-          email_norm: l.email_norm,
           phone: l.phone,
           phrase: l.phrase,
           sign_style: l.sign_style,
@@ -472,9 +481,8 @@ export default function Import() {
         .slice(0, 10)
         .map((s) => ({
           order_id: s.order_id,
-          date: s.date && isValidDate(s.date) ? new Date(s.date).toISOString().split("T")[0] : null,
+          date: normalizeDate(s.date)?.toISOString().split("T")[0] ?? null,
           email: s.email,
-          email_norm: s.email_norm,
           product_name: s.product_name,
           revenue: s.revenue,
           sale_type: "unknown",
