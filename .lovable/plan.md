@@ -1,97 +1,161 @@
 
-# Import Enhancements + Attribution Inbox Upgrade
 
-## Changes to `src/pages/Import.tsx`
+# Multi-Signal Attribution Matching -- Implementation Plan
 
-### 1. Dry Run Mode
-- Add `dryRun` boolean state (default: `true`)
-- Add a checkbox/switch toggle labeled "Dry Run (no database writes)"
-- Single primary button behavior:
-  - When `dryRun=true`: button labeled "Run Dry Run", runs all parsing/validation/dedup but no upsert
-  - When `dryRun=false`: button labeled "Confirm Import", performs the real upsert
-- After dry run completes, show a callout/alert: "Dry run complete. Turn OFF Dry Run to import."
-- Add `dryRunComplete` state to track whether a dry run has finished
-- Show a summary card after dry run: total parsed, valid, skipped (with reasons), would-insert count, in-file duplicates
-- Show collapsible "Transformed Payload Preview" with the first 10 JSON objects that would be sent
+## Overview
 
-### 2. Cognito Form Mapping Presets
-- Create new file `src/lib/cognitoMappings.ts` with a `FORM_COLUMN_MAPPINGS` object keyed by form name
-- Each form defines candidate column names for: entry_number, submitted_at, name, email, phone, phrase, sign_style, size_text, budget_text, status, notes
-- Forms like `rental_guide_download` omit phrase/size/budget candidates (those fields stay null)
-- Refactor `handleLeadsFiles` to use the selected form's mapping preset instead of hardcoded column candidates
+Move the smart matching engine from client-side JavaScript to server-side SQL. Add richer sales text extraction, tighter candidate filtering, proper backfill, indexes, and a manual "Link to lead" UI with search fallback.
 
-### 3. Transform Validator Panel
-- After parsing, run validation on every row and store results in a `validationIssues` state array of `{rowIndex, field, reason, level}` objects
-- **Leads validation:**
-  - `lead_id`: required (error) -- rows without entry number already skipped
-  - `submitted_at`: required, must be parseable as date (error)
-  - `email`: recommended but NOT required; if missing/invalid, set email_norm to null and flag as **warning** (row still importable)
-- **Sales validation:**
-  - `order_id`: required (error)
-  - `revenue`: required, must be valid number (error)
-  - `date`: required, must be parseable as date (error)
-  - `email`: required (error) -- needed for matching
-- Show a "Validation Issues" card listing row numbers and failure reasons, color-coded (red for errors, amber for warnings)
-- Error rows are excluded from "would insert" count; warning rows are included
+## What Will Change
 
-### 4. Duplicate Counting
-- In-file duplicate detection using a Set on lead_id / order_id (already partially done)
-- During real import (`dryRun=false`), use `ignoreDuplicates: true` on upsert; compare returned count vs sent count to determine DB-level duplicates
-- Report in summary: "X in-file duplicates skipped, Y already in database"
+### For You (the User)
+- After importing sales, auto-matching will link more sales to leads using keyword/domain/timing signals (not just email)
+- The Attribution Inbox will show server-computed suggestions with scores and reasoning
+- A new "Link" button on each sale card opens a modal where you can confirm a suggested lead or search manually
+- A "Backfill Smart Matches" button lets you re-run matching on all existing unmatched sales
 
-### 5. Matching Preview (Sales Dry Run)
-- When sales CSV is parsed and dry run completes, query the `leads` table for count
-- If leads table has 0 rows: show "No leads in database yet. Import leads first." and skip match computation
-- If leads exist: query `leads` for `email_norm` values, compute how many parsed sales would auto-match within the 60-day window
-- Show a "Matching Preview" card: "X of Y sales would auto-match to existing leads"
+### What Gets Built
 
 ---
 
-## New file: `src/lib/cognitoMappings.ts`
-- Exports `FORM_COLUMN_MAPPINGS` record keyed by cognito form name
-- Each entry is an object with arrays of candidate column names for each field
-- Example: `general_quote` maps email to `["Email", "Email Address"]`, phrase to `["Phrase", "Text", "Custom Text", "Message"]`
-- `rental_guide_download` has empty arrays for phrase, sign_style, size_text, budget_text
+## 1. Database Migration
+
+### A. Helper Functions (9 functions)
+
+| Function | Purpose |
+|----------|---------|
+| `normalize_text(t text)` | Lowercase, strip non-alphanumeric, collapse whitespace |
+| `extract_domain(email text)` | Returns domain part after @ |
+| `is_free_email_domain(domain text)` | True for gmail, yahoo, hotmail, etc. (10 providers) |
+| `tokenize_text(t text)` | Split into tokens, drop < 2 chars, keep 2-3 digit numbers |
+| `remove_stopwords(tokens text[])` | Remove ~40 industry stopwords |
+| `strong_tokens_fn(tokens text[])` | Keep tokens >= 4 chars with at least one letter, mixed alphanumeric, or acronyms >= 3 chars. Excludes numeric-only tokens |
+| `array_intersect(a text[], b text[])` | Common elements between two arrays |
+| `backfill_smart_matches(lookback_days, min_score, min_gap)` | Auto-link high-confidence matches |
+| `get_match_suggestions(sale_id, lookback_days, limit_n)` | Read-only scoring for UI suggestions |
+| `search_leads(search_term, limit_n)` | Manual search fallback |
+
+### B. New Columns
+
+**leads:** `match_text text`, `match_tokens text[]`, `strong_tokens text[]`, `email_domain text GENERATED ALWAYS AS (extract_domain(email)) STORED`
+
+**sales:** `order_text text`, `match_text text`, `match_tokens text[]`, `strong_tokens text[]`, `email_domain text GENERATED ALWAYS AS (extract_domain(email)) STORED`
+
+### C. Triggers
+
+- `BEFORE INSERT OR UPDATE` on leads: computes match_text from name/email/phrase/sign_style/size_text/notes, then tokenizes
+- `BEFORE INSERT OR UPDATE` on sales: computes match_text from order_id/email/product_name/order_text, then tokenizes
+
+### D. Explicit Backfill (no trigger hack)
+
+The migration runs direct UPDATE statements to populate all existing rows:
+- Leads: concatenate text fields and compute tokens
+- Sales: build `order_text` from raw_payload by concatenating ALL string values (excluding keys matching revenue/total/tax/shipping/discount/amount/qty/quantity/zip/postal/phone/price/cost/profit/manufacturing), then compute tokens
+
+### E. Indexes
+
+- B-tree on `leads(email_domain)`, `sales(email_domain)`, `leads(submitted_at)`, `sales(date)`
+- GIN on `leads(strong_tokens)`, `sales(strong_tokens)`
+
+### F. Constraint Update
+
+Add `'domain_plus_keywords'` and `'keywords_strict'` to the `sales_match_method_check` constraint.
+
+### G. Scoring Formula (used in both RPCs)
+
+```text
+Email exact match:              +100
+Corporate domain match:          +50
+Strong token overlap:            +15 each (cap 45)
+General token overlap:            +3 each (cap 25)
+Sign style exact match:          +15
+Size number overlap:             +10
+Recency <= 14 days:              +10
+Recency 15-45 days:               +5
+```
+
+### H. Candidate Filtering (tightened)
+
+A lead becomes a candidate ONLY if one of:
+- Email exact match (case-insensitive trimmed)
+- Strong token overlap >= 2
+- Corporate domain match AND strong overlap >= 1
+
+### I. Auto-Link Safety Gates
+
+ALL must hold:
+1. Top score >= 95 (default)
+2. Gap to second-best >= 20 (or no second)
+3. At least one of: email_exact, strong_overlap >= 2, domain + strong >= 1
+
+Tie-breaker: when scores are equal, pick the most recent lead before the sale (ORDER BY score DESC, submitted_at DESC).
+
+### J. match_reason
+
+Each auto-linked sale gets a human-readable `match_reason` like: `"domain_match midpennbank.com; strong_overlap=2 (mpb, midpenn); recency=12d"`
 
 ---
 
-## Changes to `src/pages/Attribution.tsx`
+## 2. Import Flow Changes (src/pages/Import.tsx)
 
-### Dismiss with localStorage Persistence
-- Add `dismissedIds` state initialized from `localStorage.getItem("vml-dismissed-sales")`
-- When Dismiss is clicked, add the sale's `order_id` to the Set and persist to localStorage
-- Filter out dismissed sales from the visible list by default
-- Add a "Show dismissed" toggle (switch) at the top of the page
-- When toggled on, show dismissed sales with a visual indicator (e.g., muted/strikethrough styling)
+### Sales Importer: Build `order_text`
+
+When parsing sales CSV rows, build `order_text` by concatenating descriptive column values while excluding noise columns (revenue, total, tax, shipping, discount, amount, qty, quantity, zip, postal, phone, price, cost, profit, manufacturing). Only include values that contain at least one letter.
+
+Add `order_text` to the `ParsedSale` interface and include it in the upsert payload.
+
+### Post-Import Auto-Matching
+
+After sales import, call both RPCs:
+1. `backfill_email_matches()` (existing exact email)
+2. `backfill_smart_matches({ lookback_days: 120, min_score: 95, min_gap: 20 })`
+
+Show toast with combined results.
 
 ---
 
-## Changes to `src/components/AppLayout.tsx`
+## 3. Attribution Inbox Changes (src/pages/Attribution.tsx)
 
-### Unmatched Sales Badge
-- Add a `useQuery` to fetch count of unmatched sales (`sale_type='unknown'`, `lead_id IS NULL`)
-- Show a small numeric badge next to "Attribution Inbox" nav item when count > 0
+### Remove Client-Side Smart Matching
+- Remove import of `getSmartSuggestions` / `shouldAutoApply` from `smartMatch.ts`
+- Remove the `candidateLeads` query (no more fetching 2000 leads)
+- Remove the `suggestionsMap` memo
+
+### Add "Backfill Smart Matches" Button
+Calls `backfill_smart_matches` RPC, shows toast with linked_count, refreshes inbox.
+
+### Add "Link" Button per Sale Card
+Opens a dialog that:
+1. Loads suggestions from `get_match_suggestions(sale_id)` RPC
+2. Shows each suggestion with: lead name, email, phrase, submitted_at, score, reason chips, "Confirm Link" button
+3. If no suggestions, shows a search box (manual fallback) calling `search_leads(term)` RPC
+4. "Confirm Link" updates the sale (match_method='manual', sale_type='new_lead') and refreshes
+
+### Sale Card Suggestions
+Each sale card still shows inline suggestions loaded on-demand from `get_match_suggestions`.
 
 ---
 
 ## Technical Details
 
-### Validation rules summary
+### Sales `date` column
+The existing `date` column (type `date`) is kept. RPCs use `coalesce(s.date::timestamptz, s.created_at, now())` for sale_time.
 
-| Table | Field | Level | Rule |
-|-------|-------|-------|------|
-| leads | lead_id | error | Must be non-empty |
-| leads | submitted_at | error | Must be parseable as date |
-| leads | email | warning | If missing, email_norm = null; flag but allow |
-| sales | order_id | error | Must be non-empty |
-| sales | revenue | error | Must be valid number |
-| sales | date | error | Must be parseable as date |
-| sales | email | error | Must be non-empty |
+### order_text exclusion rules (Import)
+Columns are excluded if their normalized header matches: revenue, total, tax, shipping, discount, amount, qty, quantity, zip, postal, phone, price, cost, profit, manufacturing. Additionally, values that are purely numeric or money-like (matching `/^[\$\d,.\-\s]+$/`) are excluded.
 
-### Files modified
-- `src/pages/Import.tsx` -- major rework with dry run, validation, matching preview, cognito presets
-- `src/pages/Attribution.tsx` -- dismiss with localStorage, show dismissed toggle
-- `src/components/AppLayout.tsx` -- unmatched sales count badge
+### strong_tokens_fn rules
+- Tokens >= 4 chars that contain at least one letter
+- Mixed letter+digit tokens of any length (e.g., "jrla2026")
+- Tokens >= 3 chars that are all letters (acronyms like "mpb", "agls")
+- Excludes: numeric-only tokens (sizes handled by separate size-overlap scoring)
 
-### New files
-- `src/lib/cognitoMappings.ts` -- form column mapping presets
+### Files Modified
+
+| File | Change |
+|------|--------|
+| New migration SQL | Helper functions, columns, triggers, explicit backfill, indexes, constraint update, 3 RPCs |
+| `src/pages/Import.tsx` | Add order_text to ParsedSale, smart column filtering, include in upsert, call backfill_smart_matches after import |
+| `src/pages/Attribution.tsx` | Remove client-side matching, add server-side suggestions via RPC, Link modal with search fallback, Backfill Smart Matches button |
+| `src/integrations/supabase/types.ts` | Auto-updated with new columns/RPCs |
+
