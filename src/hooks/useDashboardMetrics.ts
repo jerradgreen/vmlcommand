@@ -1,27 +1,60 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfMonth, endOfMonth, subDays, format } from "date-fns";
+import { subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, format } from "date-fns";
 
-export function useDashboardMetrics() {
+export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "custom";
+
+export interface DateRange {
+  preset: DatePreset;
+  from?: Date;
+  to?: Date;
+}
+
+function getDateBounds(range: DateRange): { from: Date | null; to: Date | null } {
   const now = new Date();
-  const mtdStart = startOfMonth(now);
-  const mtdEnd = endOfMonth(now);
+  switch (range.preset) {
+    case "all":
+      return { from: null, to: null };
+    case "today":
+      return { from: startOfDay(now), to: endOfDay(now) };
+    case "yesterday": {
+      const y = subDays(now, 1);
+      return { from: startOfDay(y), to: endOfDay(y) };
+    }
+    case "7d":
+      return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
+    case "30d":
+      return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
+    case "mtd":
+      return { from: startOfMonth(now), to: endOfMonth(now) };
+    case "custom":
+      return { from: range.from ?? null, to: range.to ?? null };
+    default:
+      return { from: null, to: null };
+  }
+}
+
+export function useDashboardMetrics(range: DateRange) {
+  const { from, to } = getDateBounds(range);
+  const key = from ? format(from, "yyyy-MM-dd") : "all";
+  const keyEnd = to ? format(to, "yyyy-MM-dd") : "all";
 
   return useQuery({
-    queryKey: ["dashboard-metrics", format(mtdStart, "yyyy-MM-dd")],
+    queryKey: ["dashboard-metrics", key, keyEnd],
     queryFn: async () => {
-      const [leadsRes, salesRes] = await Promise.all([
-        supabase
-          .from("leads")
-          .select("id, submitted_at")
-          .gte("submitted_at", mtdStart.toISOString())
-          .lte("submitted_at", mtdEnd.toISOString()),
-        supabase
-          .from("sales")
-          .select("id, revenue, sale_type, match_method, lead_id, date")
-          .gte("date", format(mtdStart, "yyyy-MM-dd"))
-          .lte("date", format(mtdEnd, "yyyy-MM-dd")),
-      ]);
+      let leadsQuery = supabase.from("leads").select("id, submitted_at");
+      let salesQuery = supabase.from("sales").select("id, revenue, sale_type, match_method, lead_id, date");
+
+      if (from) {
+        leadsQuery = leadsQuery.gte("submitted_at", from.toISOString());
+        salesQuery = salesQuery.gte("date", format(from, "yyyy-MM-dd"));
+      }
+      if (to) {
+        leadsQuery = leadsQuery.lte("submitted_at", to.toISOString());
+        salesQuery = salesQuery.lte("date", format(to, "yyyy-MM-dd"));
+      }
+
+      const [leadsRes, salesRes] = await Promise.all([leadsQuery, salesQuery]);
 
       const leads = leadsRes.data ?? [];
       const sales = salesRes.data ?? [];
@@ -30,13 +63,14 @@ export function useDashboardMetrics() {
       const totalSales = sales.length;
       const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
 
-      const emailExactSales = sales.filter((s) => s.match_method === "email_exact");
       const newLeadSales = sales.filter((s) => s.sale_type === "new_lead");
       const repeatDirectSales = sales.filter((s) => s.sale_type === "repeat_direct");
       const unmatchedSales = sales.filter((s) => s.sale_type === "unknown" && !s.lead_id);
 
-      const strictCloseRate = totalLeads > 0 ? emailExactSales.length / totalLeads : 0;
-      const confirmedCloseRate = totalLeads > 0 ? newLeadSales.length / totalLeads : 0;
+      // Close rate: leads vs sales, excluding repeat/direct
+      const nonRepeatSales = sales.filter((s) => s.sale_type !== "repeat_direct");
+      const closeRate = totalLeads > 0 ? nonRepeatSales.length / totalLeads : 0;
+
       const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
       const newLeadRevenue = newLeadSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const repeatDirectRevenue = repeatDirectSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
@@ -45,8 +79,7 @@ export function useDashboardMetrics() {
         totalRevenue,
         totalLeads,
         totalSales,
-        strictCloseRate,
-        confirmedCloseRate,
+        closeRate,
         avgOrderValue,
         newLeadRevenue,
         repeatDirectRevenue,
@@ -56,54 +89,58 @@ export function useDashboardMetrics() {
   });
 }
 
-export function useTrendData() {
-  const now = new Date();
-  const thirtyDaysAgo = subDays(now, 30);
+export function useTrendData(range: DateRange) {
+  const { from, to } = getDateBounds(range);
+  // Default to 30 days if all-time
+  const trendFrom = from ?? subDays(new Date(), 30);
+  const trendTo = to ?? new Date();
+  const days = Math.ceil((trendTo.getTime() - trendFrom.getTime()) / (1000 * 60 * 60 * 24));
 
   return useQuery({
-    queryKey: ["trend-data", format(thirtyDaysAgo, "yyyy-MM-dd")],
+    queryKey: ["trend-data", format(trendFrom, "yyyy-MM-dd"), format(trendTo, "yyyy-MM-dd")],
     queryFn: async () => {
       const [leadsRes, salesRes] = await Promise.all([
         supabase
           .from("leads")
           .select("submitted_at")
-          .gte("submitted_at", thirtyDaysAgo.toISOString())
+          .gte("submitted_at", trendFrom.toISOString())
+          .lte("submitted_at", trendTo.toISOString())
           .order("submitted_at"),
         supabase
           .from("sales")
           .select("date, revenue")
-          .gte("date", format(thirtyDaysAgo, "yyyy-MM-dd"))
+          .gte("date", format(trendFrom, "yyyy-MM-dd"))
+          .lte("date", format(trendTo, "yyyy-MM-dd"))
           .order("date"),
       ]);
 
       const leads = leadsRes.data ?? [];
       const sales = salesRes.data ?? [];
 
-      // Build daily aggregates
-      const days: Record<string, { date: string; leads: number; sales: number; revenue: number }> = {};
-      for (let i = 0; i <= 30; i++) {
-        const d = format(subDays(now, 30 - i), "yyyy-MM-dd");
-        days[d] = { date: d, leads: 0, sales: 0, revenue: 0 };
+      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number }> = {};
+      for (let i = 0; i <= days; i++) {
+        const d = format(subDays(trendTo, days - i), "yyyy-MM-dd");
+        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0 };
       }
 
       leads.forEach((l) => {
         if (l.submitted_at) {
           const d = format(new Date(l.submitted_at), "yyyy-MM-dd");
-          if (days[d]) days[d].leads++;
+          if (dayMap[d]) dayMap[d].leads++;
         }
       });
 
       sales.forEach((s) => {
         if (s.date) {
           const d = typeof s.date === "string" ? s.date : format(new Date(s.date), "yyyy-MM-dd");
-          if (days[d]) {
-            days[d].sales++;
-            days[d].revenue += Number(s.revenue) || 0;
+          if (dayMap[d]) {
+            dayMap[d].sales++;
+            dayMap[d].revenue += Number(s.revenue) || 0;
           }
         }
       });
 
-      return Object.values(days);
+      return Object.values(dayMap);
     },
   });
 }
