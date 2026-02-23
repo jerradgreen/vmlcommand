@@ -116,17 +116,22 @@ export default function Dashboard() {
   }
 
   const m = metrics ?? {
+    earliestDate: null as string | null,
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
     closeRate: 0, avgOrderValue: 0,
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
   };
+
+  const subtitle = dateRange.preset === "all" && m.earliestDate
+    ? `All Time (since ${format(new Date(m.earliestDate), "MMM d, yyyy")})`
+    : `${presetLabels[dateRange.preset]} performance overview`;
 
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">{presetLabels[dateRange.preset]} performance overview</p>
+          <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={dateRange.preset} onValueChange={handlePresetChange}>
