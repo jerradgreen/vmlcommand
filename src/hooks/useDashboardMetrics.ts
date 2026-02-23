@@ -42,16 +42,16 @@ export function useDashboardMetrics(range: DateRange) {
   return useQuery({
     queryKey: ["dashboard-metrics", key, keyEnd],
     queryFn: async () => {
-      let leadsQuery = supabase.from("leads").select("id, submitted_at");
+      let leadsCountQuery = supabase.from("leads").select("id", { count: "exact", head: true });
       let salesQuery = supabase.from("sales").select("id, revenue, sale_type, match_method, lead_id, date");
       const earliestQuery = supabase.from("sales").select("date").order("date", { ascending: true }).limit(1);
 
       if (from) {
-        leadsQuery = leadsQuery.gte("submitted_at", from.toISOString());
+        leadsCountQuery = leadsCountQuery.gte("submitted_at", from.toISOString());
         salesQuery = salesQuery.gte("date", format(from, "yyyy-MM-dd"));
       }
       if (to) {
-        leadsQuery = leadsQuery.lte("submitted_at", to.toISOString());
+        leadsCountQuery = leadsCountQuery.lte("submitted_at", to.toISOString());
         salesQuery = salesQuery.lte("date", format(to, "yyyy-MM-dd"));
       }
 
@@ -62,7 +62,7 @@ export function useDashboardMetrics(range: DateRange) {
       const todayStr = format(now, "yyyy-MM-dd");
 
       const [leadsRes, salesRes, earliestRes, todayExpRes, mtdExpRes, mtdSalesRes] = await Promise.all([
-        leadsQuery,
+        leadsCountQuery,
         salesQuery,
         earliestQuery,
         supabase.from("expenses").select("amount").eq("category", "ads").eq("date", todayStr),
@@ -70,10 +70,9 @@ export function useDashboardMetrics(range: DateRange) {
         supabase.from("sales").select("revenue").gte("date", mtdFrom).lte("date", mtdTo),
       ]);
 
-      const leads = leadsRes.data ?? [];
       const sales = salesRes.data ?? [];
 
-      const totalLeads = leads.length;
+      const totalLeads = leadsRes.count ?? 0;
       const totalSales = sales.length;
       const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
 
