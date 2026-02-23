@@ -107,6 +107,9 @@ export type Database = {
           revenue: number | null
           sale_type: string
           strong_tokens: string[] | null
+          suggested_lead_id: string | null
+          suggested_reasons: string[] | null
+          suggested_score: number | null
         }
         Insert: {
           created_at?: string
@@ -128,6 +131,9 @@ export type Database = {
           revenue?: number | null
           sale_type?: string
           strong_tokens?: string[] | null
+          suggested_lead_id?: string | null
+          suggested_reasons?: string[] | null
+          suggested_score?: number | null
         }
         Update: {
           created_at?: string
@@ -149,11 +155,21 @@ export type Database = {
           revenue?: number | null
           sale_type?: string
           strong_tokens?: string[] | null
+          suggested_lead_id?: string | null
+          suggested_reasons?: string[] | null
+          suggested_score?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "sales_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_suggested_lead_id_fkey"
+            columns: ["suggested_lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
@@ -171,7 +187,12 @@ export type Database = {
         Args: { lookback_days?: number; min_gap?: number; min_score?: number }
         Returns: Json
       }
+      bulk_generate_suggestions: {
+        Args: { lookback_days?: number }
+        Returns: Json
+      }
       extract_domain: { Args: { email: string }; Returns: string }
+      get_attribution_diagnostics: { Args: never; Returns: Json }
       get_match_suggestions: {
         Args: { limit_n?: number; lookback_days?: number; p_sale_id: string }
         Returns: {
