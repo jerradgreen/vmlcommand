@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          date: string
+          external_id: string | null
+          id: string
+          ingested_at: string | null
+          notes: string | null
+          platform: string
+          raw_payload: Json | null
+          source_system: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          date: string
+          external_id?: string | null
+          id?: string
+          ingested_at?: string | null
+          notes?: string | null
+          platform: string
+          raw_payload?: Json | null
+          source_system?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          date?: string
+          external_id?: string | null
+          id?: string
+          ingested_at?: string | null
+          notes?: string | null
+          platform?: string
+          raw_payload?: Json | null
+          source_system?: string
+        }
+        Relationships: []
+      }
       ingestion_logs: {
         Row: {
           created_at: string

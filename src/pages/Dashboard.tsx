@@ -120,6 +120,7 @@ export default function Dashboard() {
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
     closeRate: 0, avgOrderValue: 0,
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
+    todayAdSpend: 0, mtdAdSpend: 0, mtdRevenue: 0, mtdRoas: 0, netAfterAds: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -190,6 +191,17 @@ export default function Dashboard() {
           subtitle="Click to review"
           onClick={() => navigate("/attribution")}
         />
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Ad Spend (MTD)</h2>
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <MetricCard title="Today Ad Spend" value={formatCurrency(m.todayAdSpend)} icon={DollarSign} subtitle="All platforms" />
+          <MetricCard title="MTD Ad Spend" value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle="Month to date" />
+          <MetricCard title="MTD Revenue" value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle="Month to date" />
+          <MetricCard title="MTD ROAS" value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" />
+          <MetricCard title="Net After Ads" value={formatCurrency(m.netAfterAds)} icon={BarChart3} subtitle="Revenue − Ad Spend" />
+        </div>
       </div>
 
       {!trendsLoading && trends && (
