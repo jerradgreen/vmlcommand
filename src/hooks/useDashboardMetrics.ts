@@ -44,6 +44,7 @@ export function useDashboardMetrics(range: DateRange) {
     queryFn: async () => {
       let leadsQuery = supabase.from("leads").select("id, submitted_at");
       let salesQuery = supabase.from("sales").select("id, revenue, sale_type, match_method, lead_id, date");
+      const earliestQuery = supabase.from("sales").select("date").order("date", { ascending: true }).limit(1);
 
       if (from) {
         leadsQuery = leadsQuery.gte("submitted_at", from.toISOString());
@@ -54,7 +55,7 @@ export function useDashboardMetrics(range: DateRange) {
         salesQuery = salesQuery.lte("date", format(to, "yyyy-MM-dd"));
       }
 
-      const [leadsRes, salesRes] = await Promise.all([leadsQuery, salesQuery]);
+      const [leadsRes, salesRes, earliestRes] = await Promise.all([leadsQuery, salesQuery, earliestQuery]);
 
       const leads = leadsRes.data ?? [];
       const sales = salesRes.data ?? [];
@@ -74,8 +75,10 @@ export function useDashboardMetrics(range: DateRange) {
       const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
       const newLeadRevenue = newLeadSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const repeatDirectRevenue = repeatDirectSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
+      const earliestDate = earliestRes.data?.[0]?.date ?? null;
 
       return {
+        earliestDate,
         totalRevenue,
         totalLeads,
         totalSales,
