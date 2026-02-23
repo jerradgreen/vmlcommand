@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns";
+import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format } from "date-fns";
 
 export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "ytd" | "custom";
 
@@ -26,9 +26,9 @@ function getDateBounds(range: DateRange): { from: Date | null; to: Date | null }
     case "30d":
       return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
     case "mtd":
-      return { from: startOfMonth(now), to: endOfMonth(now) };
+      return { from: startOfMonth(now), to: endOfDay(now) };
     case "ytd":
-      return { from: startOfYear(now), to: endOfYear(now) };
+      return { from: startOfYear(now), to: endOfDay(now) };
     case "custom":
       return { from: range.from ?? null, to: range.to ?? null };
     default:
@@ -60,7 +60,7 @@ export function useDashboardMetrics(range: DateRange) {
       // MTD boundaries (always computed)
       const now = new Date();
       const mtdFrom = format(startOfMonth(now), "yyyy-MM-dd");
-      const mtdTo = format(endOfMonth(now), "yyyy-MM-dd");
+      const mtdTo = format(now, "yyyy-MM-dd");
       const todayStr = format(now, "yyyy-MM-dd");
 
       const [leadsRes, salesRes, earliestRes, todayExpRes, mtdExpRes, mtdSalesRes] = await Promise.all([
