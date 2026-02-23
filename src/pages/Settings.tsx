@@ -128,6 +128,26 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Authentication</CardTitle>
+          <CardDescription>All webhook requests must include an API key header.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Required Header</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-sm bg-muted rounded px-3 py-2">x-api-key</code>
+              <CopyButton text="x-api-key" />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Set this same value in your Zapier Webhook headers under <strong>Custom Headers</strong>.
+            Requests without a valid key will receive a <code className="text-xs bg-muted px-1 py-0.5 rounded">401 Unauthorized</code> response.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Debugging</CardTitle>
         </CardHeader>
         <CardContent>
