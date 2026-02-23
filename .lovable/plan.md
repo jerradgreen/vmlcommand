@@ -1,58 +1,64 @@
 
 
-# Deterministic Attribution Matching -- Implementation Plan
+# Attribution Matching -- Implementation Plan
 
 ## Overview
 
-Simple deterministic matching system replacing the previous multi-signal scoring engine. Prioritizes clarity and simplicity over probabilistic matching.
+Simple, productive attribution system: strict auto-linking + broad pre-computed suggestions for fast manual confirmation.
 
-## Auto-Link Rules
-
-A sale is auto-linked to a lead when ANY of these match (checked in order, first match wins):
+## Auto-Link Rules (strict, safe)
 
 | Rule | Condition | match_method |
 |------|-----------|-------------|
 | A | Exact email match (case-insensitive) | `email_exact` |
-| B | Same corporate domain (non-free email) | `domain_match` |
-| C | `sale.product_name ILIKE '%' \|\| lead.phrase \|\| '%'` | `phrase_match` |
-| D | `lead.phrase ILIKE '%' \|\| sale.product_name \|\| '%'` | `phrase_match` |
+| B | Non-free domain match + ≥1 strong token overlap | `domain_match` |
+| C | Exact name match (sale First+Last = lead.name) | `manual` |
 
 All auto-links set `match_confidence = 100` and `sale_type = 'new_lead'`.
 
-Tie-breaker: most recent lead before the sale (`submitted_at DESC`).
+## Suggestion Scoring (for UI, no auto-link)
 
-## Suggestion Rules (for UI)
+| Signal | Points |
+|--------|--------|
+| Email exact | +100 |
+| Corporate domain match | +40 |
+| Exact name match | +30 |
+| Partial name (first/last) | +15 each |
+| Strong token overlap | +10 each (cap 40) |
+| Phrase/product overlap | +20 each direction |
+| Recency ≤14d | +15 |
+| Recency 15-45d | +8 |
+| Recency 46-90d | +3 |
 
-Return leads matching ANY of:
-- Same corporate domain
-- `phrase ILIKE product_name`
-- `product_name ILIKE phrase`
-- `lead.name ILIKE product_name`
-- `product_name ILIKE lead.name`
+## Pre-Suggest System
 
-Ordered by `submitted_at DESC`, limit 5.
+- `bulk_generate_suggestions(lookback_days)` fills `suggested_lead_id`, `suggested_score`, `suggested_reasons` on each unmatched sale
+- UI shows top suggestion on each card with one-click Confirm
+- "More Options" expands to show all candidates from `get_match_suggestions`
 
-## What Was Removed
+## Diagnostics RPC
 
-- Strong tokens / token overlap scoring
-- Scoring formula (weighted points system)
-- Recency boost
-- min_score / min_gap safety gates
-- Score display in UI (pts badges)
+`get_attribution_diagnostics()` returns: unmatched count, with/without suggestions, free/corporate/no-email breakdown, top 20 tokens.
 
 ## RPCs
 
 | Function | Purpose |
 |----------|---------|
-| `backfill_email_matches()` | Exact email linking (unchanged) |
-| `backfill_smart_matches(lookback_days)` | Deterministic auto-linking (rules A-D) |
-| `get_match_suggestions(p_sale_id, lookback_days, limit_n)` | Read-only suggestions for UI |
-| `search_leads(search_term, limit_n)` | Manual search fallback (unchanged) |
+| `backfill_email_matches()` | Exact email linking |
+| `backfill_smart_matches(lookback_days)` | Safe auto-linking (email + domain+tokens + exact name) |
+| `bulk_generate_suggestions(lookback_days)` | Pre-compute best candidate per unmatched sale |
+| `get_match_suggestions(p_sale_id, lookback_days, limit_n)` | On-demand scored suggestions |
+| `get_attribution_diagnostics()` | Debug stats |
+| `search_leads(search_term, limit_n)` | Manual search fallback |
 
-## Files Modified
+## Sales Columns Added
 
-| File | Change |
-|------|--------|
-| Migration SQL | Replaced `backfill_smart_matches` and `get_match_suggestions` RPCs |
-| `src/pages/Attribution.tsx` | Removed score display, simplified RPC calls |
-| `src/pages/Import.tsx` | Simplified `runAutoMatching` call |
+| Column | Purpose |
+|--------|---------|
+| `suggested_lead_id` | Pre-computed best candidate (no link) |
+| `suggested_score` | Score of best candidate |
+| `suggested_reasons` | Array of reason strings |
+
+## order_text Rebuild
+
+All sales `order_text` rebuilt from `raw_payload` using ALL text values except noise fields (Date, Price, Profit, Quantity, Order ID, totals, costs, Email).
