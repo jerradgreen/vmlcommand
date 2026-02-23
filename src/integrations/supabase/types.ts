@@ -182,6 +182,10 @@ export type Database = {
     }
     Functions: {
       array_intersect: { Args: { a: string[]; b: string[] }; Returns: string[] }
+      array_intersect_stem: {
+        Args: { a: string[]; b: string[] }
+        Returns: string[]
+      }
       backfill_email_matches: { Args: never; Returns: number }
       backfill_smart_matches: {
         Args: { lookback_days?: number; min_gap?: number; min_score?: number }
