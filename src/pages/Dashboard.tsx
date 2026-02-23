@@ -1,21 +1,30 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import { useDashboardMetrics, useTrendData } from "@/hooks/useDashboardMetrics";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { LineChart, Line, XAxis, YAxis } from "recharts";
+import { useDashboardMetrics, useTrendData, DateRange, DatePreset } from "@/hooks/useDashboardMetrics";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
-import { DollarSign, Users, ShoppingCart, TrendingUp, Target, BarChart3, RefreshCw, AlertCircle } from "lucide-react";
+import { DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw, AlertCircle, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
-function MetricCard({ title, value, icon: Icon, subtitle, link }: {
+function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
   title: string;
   value: string;
   icon: React.ElementType;
   subtitle?: string;
-  link?: string;
+  onClick?: () => void;
 }) {
-  const content = (
-    <Card className="hover:shadow-md transition-shadow">
+  return (
+    <Card
+      className={cn("hover:shadow-md transition-shadow", onClick && "cursor-pointer")}
+      onClick={onClick}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -26,7 +35,6 @@ function MetricCard({ title, value, icon: Icon, subtitle, link }: {
       </CardContent>
     </Card>
   );
-  return link ? <Link to={link}>{content}</Link> : content;
 }
 
 const chartConfig = {
@@ -44,7 +52,7 @@ function TrendChart({ data, dataKey, label, formatFn }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{label} — Last 30 Days</CardTitle>
+        <CardTitle className="text-base">{label} Trend</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[200px] w-full">
@@ -71,9 +79,37 @@ function TrendChart({ data, dataKey, label, formatFn }: {
   );
 }
 
+const presetLabels: Record<DatePreset, string> = {
+  all: "All Time",
+  today: "Today",
+  yesterday: "Yesterday",
+  "7d": "Last 7 Days",
+  "30d": "Last 30 Days",
+  mtd: "Month to Date",
+  custom: "Custom Range",
+};
+
 export default function Dashboard() {
-  const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
-  const { data: trends, isLoading: trendsLoading } = useTrendData();
+  const [dateRange, setDateRange] = useState<DateRange>({ preset: "all" });
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
+  const navigate = useNavigate();
+
+  const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
+  const { data: trends, isLoading: trendsLoading } = useTrendData(dateRange);
+
+  const handlePresetChange = (value: string) => {
+    const preset = value as DatePreset;
+    if (preset === "custom") {
+      setDateRange({ preset: "custom", from: customFrom, to: customTo });
+    } else {
+      setDateRange({ preset });
+    }
+  };
+
+  const applyCustomRange = () => {
+    setDateRange({ preset: "custom", from: customFrom, to: customTo });
+  };
 
   if (metricsLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading metrics…</div>;
@@ -81,32 +117,73 @@ export default function Dashboard() {
 
   const m = metrics ?? {
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
-    strictCloseRate: 0, confirmedCloseRate: 0, avgOrderValue: 0,
+    closeRate: 0, avgOrderValue: 0,
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">Month-to-date performance overview</p>
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">{presetLabels[dateRange.preset]} performance overview</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={dateRange.preset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(presetLabels).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {dateRange.preset === "custom" && (
+            <div className="flex items-center gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {customFrom ? format(customFrom, "MMM d") : "From"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground text-sm">–</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {customTo ? format(customTo, "MMM d") : "To"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customTo} onSelect={setCustomTo} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              <Button size="sm" onClick={applyCustomRange}>Apply</Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
-        <MetricCard title="Revenue MTD" value={formatCurrency(m.totalRevenue)} icon={DollarSign} />
-        <MetricCard title="Leads MTD" value={formatNumber(m.totalLeads)} icon={Users} />
-        <MetricCard title="Sales MTD" value={formatNumber(m.totalSales)} icon={ShoppingCart} />
-        <MetricCard title="Strict Close Rate" value={formatPercent(m.strictCloseRate)} icon={Target} subtitle="Email-exact matches only" />
-        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.confirmedCloseRate)} icon={TrendingUp} subtitle="All new_lead matches" />
-        <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} />
-        <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" />
-        <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" />
+        <MetricCard title="Revenue" value={formatCurrency(m.totalRevenue)} icon={DollarSign} onClick={() => navigate("/sales")} />
+        <MetricCard title="Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => navigate("/leads")} />
+        <MetricCard title="Sales" value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
+        <MetricCard title="Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="Leads ÷ Sales (excl. repeat/direct)" onClick={() => navigate("/sales")} />
+        <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} onClick={() => navigate("/sales")} />
+        <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" onClick={() => navigate("/sales")} />
+        <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" onClick={() => navigate("/sales")} />
         <MetricCard
           title="Unmatched Sales"
           value={formatNumber(m.unmatchedCount)}
           icon={AlertCircle}
           subtitle="Click to review"
-          link="/attribution"
+          onClick={() => navigate("/attribution")}
         />
       </div>
 

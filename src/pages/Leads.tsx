@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -6,11 +6,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Search } from "lucide-react";
+import { Search, ArrowUpDown } from "lucide-react";
+
+type SortKey = "submitted_at" | "name" | "email" | "phrase" | "cognito_form" | "status";
+type SortDir = "asc" | "desc";
+
+function SortableHead({ label, sortKey, current, dir, onSort }: {
+  label: string; sortKey: SortKey; current: SortKey; dir: SortDir; onSort: (k: SortKey) => void;
+}) {
+  return (
+    <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => onSort(sortKey)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${current === sortKey ? "text-foreground" : "text-muted-foreground/40"}`} />
+      </span>
+    </TableHead>
+  );
+}
 
 export default function Leads() {
   const [search, setSearch] = useState("");
   const [formFilter, setFormFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["leads"],
@@ -24,7 +42,6 @@ export default function Leads() {
     },
   });
 
-  // Check which leads have matched sales
   const { data: matchedLeadIds } = useQuery({
     queryKey: ["matched-lead-ids"],
     queryFn: async () => {
@@ -38,21 +55,45 @@ export default function Leads() {
 
   const forms = [...new Set((leads ?? []).map((l) => l.cognito_form))].sort();
 
-  const filtered = (leads ?? []).filter((l) => {
-    const matchesSearch =
-      !search ||
-      l.name?.toLowerCase().includes(search.toLowerCase()) ||
-      l.email?.toLowerCase().includes(search.toLowerCase()) ||
-      l.phrase?.toLowerCase().includes(search.toLowerCase());
-    const matchesForm = formFilter === "all" || l.cognito_form === formFilter;
-    return matchesSearch && matchesForm;
-  });
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
+  const sorted = useMemo(() => {
+    const filtered = (leads ?? []).filter((l) => {
+      const matchesSearch =
+        !search ||
+        l.name?.toLowerCase().includes(search.toLowerCase()) ||
+        l.email?.toLowerCase().includes(search.toLowerCase()) ||
+        l.phrase?.toLowerCase().includes(search.toLowerCase());
+      const matchesForm = formFilter === "all" || l.cognito_form === formFilter;
+      return matchesSearch && matchesForm;
+    });
+
+    return [...filtered].sort((a, b) => {
+      let aVal: any = sortKey === "status"
+        ? (matchedLeadIds?.has(a.id) ? "matched" : "unmatched")
+        : a[sortKey];
+      let bVal: any = sortKey === "status"
+        ? (matchedLeadIds?.has(b.id) ? "matched" : "unmatched")
+        : b[sortKey];
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [leads, search, formFilter, sortKey, sortDir, matchedLeadIds]);
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
-        <p className="text-muted-foreground text-sm">{filtered.length} leads</p>
+        <p className="text-muted-foreground text-sm">{sorted.length} leads</p>
       </div>
 
       <div className="flex gap-3">
@@ -80,23 +121,23 @@ export default function Leads() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phrase</TableHead>
-                <TableHead>Form</TableHead>
-                <TableHead>Status</TableHead>
+                <SortableHead label="Date" sortKey="submitted_at" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Name" sortKey="name" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Email" sortKey="email" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Phrase" sortKey="phrase" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Form" sortKey="cognito_form" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={handleSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
+              {sorted.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No leads found. Import data to get started.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((lead) => (
+                sorted.map((lead) => (
                   <TableRow key={lead.id}>
                     <TableCell className="whitespace-nowrap">
                       {lead.submitted_at ? format(new Date(lead.submitted_at), "MMM d, yyyy") : "—"}
