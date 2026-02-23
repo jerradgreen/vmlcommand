@@ -44,7 +44,7 @@ function isCorporateDomain(domain: string | null): boolean {
 }
 
 // ── Tokenisation ────────────────────────────────────────
-function tokenize(text: string): Set<string> {
+export function tokenize(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
@@ -65,6 +65,17 @@ function isStrongToken(t: string): boolean {
   if (t.length >= 4 && !STOPWORDS.has(t) && !TLD_JUNK.has(t)) return true;
   if (/\d/.test(t)) return true; // contains a digit
   return false;
+}
+
+/** Stem-aware check: returns true if one token is a prefix of the other (min 4 chars shared) */
+function stemMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const minLen = Math.min(a.length, b.length);
+  if (minLen < 4) return false;
+  // Check if the shorter is a prefix of the longer
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length > b.length ? a : b;
+  return longer.startsWith(shorter);
 }
 
 // ── Phrase fallback from raw_payload ────────────────────
@@ -122,17 +133,28 @@ function strongTokenOverlap(
   const overlapping: string[] = [];
   let acronymHit = false;
 
-  saleTokens.forEach((t) => {
-    if (leadTokens.has(t) && isStrongToken(t)) {
-      overlapping.push(t);
-      if (acronyms.has(t)) acronymHit = true;
+  saleTokens.forEach((st) => {
+    if (leadTokens.has(st) && isStrongToken(st)) {
+      overlapping.push(st);
+      if (acronyms.has(st)) acronymHit = true;
+    } else if (isStrongToken(st)) {
+      // Stem/prefix match: TITAN ↔ TITANS
+      for (const lt of leadTokens) {
+        if (stemMatch(st, lt) && !overlapping.includes(st)) {
+          overlapping.push(st);
+          break;
+        }
+      }
     }
   });
   // Also check acronyms in lead tokens directly
   acronyms.forEach((a) => {
-    if (leadTokens.has(a) && !overlapping.includes(a)) {
-      overlapping.push(a);
-      acronymHit = true;
+    for (const lt of leadTokens) {
+      if ((lt === a || stemMatch(lt, a)) && !overlapping.includes(a)) {
+        overlapping.push(a);
+        acronymHit = true;
+        break;
+      }
     }
   });
 

@@ -529,32 +529,76 @@ function MatchEvidence({ suggestion, saleData }: { suggestion: any; saleData?: a
 
   if (!lead) return <p className="text-xs text-muted-foreground">Loading…</p>;
 
+  // Stem-aware shared token detection
   const saleTokens: string[] = saleData?.strong_tokens || [];
   const leadTokens: string[] = (lead.strong_tokens as string[]) || [];
-  const sharedTokens = saleTokens.filter((t: string) => leadTokens.includes(t));
+
+  const stemMatch = (a: string, b: string): boolean => {
+    if (a === b) return true;
+    const minLen = Math.min(a.length, b.length);
+    if (minLen < 4) return false;
+    const shorter = a.length <= b.length ? a : b;
+    const longer = a.length > b.length ? a : b;
+    return longer.startsWith(shorter);
+  };
+
+  // Find matching pairs (sale token → lead token)
+  const matchPairs: { sale: string; lead: string }[] = [];
+  for (const st of saleTokens) {
+    for (const lt of leadTokens) {
+      if (stemMatch(st, lt)) {
+        matchPairs.push({ sale: st, lead: lt });
+        break;
+      }
+    }
+  }
 
   const saleEmail = saleData?.email || "—";
   const saleDomain = saleData?.email_domain || "—";
   const leadEmail = lead.email || "—";
   const leadDomain = lead.email_domain || "—";
+  const emailMatch = saleEmail !== "—" && leadEmail !== "—" && saleEmail.toLowerCase() === leadEmail.toLowerCase();
   const domainMatch = saleDomain === leadDomain && saleDomain !== "—";
 
-  const saleName = saleData?.raw_payload
-    ? `${saleData.raw_payload["First Name"] || ""} ${saleData.raw_payload["Last Name"] || ""}`.trim()
-    : "—";
-
   const saleProduct = saleData?.product_name || "—";
+  const saleOrderId = saleData?.order_id || "—";
   const hasFormData = lead.phrase || lead.sign_style || lead.size_text || lead.notes || lead.budget_text;
 
   return (
     <div className="bg-muted/50 rounded p-3 text-xs space-y-3 border border-border/50">
-      {/* Lead Form Submission - most important, shown first */}
+      {/* Sale info - what we're matching against */}
+      <div className="space-y-1">
+        <p className="font-semibold text-foreground uppercase tracking-wide text-[10px]">
+          🛒 Sale details
+        </p>
+        <div className="bg-background rounded p-2 space-y-1 border">
+          <div><span className="text-muted-foreground">Order:</span>{" "}
+            <span className="font-mono font-semibold">{saleOrderId}</span>
+          </div>
+          <div><span className="text-muted-foreground">Product:</span>{" "}
+            <span className="font-mono font-semibold">{saleProduct}</span>
+          </div>
+          <div><span className="text-muted-foreground">Email:</span>{" "}
+            <span className={`font-mono ${emailMatch ? "text-primary font-bold" : ""}`}>{saleEmail}</span>
+            {emailMatch && <Badge variant="default" className="ml-1 text-[9px] px-1 py-0">exact match</Badge>}
+          </div>
+        </div>
+      </div>
+
+      {/* Lead Form Submission */}
       <div className="space-y-1">
         <p className="font-semibold text-foreground uppercase tracking-wide text-[10px]">
           📋 What this lead submitted
         </p>
         {hasFormData ? (
           <div className="bg-background rounded p-2 space-y-1 border">
+            <div><span className="text-muted-foreground">Email:</span>{" "}
+              <span className={`font-mono ${emailMatch ? "text-primary font-bold" : ""}`}>{leadEmail}</span>
+              {emailMatch && <Badge variant="default" className="ml-1 text-[9px] px-1 py-0">exact match</Badge>}
+            </div>
+            <div><span className="text-muted-foreground">Name:</span>{" "}
+              <span className="font-mono">{lead.name || "—"}</span>
+            </div>
             {lead.phrase && (
               <div><span className="text-muted-foreground">Phrase/Text:</span>{" "}
                 <span className="font-mono font-semibold">{lead.phrase}</span>
@@ -584,58 +628,31 @@ function MatchEvidence({ suggestion, saleData }: { suggestion: any; saleData?: a
         ) : (
           <div className="bg-background rounded p-2 border border-dashed border-destructive/30">
             <p className="text-muted-foreground italic">⚠ No form details found — this lead has no phrase, sign style, size, or notes on file.</p>
+            <div className="mt-1"><span className="text-muted-foreground">Email:</span>{" "}
+              <span className={`font-mono ${emailMatch ? "text-primary font-bold" : ""}`}>{leadEmail}</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Sale vs Lead comparison */}
+      {/* Matching tokens with stem awareness */}
       <div className="space-y-1">
         <p className="font-semibold text-foreground uppercase tracking-wide text-[10px]">
-          🔗 Why this was suggested
+          🔗 Matching keywords
         </p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <div>
-            <span className="text-muted-foreground">Sale product:</span>{" "}
-            <span className="font-mono font-semibold">{saleProduct}</span>
+        {matchPairs.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {matchPairs.map((pair, i) => (
+              <Badge key={i} variant="default" className="text-xs font-mono">
+                {pair.sale === pair.lead ? pair.sale : `${pair.sale} ↔ ${pair.lead}`}
+              </Badge>
+            ))}
           </div>
-          <div>
-            <span className="text-muted-foreground">Lead phrase:</span>{" "}
-            <span className="font-mono font-semibold">{lead.phrase || "—"}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Sale email:</span>{" "}
-            <span className="font-mono">{saleEmail}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Lead email:</span>{" "}
-            <span className="font-mono">{leadEmail}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Sale domain:</span>{" "}
-            <span className={`font-mono ${domainMatch ? "text-primary font-bold" : ""}`}>{saleDomain}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Lead domain:</span>{" "}
-            <span className={`font-mono ${domainMatch ? "text-primary font-bold" : ""}`}>{leadDomain}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Sale name:</span>{" "}
-            <span className="font-mono">{saleName}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Lead name:</span>{" "}
-            <span className="font-mono">{lead.name || "—"}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Shared tokens */}
-      <div>
-        <span className="text-muted-foreground">Shared tokens:</span>{" "}
-        {sharedTokens.length > 0 ? (
-          <span className="font-mono text-primary font-bold">{sharedTokens.join(", ")}</span>
         ) : (
-          <span className="text-muted-foreground italic">none</span>
+          <span className="text-muted-foreground italic">no keyword overlap found</span>
+        )}
+        {domainMatch && !emailMatch && (
+          <Badge variant="outline" className="text-xs mt-1">Same domain: {saleDomain}</Badge>
         )}
       </div>
     </div>
