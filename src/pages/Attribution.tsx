@@ -513,13 +513,12 @@ function SuggestionRow({ suggestion, onConfirm, saleData }: { suggestion: any; o
 
 // ── Match Evidence Detail ─────────────────────────────────
 function MatchEvidence({ suggestion, saleData }: { suggestion: any; saleData?: any }) {
-  // Fetch the full lead record for detailed comparison
   const { data: lead } = useQuery({
     queryKey: ["lead-detail-evidence", suggestion.lead_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, name, email, email_domain, phrase, sign_style, size_text, notes, strong_tokens, match_tokens, submitted_at")
+        .select("id, name, email, email_domain, phrase, sign_style, size_text, notes, budget_text, strong_tokens, match_tokens, submitted_at, raw_payload")
         .eq("id", suggestion.lead_id)
         .single();
       if (error) throw error;
@@ -538,71 +537,106 @@ function MatchEvidence({ suggestion, saleData }: { suggestion: any; saleData?: a
   const saleDomain = saleData?.email_domain || "—";
   const leadEmail = lead.email || "—";
   const leadDomain = lead.email_domain || "—";
+  const domainMatch = saleDomain === leadDomain && saleDomain !== "—";
 
   const saleName = saleData?.raw_payload
     ? `${saleData.raw_payload["First Name"] || ""} ${saleData.raw_payload["Last Name"] || ""}`.trim()
     : "—";
 
+  const saleProduct = saleData?.product_name || "—";
+  const hasFormData = lead.phrase || lead.sign_style || lead.size_text || lead.notes || lead.budget_text;
+
   return (
-    <div className="bg-muted/50 rounded p-3 text-xs space-y-2 border border-border/50">
-      <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">Match Evidence</p>
-
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-        <div>
-          <span className="text-muted-foreground">Sale email:</span>{" "}
-          <span className="font-mono">{saleEmail}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Lead email:</span>{" "}
-          <span className="font-mono">{leadEmail}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Sale domain:</span>{" "}
-          <span className={`font-mono ${saleDomain === leadDomain && saleDomain !== "—" ? "text-green-600 font-bold" : ""}`}>{saleDomain}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Lead domain:</span>{" "}
-          <span className={`font-mono ${saleDomain === leadDomain && saleDomain !== "—" ? "text-green-600 font-bold" : ""}`}>{leadDomain}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Sale name:</span>{" "}
-          <span className="font-mono">{saleName}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Lead name:</span>{" "}
-          <span className="font-mono">{lead.name || "—"}</span>
-        </div>
-      </div>
-
-      <div>
-        <span className="text-muted-foreground">Lead phrase:</span>{" "}
-        <span className="font-mono">{lead.phrase || "—"}</span>
-      </div>
-      {lead.sign_style && (
-        <div>
-          <span className="text-muted-foreground">Lead sign style:</span>{" "}
-          <span className="font-mono">{lead.sign_style}</span>
-        </div>
-      )}
-
-      <div>
-        <span className="text-muted-foreground">Shared tokens:</span>{" "}
-        {sharedTokens.length > 0 ? (
-          <span className="font-mono text-green-600 font-bold">{sharedTokens.join(", ")}</span>
+    <div className="bg-muted/50 rounded p-3 text-xs space-y-3 border border-border/50">
+      {/* Lead Form Submission - most important, shown first */}
+      <div className="space-y-1">
+        <p className="font-semibold text-foreground uppercase tracking-wide text-[10px]">
+          📋 What this lead submitted
+        </p>
+        {hasFormData ? (
+          <div className="bg-background rounded p-2 space-y-1 border">
+            {lead.phrase && (
+              <div><span className="text-muted-foreground">Phrase/Text:</span>{" "}
+                <span className="font-mono font-semibold">{lead.phrase}</span>
+              </div>
+            )}
+            {lead.sign_style && (
+              <div><span className="text-muted-foreground">Sign style:</span>{" "}
+                <span className="font-mono">{lead.sign_style}</span>
+              </div>
+            )}
+            {lead.size_text && (
+              <div><span className="text-muted-foreground">Size:</span>{" "}
+                <span className="font-mono">{lead.size_text}</span>
+              </div>
+            )}
+            {lead.budget_text && (
+              <div><span className="text-muted-foreground">Budget:</span>{" "}
+                <span className="font-mono">{lead.budget_text}</span>
+              </div>
+            )}
+            {lead.notes && (
+              <div><span className="text-muted-foreground">Notes:</span>{" "}
+                <span className="font-mono">{lead.notes}</span>
+              </div>
+            )}
+          </div>
         ) : (
-          <span className="text-muted-foreground italic">none</span>
+          <div className="bg-background rounded p-2 border border-dashed border-destructive/30">
+            <p className="text-muted-foreground italic">⚠ No form details found — this lead has no phrase, sign style, size, or notes on file.</p>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-4">
-        <div>
-          <span className="text-muted-foreground">Sale tokens:</span>{" "}
-          <span className="font-mono text-[10px] break-all">{saleTokens.join(", ") || "—"}</span>
+      {/* Sale vs Lead comparison */}
+      <div className="space-y-1">
+        <p className="font-semibold text-foreground uppercase tracking-wide text-[10px]">
+          🔗 Why this was suggested
+        </p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <div>
+            <span className="text-muted-foreground">Sale product:</span>{" "}
+            <span className="font-mono font-semibold">{saleProduct}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Lead phrase:</span>{" "}
+            <span className="font-mono font-semibold">{lead.phrase || "—"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Sale email:</span>{" "}
+            <span className="font-mono">{saleEmail}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Lead email:</span>{" "}
+            <span className="font-mono">{leadEmail}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Sale domain:</span>{" "}
+            <span className={`font-mono ${domainMatch ? "text-primary font-bold" : ""}`}>{saleDomain}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Lead domain:</span>{" "}
+            <span className={`font-mono ${domainMatch ? "text-primary font-bold" : ""}`}>{leadDomain}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Sale name:</span>{" "}
+            <span className="font-mono">{saleName}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Lead name:</span>{" "}
+            <span className="font-mono">{lead.name || "—"}</span>
+          </div>
         </div>
-        <div>
-          <span className="text-muted-foreground">Lead tokens:</span>{" "}
-          <span className="font-mono text-[10px] break-all">{leadTokens.join(", ") || "—"}</span>
-        </div>
+      </div>
+
+      {/* Shared tokens */}
+      <div>
+        <span className="text-muted-foreground">Shared tokens:</span>{" "}
+        {sharedTokens.length > 0 ? (
+          <span className="font-mono text-primary font-bold">{sharedTokens.join(", ")}</span>
+        ) : (
+          <span className="text-muted-foreground italic">none</span>
+        )}
       </div>
     </div>
   );
