@@ -9,6 +9,7 @@ const BASE = `https://${PROJECT_ID}.supabase.co/functions/v1`;
 
 const LEAD_URL = `${BASE}/ingest-lead`;
 const SALE_URL = `${BASE}/ingest-sale`;
+const EXPENSE_URL = `${BASE}/ingest-expense`;
 
 const LEAD_SAMPLE = JSON.stringify(
   {
@@ -36,6 +37,18 @@ const SALE_SAMPLE = JSON.stringify(
     product_name: "LOVE Marquee Sign 24in",
     revenue: 749.99,
     order_text: "Custom marquee letters",
+  },
+  null,
+  2
+);
+
+const EXPENSE_SAMPLE = JSON.stringify(
+  {
+    date: "2025-06-20",
+    platform: "google_ads",
+    amount: 125.50,
+    external_id: "gads-2025-06-20",
+    notes: "Daily Google Ads spend",
   },
   null,
   2
@@ -111,7 +124,7 @@ export default function Settings() {
         <p className="text-muted-foreground">Webhook endpoints for Zapier integration</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <EndpointCard
           title="Ingest Lead"
           description="POST Cognito form submissions here. Requires external_id."
@@ -123,6 +136,12 @@ export default function Settings() {
           description="POST Google Sheets rows here. Requires external_id. Auto-triggers matching."
           url={SALE_URL}
           sample={SALE_SAMPLE}
+        />
+        <EndpointCard
+          title="Ingest Expense"
+          description="POST daily ad spend. Requires date, platform, amount. Auto-generates external_id if missing."
+          url={EXPENSE_URL}
+          sample={EXPENSE_SAMPLE}
         />
       </div>
 
