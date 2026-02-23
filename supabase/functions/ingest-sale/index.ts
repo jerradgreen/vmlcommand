@@ -59,14 +59,23 @@ Deno.serve(async (req) => {
       ingested_at: new Date().toISOString(),
     };
 
-    // Upsert sale
+    // Upsert sale (dedupe on order_id which has a unique constraint)
     const { data: upserted, error } = await supabase
       .from("sales")
-      .upsert(row, { onConflict: "source_system,external_id" })
+      .upsert(row, { onConflict: "order_id" })
       .select("id")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // If it's still a duplicate key error, return 200 so Zapier retries don't fail
+      if (error.code === "23505" || (error.message && error.message.includes("duplicate key"))) {
+        return new Response(
+          JSON.stringify({ ok: true, duplicate: true, external_id, order_id }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw error;
+    }
 
     // Run per-sale matching
     let match_result = null;
