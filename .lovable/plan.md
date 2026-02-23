@@ -1,55 +1,111 @@
 
 
-# Fix: Broken Suggestion Engine (SQL Bug)
+# Realtime Ingestion (Revised)
 
-## The Problem
+## Overview
 
-Every time you click "Find Suggestions" or "Generate Suggestions", it fails because the `get_match_suggestions` database function has a SQL error: **"column 'r' does not exist"**.
+Two webhook endpoints for Zapier, a per-sale matching RPC, an ingestion log table, and a settings page to display URLs/payloads.
 
-This means:
-- No suggestions are ever shown on sale cards
-- The "Generate Suggestions" bulk action silently fails
-- The Link modal shows "No suggested leads found" even when matches exist
+---
 
-## The Root Cause
+## 1. Database Migration
 
-Inside the function, the "reasons" array is built with invalid SQL syntax. The fix is a one-line change to how that array is constructed.
+### New columns on `leads`
+- `source_system text NOT NULL DEFAULT 'cognito'`
+- `external_id text`
+- `ingested_at timestamptz DEFAULT now()`
+- Unique constraint on `(source_system, external_id)`
 
-## What Will Be Fixed
+### New columns on `sales`
+- `source_system text NOT NULL DEFAULT 'google_sheets'`
+- `external_id text`
+- `ingested_at timestamptz DEFAULT now()`
+- Unique constraint on `(source_system, external_id)`
 
-1. **Fix the `get_match_suggestions` RPC** -- rewrite the reasons array construction so it properly filters out NULL values
-2. **Fix the `bulk_generate_suggestions` RPC** -- it calls `get_match_suggestions` internally, so fixing that fixes both
+### New table: `ingestion_logs`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK, default `gen_random_uuid()` |
+| source_system | text | `'cognito'` or `'google_sheets'` |
+| external_id | text | The external_id from the payload |
+| status | text | `'ok'` or `'error'` |
+| error_message | text | Nullable, error details |
+| created_at | timestamptz | Default `now()` |
 
-After this fix:
-- "Find Suggestions" will return matching leads based on shared tokens (like "troy"), domain matches, name overlaps, and phrase matches
-- "Generate Suggestions" will pre-populate suggestions on all unmatched sales
-- The Link modal will show scored candidates with reason chips
+RLS: permissive allow-all (same pattern as leads/sales, no auth in this app).
+
+### New RPC: `match_sale_by_id(p_sale_id uuid)`
+
+Targets a single sale and attempts matching in order:
+1. **Email exact match** -- find a lead with identical email, link it
+2. **Smart match** -- reuse the domain + token + name logic from `backfill_smart_matches` but scoped to just this one sale
+
+If a match is found, updates `lead_id`, `match_method`, `match_confidence`, `match_reason`, and `sale_type` on that single row. Returns a JSON summary.
+
+---
+
+## 2. Edge Functions
+
+### A) `ingest-lead` (POST)
+
+- Requires `external_id` explicitly in the JSON body (will reject if missing)
+- Does NOT generate `lead_id` -- lets the database assign UUID via `gen_random_uuid()`
+- Sets `cognito_form` from payload or defaults to `'webhook'`
+- Sets `cognito_entry_number` from `external_id`
+- Maps fields: `name`, `email`, `phone`, `phrase`, `sign_style`, `size_text`, `budget_text`, `notes`, `submitted_at`
+- Stores full payload in `raw_payload`
+- Upserts using `ON CONFLICT (source_system, external_id)`
+- Writes a row to `ingestion_logs` with status `'ok'` or `'error'`
+- Returns `{ ok: true, external_id }`
+
+### B) `ingest-sale` (POST)
+
+- Requires `external_id` explicitly in the JSON body (will reject if missing)
+- Maps fields: `order_id`, `date`, `email`, `product_name`, `revenue`, `order_text`
+- Stores full payload in `raw_payload`
+- Upserts using `ON CONFLICT (source_system, external_id)`
+- After successful upsert, calls `match_sale_by_id(p_sale_id)` for just this sale -- no global backfill
+- Writes a row to `ingestion_logs`
+- Returns `{ ok: true, external_id, order_id, match_result }`
+
+### Both functions
+- CORS headers included
+- `verify_jwt = false` in config.toml (Zapier has no JWT)
+- Use `SUPABASE_SERVICE_ROLE_KEY` for database writes
+- Validate input, reject empty/missing `external_id`
+
+---
+
+## 3. Settings Page (`/settings`)
+
+- Displays the two POST webhook URLs (constructed from project URL)
+- Copy-to-clipboard buttons
+- Expandable sample JSON payloads showing required fields (including `external_id`)
+- Note about the `ingestion_logs` table for debugging silent Zapier failures
+- New "Settings" nav item with gear icon in sidebar
+
+---
+
+## 4. No Changes to Existing Logic
+
+Dashboard, Import, Attribution, Leads, Sales pages remain untouched. Existing CSV import and global backfill functions are not modified.
+
+---
 
 ## Technical Details
 
-### Migration: Fix `get_match_suggestions` function
+### Files to create
+| File | Purpose |
+|------|---------|
+| `supabase/functions/ingest-lead/index.ts` | Lead webhook endpoint |
+| `supabase/functions/ingest-sale/index.ts` | Sale webhook endpoint |
+| `src/pages/Settings.tsx` | Admin settings page |
+| Migration SQL | Schema changes + `match_sale_by_id` RPC + `ingestion_logs` table |
 
-Replace the broken `ARRAY(SELECT unnest(...) AS r WHERE r IS NOT NULL)` with a properly structured subquery:
-
-```text
-ARRAY(
-  SELECT v FROM (VALUES
-    (CASE WHEN ... THEN 'email_exact' ELSE NULL END),
-    (CASE WHEN ... THEN 'domain: ' || ... ELSE NULL END),
-    ...
-  ) AS t(v) WHERE v IS NOT NULL
-)
-```
-
-This is a `CREATE OR REPLACE FUNCTION` so no schema changes are needed -- just the function body is updated.
-
-### No UI changes needed
-
-The Attribution.tsx code already handles displaying suggestions correctly. The suggestions just never arrived because the RPC was crashing.
-
-### Files Modified
-
+### Files to modify
 | File | Change |
 |------|--------|
-| New migration SQL | `CREATE OR REPLACE FUNCTION get_match_suggestions` with fixed reasons array syntax |
+| `supabase/config.toml` | Add `[functions.ingest-lead]` and `[functions.ingest-sale]` with `verify_jwt = false` |
+| `src/components/AppLayout.tsx` | Add Settings nav item |
+| `src/App.tsx` | Add `/settings` route |
 
