@@ -344,6 +344,7 @@ function SaleCard({
         {showMore && (
           <InlineSuggestions
             saleId={sale.id}
+            saleData={sale}
             onConfirm={onConfirm}
           />
         )}
@@ -432,9 +433,10 @@ function PreComputedSuggestion({
 
 // ── Inline Suggestions (loaded on-demand) ─────────────────
 function InlineSuggestions({
-  saleId, onConfirm,
+  saleId, saleData, onConfirm,
 }: {
   saleId: string;
+  saleData?: any;
   onConfirm: (leadId: string, method: string, confidence: number, reason: string) => void;
 }) {
   const { data: suggestions, isLoading } = useQuery({
@@ -462,6 +464,7 @@ function InlineSuggestions({
         <SuggestionRow
           key={s.lead_id}
           suggestion={s}
+          saleData={saleData}
           onConfirm={() => onConfirm(s.lead_id, "manual", 100, (s.reasons || []).join("; "))}
         />
       ))}
@@ -470,27 +473,137 @@ function InlineSuggestions({
 }
 
 // ── Suggestion Row ────────────────────────────────────────
-function SuggestionRow({ suggestion, onConfirm }: { suggestion: any; onConfirm: () => void }) {
+function SuggestionRow({ suggestion, onConfirm, saleData }: { suggestion: any; onConfirm: () => void; saleData?: any }) {
+  const [showEvidence, setShowEvidence] = useState(false);
+
   return (
-    <div className="flex items-start justify-between rounded-md border p-3 gap-3">
-      <div className="space-y-1 min-w-0 flex-1">
-        <p className="text-sm font-medium">{suggestion.lead_name || "Unknown"}</p>
-        <p className="text-xs text-muted-foreground truncate">
-          {suggestion.lead_email} · {suggestion.lead_phrase || "No phrase"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {suggestion.lead_submitted_at ? format(new Date(suggestion.lead_submitted_at), "MMM d, yyyy") : "—"}
-          {suggestion.score != null && <span className="ml-2 font-mono">{suggestion.score} pts</span>}
-        </p>
-        <div className="flex flex-wrap gap-1.5 mt-1">
-          {(suggestion.reasons || []).map((r: string, i: number) => (
-            <Badge key={i} variant="outline" className="text-xs font-normal">{r}</Badge>
-          ))}
+    <div className="rounded-md border p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0 flex-1">
+          <p className="text-sm font-medium">{suggestion.lead_name || "Unknown"}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {suggestion.lead_email} · {suggestion.lead_phrase || "No phrase"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {suggestion.lead_submitted_at ? format(new Date(suggestion.lead_submitted_at), "MMM d, yyyy") : "—"}
+            {suggestion.score != null && <span className="ml-2 font-mono">{suggestion.score} pts</span>}
+          </p>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {(suggestion.reasons || []).map((r: string, i: number) => (
+              <Badge key={i} variant="outline" className="text-xs font-normal">{r}</Badge>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Button size="sm" onClick={onConfirm}>
+            <Check className="h-3 w-3 mr-1" /> Confirm
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShowEvidence(!showEvidence)} className="text-xs">
+            {showEvidence ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+            Why?
+          </Button>
         </div>
       </div>
-      <Button size="sm" onClick={onConfirm}>
-        <Check className="h-3 w-3 mr-1" /> Confirm
-      </Button>
+      {showEvidence && (
+        <MatchEvidence suggestion={suggestion} saleData={saleData} />
+      )}
+    </div>
+  );
+}
+
+// ── Match Evidence Detail ─────────────────────────────────
+function MatchEvidence({ suggestion, saleData }: { suggestion: any; saleData?: any }) {
+  // Fetch the full lead record for detailed comparison
+  const { data: lead } = useQuery({
+    queryKey: ["lead-detail-evidence", suggestion.lead_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, name, email, email_domain, phrase, sign_style, size_text, notes, strong_tokens, match_tokens, submitted_at")
+        .eq("id", suggestion.lead_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!suggestion.lead_id,
+  });
+
+  if (!lead) return <p className="text-xs text-muted-foreground">Loading…</p>;
+
+  const saleTokens: string[] = saleData?.strong_tokens || [];
+  const leadTokens: string[] = (lead.strong_tokens as string[]) || [];
+  const sharedTokens = saleTokens.filter((t: string) => leadTokens.includes(t));
+
+  const saleEmail = saleData?.email || "—";
+  const saleDomain = saleData?.email_domain || "—";
+  const leadEmail = lead.email || "—";
+  const leadDomain = lead.email_domain || "—";
+
+  const saleName = saleData?.raw_payload
+    ? `${saleData.raw_payload["First Name"] || ""} ${saleData.raw_payload["Last Name"] || ""}`.trim()
+    : "—";
+
+  return (
+    <div className="bg-muted/50 rounded p-3 text-xs space-y-2 border border-border/50">
+      <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">Match Evidence</p>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        <div>
+          <span className="text-muted-foreground">Sale email:</span>{" "}
+          <span className="font-mono">{saleEmail}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Lead email:</span>{" "}
+          <span className="font-mono">{leadEmail}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Sale domain:</span>{" "}
+          <span className={`font-mono ${saleDomain === leadDomain && saleDomain !== "—" ? "text-green-600 font-bold" : ""}`}>{saleDomain}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Lead domain:</span>{" "}
+          <span className={`font-mono ${saleDomain === leadDomain && saleDomain !== "—" ? "text-green-600 font-bold" : ""}`}>{leadDomain}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Sale name:</span>{" "}
+          <span className="font-mono">{saleName}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Lead name:</span>{" "}
+          <span className="font-mono">{lead.name || "—"}</span>
+        </div>
+      </div>
+
+      <div>
+        <span className="text-muted-foreground">Lead phrase:</span>{" "}
+        <span className="font-mono">{lead.phrase || "—"}</span>
+      </div>
+      {lead.sign_style && (
+        <div>
+          <span className="text-muted-foreground">Lead sign style:</span>{" "}
+          <span className="font-mono">{lead.sign_style}</span>
+        </div>
+      )}
+
+      <div>
+        <span className="text-muted-foreground">Shared tokens:</span>{" "}
+        {sharedTokens.length > 0 ? (
+          <span className="font-mono text-green-600 font-bold">{sharedTokens.join(", ")}</span>
+        ) : (
+          <span className="text-muted-foreground italic">none</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4">
+        <div>
+          <span className="text-muted-foreground">Sale tokens:</span>{" "}
+          <span className="font-mono text-[10px] break-all">{saleTokens.join(", ") || "—"}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Lead tokens:</span>{" "}
+          <span className="font-mono text-[10px] break-all">{leadTokens.join(", ") || "—"}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -506,6 +619,19 @@ function LinkModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
+
+  const { data: saleData } = useQuery({
+    queryKey: ["sale-detail", saleId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("*")
+        .eq("id", saleId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: suggestions, isLoading } = useQuery({
     queryKey: ["link-suggestions", saleId],
@@ -547,6 +673,7 @@ function LinkModal({
               <SuggestionRow
                 key={s.lead_id}
                 suggestion={s}
+                saleData={saleData}
                 onConfirm={() => onConfirm(s.lead_id, 100, (s.reasons || []).join("; "))}
               />
             ))}
