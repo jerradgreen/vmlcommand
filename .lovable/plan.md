@@ -1,64 +1,55 @@
 
 
-# Attribution Matching -- Implementation Plan
+# Fix: Broken Suggestion Engine (SQL Bug)
 
-## Overview
+## The Problem
 
-Simple, productive attribution system: strict auto-linking + broad pre-computed suggestions for fast manual confirmation.
+Every time you click "Find Suggestions" or "Generate Suggestions", it fails because the `get_match_suggestions` database function has a SQL error: **"column 'r' does not exist"**.
 
-## Auto-Link Rules (strict, safe)
+This means:
+- No suggestions are ever shown on sale cards
+- The "Generate Suggestions" bulk action silently fails
+- The Link modal shows "No suggested leads found" even when matches exist
 
-| Rule | Condition | match_method |
-|------|-----------|-------------|
-| A | Exact email match (case-insensitive) | `email_exact` |
-| B | Non-free domain match + ≥1 strong token overlap | `domain_match` |
-| C | Exact name match (sale First+Last = lead.name) | `manual` |
+## The Root Cause
 
-All auto-links set `match_confidence = 100` and `sale_type = 'new_lead'`.
+Inside the function, the "reasons" array is built with invalid SQL syntax. The fix is a one-line change to how that array is constructed.
 
-## Suggestion Scoring (for UI, no auto-link)
+## What Will Be Fixed
 
-| Signal | Points |
-|--------|--------|
-| Email exact | +100 |
-| Corporate domain match | +40 |
-| Exact name match | +30 |
-| Partial name (first/last) | +15 each |
-| Strong token overlap | +10 each (cap 40) |
-| Phrase/product overlap | +20 each direction |
-| Recency ≤14d | +15 |
-| Recency 15-45d | +8 |
-| Recency 46-90d | +3 |
+1. **Fix the `get_match_suggestions` RPC** -- rewrite the reasons array construction so it properly filters out NULL values
+2. **Fix the `bulk_generate_suggestions` RPC** -- it calls `get_match_suggestions` internally, so fixing that fixes both
 
-## Pre-Suggest System
+After this fix:
+- "Find Suggestions" will return matching leads based on shared tokens (like "troy"), domain matches, name overlaps, and phrase matches
+- "Generate Suggestions" will pre-populate suggestions on all unmatched sales
+- The Link modal will show scored candidates with reason chips
 
-- `bulk_generate_suggestions(lookback_days)` fills `suggested_lead_id`, `suggested_score`, `suggested_reasons` on each unmatched sale
-- UI shows top suggestion on each card with one-click Confirm
-- "More Options" expands to show all candidates from `get_match_suggestions`
+## Technical Details
 
-## Diagnostics RPC
+### Migration: Fix `get_match_suggestions` function
 
-`get_attribution_diagnostics()` returns: unmatched count, with/without suggestions, free/corporate/no-email breakdown, top 20 tokens.
+Replace the broken `ARRAY(SELECT unnest(...) AS r WHERE r IS NOT NULL)` with a properly structured subquery:
 
-## RPCs
+```text
+ARRAY(
+  SELECT v FROM (VALUES
+    (CASE WHEN ... THEN 'email_exact' ELSE NULL END),
+    (CASE WHEN ... THEN 'domain: ' || ... ELSE NULL END),
+    ...
+  ) AS t(v) WHERE v IS NOT NULL
+)
+```
 
-| Function | Purpose |
-|----------|---------|
-| `backfill_email_matches()` | Exact email linking |
-| `backfill_smart_matches(lookback_days)` | Safe auto-linking (email + domain+tokens + exact name) |
-| `bulk_generate_suggestions(lookback_days)` | Pre-compute best candidate per unmatched sale |
-| `get_match_suggestions(p_sale_id, lookback_days, limit_n)` | On-demand scored suggestions |
-| `get_attribution_diagnostics()` | Debug stats |
-| `search_leads(search_term, limit_n)` | Manual search fallback |
+This is a `CREATE OR REPLACE FUNCTION` so no schema changes are needed -- just the function body is updated.
 
-## Sales Columns Added
+### No UI changes needed
 
-| Column | Purpose |
-|--------|---------|
-| `suggested_lead_id` | Pre-computed best candidate (no link) |
-| `suggested_score` | Score of best candidate |
-| `suggested_reasons` | Array of reason strings |
+The Attribution.tsx code already handles displaying suggestions correctly. The suggestions just never arrived because the RPC was crashing.
 
-## order_text Rebuild
+### Files Modified
 
-All sales `order_text` rebuilt from `raw_payload` using ALL text values except noise fields (Date, Price, Profit, Quantity, Order ID, totals, costs, Email).
+| File | Change |
+|------|--------|
+| New migration SQL | `CREATE OR REPLACE FUNCTION get_match_suggestions` with fixed reasons array syntax |
+
