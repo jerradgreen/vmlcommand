@@ -9,6 +9,7 @@ import Leads from "./pages/Leads";
 import Sales from "./pages/Sales";
 import Attribution from "./pages/Attribution";
 import Import from "./pages/Import";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/sales" element={<Sales />} />
             <Route path="/attribution" element={<Attribution />} />
             <Route path="/import" element={<Import />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

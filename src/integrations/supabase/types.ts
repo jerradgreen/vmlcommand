@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ingestion_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          external_id: string | null
+          id: string
+          source_system: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          source_system: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          source_system?: string
+          status?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           budget_text: string | null
@@ -23,7 +50,9 @@ export type Database = {
           email: string | null
           email_domain: string | null
           email_norm: string | null
+          external_id: string | null
           id: string
+          ingested_at: string | null
           lead_id: string
           match_text: string | null
           match_tokens: string[] | null
@@ -34,6 +63,7 @@ export type Database = {
           raw_payload: Json | null
           sign_style: string | null
           size_text: string | null
+          source_system: string
           status: string | null
           strong_tokens: string[] | null
           submitted_at: string | null
@@ -46,7 +76,9 @@ export type Database = {
           email?: string | null
           email_domain?: string | null
           email_norm?: string | null
+          external_id?: string | null
           id?: string
+          ingested_at?: string | null
           lead_id: string
           match_text?: string | null
           match_tokens?: string[] | null
@@ -57,6 +89,7 @@ export type Database = {
           raw_payload?: Json | null
           sign_style?: string | null
           size_text?: string | null
+          source_system?: string
           status?: string | null
           strong_tokens?: string[] | null
           submitted_at?: string | null
@@ -69,7 +102,9 @@ export type Database = {
           email?: string | null
           email_domain?: string | null
           email_norm?: string | null
+          external_id?: string | null
           id?: string
+          ingested_at?: string | null
           lead_id?: string
           match_text?: string | null
           match_tokens?: string[] | null
@@ -80,6 +115,7 @@ export type Database = {
           raw_payload?: Json | null
           sign_style?: string | null
           size_text?: string | null
+          source_system?: string
           status?: string | null
           strong_tokens?: string[] | null
           submitted_at?: string | null
@@ -93,7 +129,9 @@ export type Database = {
           email: string | null
           email_domain: string | null
           email_norm: string | null
+          external_id: string | null
           id: string
+          ingested_at: string | null
           lead_id: string | null
           match_confidence: number | null
           match_method: string | null
@@ -106,6 +144,7 @@ export type Database = {
           raw_payload: Json | null
           revenue: number | null
           sale_type: string
+          source_system: string
           strong_tokens: string[] | null
           suggested_lead_id: string | null
           suggested_reasons: string[] | null
@@ -117,7 +156,9 @@ export type Database = {
           email?: string | null
           email_domain?: string | null
           email_norm?: string | null
+          external_id?: string | null
           id?: string
+          ingested_at?: string | null
           lead_id?: string | null
           match_confidence?: number | null
           match_method?: string | null
@@ -130,6 +171,7 @@ export type Database = {
           raw_payload?: Json | null
           revenue?: number | null
           sale_type?: string
+          source_system?: string
           strong_tokens?: string[] | null
           suggested_lead_id?: string | null
           suggested_reasons?: string[] | null
@@ -141,7 +183,9 @@ export type Database = {
           email?: string | null
           email_domain?: string | null
           email_norm?: string | null
+          external_id?: string | null
           id?: string
+          ingested_at?: string | null
           lead_id?: string | null
           match_confidence?: number | null
           match_method?: string | null
@@ -154,6 +198,7 @@ export type Database = {
           raw_payload?: Json | null
           revenue?: number | null
           sale_type?: string
+          source_system?: string
           strong_tokens?: string[] | null
           suggested_lead_id?: string | null
           suggested_reasons?: string[] | null
@@ -210,6 +255,7 @@ export type Database = {
         }[]
       }
       is_free_email_domain: { Args: { domain: string }; Returns: boolean }
+      match_sale_by_id: { Args: { p_sale_id: string }; Returns: Json }
       normalize_text: { Args: { t: string }; Returns: string }
       remove_stopwords: { Args: { tokens: string[] }; Returns: string[] }
       search_leads: {
