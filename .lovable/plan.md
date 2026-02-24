@@ -1,95 +1,109 @@
 
 
-# Add Expenses Ingestion System for Ad Spend Tracking
+# Add Bills/Overhead + COGS/Manufacturer Payments
 
-## Step 1: Database Migration -- Create `expenses` table
+## Overview
 
-Create the `expenses` table with the specified schema, unique constraint, indexes, platform validation trigger, and open RLS policy.
+Add two new data tables (bills and cogs_payments), two ingestion endpoints, and new dashboard sections showing overhead costs, COGS, and a profit proxy metric. All metric cards will be clickable with detail dialogs.
 
-```sql
-CREATE TABLE public.expenses (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  source_system text NOT NULL DEFAULT 'manual',
-  external_id text,
-  date date NOT NULL,
-  platform text NOT NULL,
-  category text NOT NULL DEFAULT 'ads',
-  amount numeric(12,2) NOT NULL,
-  notes text,
-  raw_payload jsonb,
-  ingested_at timestamptz DEFAULT now()
-);
+---
 
-ALTER TABLE public.expenses
-  ADD CONSTRAINT expenses_source_external_unique UNIQUE (source_system, external_id);
+## Step 1: Database Migration
 
-CREATE INDEX idx_expenses_date ON public.expenses (date);
-CREATE INDEX idx_expenses_platform ON public.expenses (platform);
+Create two new tables:
 
-CREATE OR REPLACE FUNCTION public.validate_expense_platform()
-RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-  IF NEW.platform NOT IN ('google_ads', 'meta_ads', 'bing_ads', 'other') THEN
-    RAISE EXCEPTION 'Invalid platform: %', NEW.platform;
-  END IF;
-  RETURN NEW;
-END;
-$$;
+**bills** -- tracks overhead/recurring business expenses
+- Fields: id, source_system, external_id, date, vendor, category (default 'overhead'), amount, status (paid/scheduled/due), due_date, notes, raw_payload, ingested_at
+- Unique constraint on (source_system, external_id)
+- Indexes on date, due_date, status
+- Open RLS policy (matches existing pattern)
 
-CREATE TRIGGER trg_validate_expense_platform
-  BEFORE INSERT OR UPDATE ON public.expenses
-  FOR EACH ROW EXECUTE FUNCTION public.validate_expense_platform();
+**cogs_payments** -- tracks manufacturer/production costs
+- Fields: id, source_system, external_id, date, vendor (default 'manufacturer'), sale_id (FK to sales), order_id, category (default 'cogs'), amount, status (paid/scheduled/due), due_date, notes, raw_payload, ingested_at
+- Unique constraint on (source_system, external_id)
+- Indexes on date, due_date, status
+- Open RLS policy
 
-ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all access to expenses"
-  ON public.expenses FOR ALL USING (true) WITH CHECK (true);
-```
+---
 
-## Step 2: Edge Function -- `supabase/functions/ingest-expense/index.ts`
+## Step 2: Edge Functions
 
-New file following the ingest-sale pattern:
+### A) `supabase/functions/ingest-bill/index.ts`
+- CORS + OPTIONS, x-api-key validation
+- Required: date, vendor, amount
+- Optional: category, status, due_date, notes, external_id
+- Auto-generates external_id via SHA-256 hash if missing
+- Upserts on (source_system, external_id), graceful on duplicates
 
-- CORS + OPTIONS handler
-- `x-api-key` validation against `INGEST_API_KEY`
-- Parse JSON, validate required fields: `date`, `platform`, `amount`
-- Normalize platform input: lowercase, trim, replace spaces/hyphens with underscores, then map common variants (google/googleads/adwords -> google_ads, meta/facebook/instagram -> meta_ads, bing/microsoft_ads/microsoftads -> bing_ads, else -> other)
-- Auto-generate `external_id` if missing using a stable hash of `date|platform|amount|notes`
-- Set `source_system = 'api'`
-- Upsert on `(source_system, external_id)`
-- Duplicate key (23505) returns `{ ok: true, duplicate: true }` (never fails Zapier)
-- No ingestion_logs writes (skip logging)
-- Return `{ ok: true, external_id, platform }`
+### B) `supabase/functions/ingest-cogs/index.ts`
+- Same CORS + API key pattern
+- Required: date, amount
+- Optional: vendor, sale_id, order_id, category, status, due_date, notes, external_id
+- Auto-generates external_id via SHA-256 hash if missing
+- Upserts on (source_system, external_id), graceful on duplicates
 
-## Step 3: Update `useDashboardMetrics.ts`
+Both added to config.toml with `verify_jwt = false`.
 
-Add expenses query inside `useDashboardMetrics`:
+---
 
-- Query `expenses` table where `category = 'ads'` for today and MTD ranges (always computed regardless of selected date filter)
-- Also query MTD sales revenue
-- Return 5 new fields: `todayAdSpend`, `mtdAdSpend`, `mtdRevenue`, `mtdRoas` (safe divide, 0 if no spend), `netAfterAds`
+## Step 3: Settings Page
 
-## Step 4: Update `Dashboard.tsx`
+Add two new EndpointCards to `Settings.tsx`:
+- **Ingest Bill** with sample payload (date, vendor, amount, status, due_date, notes)
+- **Ingest COGS** with sample payload (date, amount, order_id, vendor, category, status, due_date, notes)
 
-Add a new section below existing metric cards with heading "Ad Spend (MTD)" containing 5 cards:
+Grid changes to accommodate 5 cards (responsive layout).
 
-| Card | Value | Icon |
-|------|-------|------|
-| Today Ad Spend | formatCurrency | DollarSign |
-| MTD Ad Spend | formatCurrency | DollarSign |
-| MTD Revenue | formatCurrency | DollarSign |
-| MTD ROAS | `X.XXx` | TrendingUp |
-| Net After Ads | formatCurrency | BarChart3 |
+---
 
-## Step 5: Update `Settings.tsx`
+## Step 4: Dashboard Metrics
 
-- Add `EXPENSE_URL` constant and `EXPENSE_SAMPLE` JSON
-- Add third EndpointCard for "Ingest Expense" in the grid (change to 3-col layout)
-- Sample payload includes: `date`, `platform`, `amount`, `external_id` (optional), `notes` (optional)
+Update `useDashboardMetrics.ts` to add 6 new queries (all MTD, always computed):
 
-## Step 6: Deploy and verify
+| Metric | Query |
+|--------|-------|
+| mtdBillsPaid | bills where status='paid', date in MTD range |
+| mtdCogsPaid | cogs_payments where status='paid', date in MTD range |
+| next7BillsDue | bills where status in ('due','scheduled'), coalesce(due_date,date) between today and today+7 |
+| next7CogsDue | cogs_payments where status in ('due','scheduled'), coalesce(due_date,date) between today and today+7 |
+| mtdNetAfterAdsAndBills | mtdRevenue - mtdAdSpend - mtdBillsPaid |
+| mtdProfitProxy | mtdRevenue - mtdAdSpend - mtdBillsPaid - mtdCogsPaid |
 
-- Deploy `ingest-expense` function
-- Test via curl: no key -> 401, valid key -> ok:true, duplicate -> ok:true (not 500)
+---
+
+## Step 5: Dashboard UI
+
+Add three new sections to `Dashboard.tsx` below Ad Spend:
+
+**Overhead (MTD)**
+- MTD Bills Paid (clickable)
+- Next 7 Days Bills Due (clickable)
+
+**COGS / Manufacturer (MTD)**
+- MTD COGS Paid (clickable)
+- Next 7 Days COGS Due (clickable)
+
+**Profit Proxy (MTD)**
+- Net After Ads & Bills (clickable)
+- Profit Proxy (clickable -- shows full breakdown: Revenue, Ads, Bills, COGS)
+
+---
+
+## Step 6: Detail Dialogs
+
+Create two new detail dialog components (or extend existing pattern):
+
+**BillsDetailDialog** -- shows table of bills for the selected metric (MTD paid or next 7 due), columns: Date, Vendor, Category, Amount, Status, Due Date, Notes
+
+**CogsDetailDialog** -- shows table of COGS payments for selected metric, columns: Date, Vendor, Order ID, Category, Amount, Status, Due Date, Notes
+
+**ProfitDetailDialog** -- shows summary breakdown (Revenue - Ads - Bills - COGS = Profit Proxy) with links to each sub-total
+
+---
+
+## Step 7: Deploy and Verify
+
+Deploy both `ingest-bill` and `ingest-cogs` edge functions. Test authentication (401 without key, ok with key, duplicates handled gracefully).
 
 ---
 
@@ -97,9 +111,14 @@ Add a new section below existing metric cards with heading "Ad Spend (MTD)" cont
 
 | File | Action |
 |------|--------|
-| Database migration | New `expenses` table + indexes + trigger + RLS |
-| `supabase/functions/ingest-expense/index.ts` | New edge function |
-| `src/hooks/useDashboardMetrics.ts` | Add expenses queries + MTD metrics |
-| `src/pages/Dashboard.tsx` | Add 5 ad spend cards section |
-| `src/pages/Settings.tsx` | Add expense endpoint card + sample |
+| Database migration | New bills + cogs_payments tables |
+| `supabase/functions/ingest-bill/index.ts` | New |
+| `supabase/functions/ingest-cogs/index.ts` | New |
+| `supabase/config.toml` | Add function configs (auto-managed) |
+| `src/hooks/useDashboardMetrics.ts` | Add 6 new metrics |
+| `src/pages/Dashboard.tsx` | Add 3 new sections with 6 cards |
+| `src/pages/Settings.tsx` | Add 2 endpoint cards |
+| `src/components/BillsDetailDialog.tsx` | New |
+| `src/components/CogsDetailDialog.tsx` | New |
+| `src/components/ProfitDetailDialog.tsx` | New |
 
