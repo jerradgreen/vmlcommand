@@ -4,6 +4,8 @@ import AdSpendDetailDialog, { AdSpendDetailType } from "@/components/AdSpendDeta
 import BillsDetailDialog, { BillsDetailType } from "@/components/BillsDetailDialog";
 import CogsDetailDialog, { CogsDetailType } from "@/components/CogsDetailDialog";
 import ProfitDetailDialog, { ProfitDetailType } from "@/components/ProfitDetailDialog";
+import LeadToSaleDetailDialog from "@/components/LeadToSaleDetailDialog";
+import Next7DueDetailDialog from "@/components/Next7DueDetailDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { LineChart, Line, XAxis, YAxis } from "recharts";
 import { useDashboardMetrics, useTrendData, DateRange, DatePreset } from "@/hooks/useDashboardMetrics";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
-import { DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw, AlertCircle, CalendarIcon, Building2, Factory, Calculator } from "lucide-react";
+import { DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw, AlertCircle, CalendarIcon, Building2, Factory, Calculator, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +104,8 @@ export default function Dashboard() {
   const [billsDetail, setBillsDetail] = useState<{ open: boolean; type: BillsDetailType }>({ open: false, type: "mtd_bills_paid" });
   const [cogsDetail, setCogsDetail] = useState<{ open: boolean; type: CogsDetailType }>({ open: false, type: "mtd_cogs_paid" });
   const [profitDetail, setProfitDetail] = useState<{ open: boolean; type: ProfitDetailType }>({ open: false, type: "profit_proxy" });
+  const [leadToSaleOpen, setLeadToSaleOpen] = useState(false);
+  const [next7DueOpen, setNext7DueOpen] = useState(false);
   const navigate = useNavigate();
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
@@ -127,7 +131,7 @@ export default function Dashboard() {
   const m = metrics ?? {
     earliestDate: null as string | null,
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
-    closeRate: 0, avgOrderValue: 0,
+    closeRate: 0, avgOrderValue: 0, avgDaysLeadToSale: null as number | null,
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
     yesterdayAdSpend: 0, mtdAdSpend: 0, mtdRevenue: 0, mtdRoas: 0, netAfterAds: 0,
     mtdBillsPaid: 0, mtdCogsPaid: 0, next7BillsDue: 0, next7CogsDue: 0,
@@ -212,8 +216,9 @@ export default function Dashboard() {
         <MetricCard title="Revenue" value={formatCurrency(m.totalRevenue)} icon={DollarSign} onClick={() => navigate("/sales")} />
         <MetricCard title="Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => navigate("/leads")} />
         <MetricCard title="Sales" value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
-        <MetricCard title="Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="Leads ÷ Sales (excl. repeat/direct)" onClick={() => navigate("/sales")} />
+        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => navigate("/sales")} />
         <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} onClick={() => navigate("/sales")} />
+        <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
         <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" onClick={() => navigate("/sales")} />
         <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" onClick={() => navigate("/sales")} />
         <MetricCard
@@ -240,7 +245,7 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold mb-3">Overhead ({rangeLabel})</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <MetricCard title={`${rangeLabel} Bills Paid`} value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle={rangeLabel} onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-          <MetricCard title="Next 7 Days Bills Due" value={formatCurrency(m.next7BillsDue)} icon={Building2} subtitle="Upcoming due/scheduled" onClick={() => setBillsDetail({ open: true, type: "next7_bills_due" })} />
+          <MetricCard title="Next 7 Days Bills Due" value={formatCurrency(m.next7BillsDue)} icon={Building2} subtitle="Upcoming due/scheduled" onClick={() => setNext7DueOpen(true)} />
         </div>
       </div>
 
@@ -248,7 +253,7 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold mb-3">COGS / Manufacturer ({rangeLabel})</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <MetricCard title={`${rangeLabel} COGS Paid`} value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
-          <MetricCard title="Next 7 Days COGS Due" value={formatCurrency(m.next7CogsDue)} icon={Factory} subtitle="Upcoming due/scheduled" onClick={() => setCogsDetail({ open: true, type: "next7_cogs_due" })} />
+          <MetricCard title="Next 7 Days COGS Due" value={formatCurrency(m.next7CogsDue)} icon={Factory} subtitle="Upcoming due/scheduled" onClick={() => setNext7DueOpen(true)} />
         </div>
       </div>
 
@@ -302,6 +307,8 @@ export default function Dashboard() {
         mtdCogsPaid={m.mtdCogsPaid}
         rangeLabel={rangeLabel}
       />
+      <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} />
+      <Next7DueDetailDialog open={next7DueOpen} onOpenChange={setNext7DueOpen} />
     </div>
   );
 }

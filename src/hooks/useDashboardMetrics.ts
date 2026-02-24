@@ -100,10 +100,34 @@ export function useDashboardMetrics(range: DateRange) {
       const repeatDirectSales = sales.filter((s) => s.sale_type === "repeat_direct");
       const unmatchedSales = sales.filter((s) => s.sale_type === "unknown" && !s.lead_id);
 
-      const nonRepeatSales = sales.filter((s) => s.sale_type !== "repeat_direct");
-      const closeRate = totalLeads > 0 ? nonRepeatSales.length / totalLeads : 0;
+      const closeRate = totalLeads > 0 ? newLeadSales.length / totalLeads : 0;
 
       const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+      // Avg Days Lead to Sale: only new_lead sales with lead_id
+      const matchedNewLeadSales = sales.filter((s) => s.sale_type === "new_lead" && s.lead_id);
+      let avgDaysLeadToSale: number | null = null;
+      if (matchedNewLeadSales.length > 0) {
+        const leadIds = [...new Set(matchedNewLeadSales.map((s) => s.lead_id!))];
+        const { data: leadsData } = await supabase
+          .from("leads")
+          .select("id, submitted_at")
+          .in("id", leadIds);
+        if (leadsData && leadsData.length > 0) {
+          const leadMap = new Map(leadsData.map((l) => [l.id, l.submitted_at]));
+          const daysArr: number[] = [];
+          for (const sale of matchedNewLeadSales) {
+            const submittedAt = leadMap.get(sale.lead_id!);
+            if (submittedAt && sale.date) {
+              const diff = (new Date(sale.date).getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
+              if (diff >= 0) daysArr.push(diff);
+            }
+          }
+          if (daysArr.length > 0) {
+            avgDaysLeadToSale = daysArr.reduce((a, b) => a + b, 0) / daysArr.length;
+          }
+        }
+      }
       const newLeadRevenue = newLeadSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const repeatDirectRevenue = repeatDirectSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const earliestDate = earliestRes.data?.[0]?.date ?? null;
@@ -128,6 +152,7 @@ export function useDashboardMetrics(range: DateRange) {
         totalSales,
         closeRate,
         avgOrderValue,
+        avgDaysLeadToSale,
         newLeadRevenue,
         repeatDirectRevenue,
         unmatchedCount: unmatchedSales.length,
