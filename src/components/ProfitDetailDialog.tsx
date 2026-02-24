@@ -11,9 +11,10 @@ interface Props {
   mtdAdSpend: number;
   mtdBillsPaid: number;
   mtdCogsPaid: number;
+  rangeLabel: string;
 }
 
-export default function ProfitDetailDialog({ open, onOpenChange, type, mtdRevenue, mtdAdSpend, mtdBillsPaid, mtdCogsPaid }: Props) {
+export default function ProfitDetailDialog({ open, onOpenChange, type, mtdRevenue, mtdAdSpend, mtdBillsPaid, mtdCogsPaid, rangeLabel }: Props) {
   const netAfterAdsBills = mtdRevenue - mtdAdSpend - mtdBillsPaid;
   const profitProxy = mtdRevenue - mtdAdSpend - mtdBillsPaid - mtdCogsPaid;
 
@@ -28,15 +29,15 @@ export default function ProfitDetailDialog({ open, onOpenChange, type, mtdRevenu
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span>MTD Revenue</span>
+            <span>{rangeLabel} Revenue</span>
             <span className="font-semibold">{formatCurrency(mtdRevenue)}</span>
           </div>
           <div className="flex justify-between">
-            <span>− MTD Ad Spend</span>
+            <span>− {rangeLabel} Ad Spend</span>
             <span className="font-semibold text-destructive">{formatCurrency(mtdAdSpend)}</span>
           </div>
           <div className="flex justify-between">
-            <span>− MTD Bills Paid</span>
+            <span>− {rangeLabel} Bills Paid</span>
             <span className="font-semibold text-destructive">{formatCurrency(mtdBillsPaid)}</span>
           </div>
 
@@ -50,7 +51,7 @@ export default function ProfitDetailDialog({ open, onOpenChange, type, mtdRevenu
           {type === "profit_proxy" && (
             <>
               <div className="flex justify-between">
-                <span>− MTD COGS Paid</span>
+                <span>− {rangeLabel} COGS Paid</span>
                 <span className="font-semibold text-destructive">{formatCurrency(mtdCogsPaid)}</span>
               </div>
               <div className="flex justify-between border-t pt-2 font-bold text-base">

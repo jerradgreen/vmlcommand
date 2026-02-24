@@ -140,6 +140,25 @@ export default function Dashboard() {
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
 
+  // Compute date bounds for detail dialogs
+  const rangeDateFrom = (() => {
+    if (dateRange.preset === "custom" && dateRange.from) return format(dateRange.from, "yyyy-MM-dd");
+    const now = new Date();
+    switch (dateRange.preset) {
+      case "today": return format(now, "yyyy-MM-dd");
+      case "yesterday": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1), "yyyy-MM-dd");
+      case "7d": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6), "yyyy-MM-dd");
+      case "30d": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29), "yyyy-MM-dd");
+      case "mtd": return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+      case "ytd": return format(new Date(now.getFullYear(), 0, 1), "yyyy-MM-dd");
+      default: return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"); // all → fallback MTD
+    }
+  })();
+  const rangeDateTo = (() => {
+    if (dateRange.preset === "custom" && dateRange.to) return format(dateRange.to, "yyyy-MM-dd");
+    return format(new Date(), "yyyy-MM-dd");
+  })();
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -253,16 +272,25 @@ export default function Dashboard() {
         open={adDetail.open}
         onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))}
         type={adDetail.type}
+        dateFrom={rangeDateFrom}
+        dateTo={rangeDateTo}
+        rangeLabel={rangeLabel}
       />
       <BillsDetailDialog
         open={billsDetail.open}
         onOpenChange={(open) => setBillsDetail((prev) => ({ ...prev, open }))}
         type={billsDetail.type}
+        dateFrom={rangeDateFrom}
+        dateTo={rangeDateTo}
+        rangeLabel={rangeLabel}
       />
       <CogsDetailDialog
         open={cogsDetail.open}
         onOpenChange={(open) => setCogsDetail((prev) => ({ ...prev, open }))}
         type={cogsDetail.type}
+        dateFrom={rangeDateFrom}
+        dateTo={rangeDateTo}
+        rangeLabel={rangeLabel}
       />
       <ProfitDetailDialog
         open={profitDetail.open}
@@ -272,6 +300,7 @@ export default function Dashboard() {
         mtdAdSpend={m.mtdAdSpend}
         mtdBillsPaid={m.mtdBillsPaid}
         mtdCogsPaid={m.mtdCogsPaid}
+        rangeLabel={rangeLabel}
       />
     </div>
   );
