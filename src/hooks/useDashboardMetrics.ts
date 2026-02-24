@@ -193,20 +193,23 @@ export function useTrendData(range: DateRange) {
           .select("submitted_at")
           .gte("submitted_at", trendFrom.toISOString())
           .lte("submitted_at", trendTo.toISOString())
-          .order("submitted_at"),
+          .order("submitted_at")
+          .limit(10000),
         supabase
           .from("sales")
           .select("date, revenue")
           .gte("date", format(trendFrom, "yyyy-MM-dd"))
           .lte("date", format(trendTo, "yyyy-MM-dd"))
-          .order("date"),
+          .order("date")
+          .limit(10000),
         supabase
           .from("expenses")
           .select("date, amount")
           .eq("category", "ads")
           .gte("date", format(trendFrom, "yyyy-MM-dd"))
           .lte("date", format(trendTo, "yyyy-MM-dd"))
-          .order("date"),
+          .order("date")
+          .limit(10000),
       ]);
 
       const leads = leadsRes.data ?? [];
