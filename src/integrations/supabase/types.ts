@@ -157,6 +157,87 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_accounts: {
+        Row: {
+          account_id: string
+          account_name: string | null
+          balance: number | null
+          currency: string | null
+          id: string
+          ingested_at: string | null
+          institution: string | null
+          last_update: string | null
+          raw_payload: Json | null
+          source_system: string
+        }
+        Insert: {
+          account_id: string
+          account_name?: string | null
+          balance?: number | null
+          currency?: string | null
+          id?: string
+          ingested_at?: string | null
+          institution?: string | null
+          last_update?: string | null
+          raw_payload?: Json | null
+          source_system?: string
+        }
+        Update: {
+          account_id?: string
+          account_name?: string | null
+          balance?: number | null
+          currency?: string | null
+          id?: string
+          ingested_at?: string | null
+          institution?: string | null
+          last_update?: string | null
+          raw_payload?: Json | null
+          source_system?: string
+        }
+        Relationships: []
+      }
+      financial_transactions: {
+        Row: {
+          account_id: string | null
+          account_name: string | null
+          amount: number
+          category: string | null
+          description: string | null
+          external_id: string
+          id: string
+          ingested_at: string | null
+          raw_payload: Json | null
+          source_system: string
+          txn_date: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_name?: string | null
+          amount: number
+          category?: string | null
+          description?: string | null
+          external_id: string
+          id?: string
+          ingested_at?: string | null
+          raw_payload?: Json | null
+          source_system?: string
+          txn_date: string
+        }
+        Update: {
+          account_id?: string | null
+          account_name?: string | null
+          amount?: number
+          category?: string | null
+          description?: string | null
+          external_id?: string
+          id?: string
+          ingested_at?: string | null
+          raw_payload?: Json | null
+          source_system?: string
+          txn_date?: string
+        }
+        Relationships: []
+      }
       ingestion_logs: {
         Row: {
           created_at: string

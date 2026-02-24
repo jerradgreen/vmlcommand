@@ -18,7 +18,9 @@ import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 import {
   DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw,
   AlertCircle, CalendarIcon, Building2, Factory, Calculator, Clock, Percent,
+  Landmark, CreditCard, ArrowUpRight, ArrowDownRight, Wallet,
 } from "lucide-react";
+import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +148,7 @@ export default function Dashboard() {
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
   const { data: trends, isLoading: trendsLoading } = useTrendData(dateRange);
+  const { data: cashMetrics } = useCashMetrics(dateRange);
 
   const handlePresetChange = (value: string) => {
     const preset = value as DatePreset;
@@ -200,7 +203,7 @@ export default function Dashboard() {
       case "30d": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29), "yyyy-MM-dd");
       case "mtd": return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
       case "ytd": return format(new Date(now.getFullYear(), 0, 1), "yyyy-MM-dd");
-      default: return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+      default: return "2000-01-01";
     }
   })();
   const rangeDateTo = (() => {
@@ -303,6 +306,29 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard title="Net After Upcoming Due" value={formatCurrency(netAfterUpcomingDue)} icon={Calculator} subtitle="Net Profit − Next 7 Days Due" onClick={() => setProfitDetail({ open: true, type: "net_after_upcoming_due" })} />
       </div>
+
+      {/* ═══ Cash & Bank Balances ═══ */}
+      {cashMetrics && cashMetrics.hasData && (
+        <>
+          <SectionHeader title="Bank & Card Balances" subtitle="Current account positions (ignores date picker)" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <MetricCard title="Cash in Bank" value={formatCurrency(cashMetrics.cashInBank)} icon={Landmark} subtitle="Current balance" />
+            <MetricCard title="Credit Cards Owed" value={formatCurrency(cashMetrics.cardsOwedDisplay)} icon={CreditCard} subtitle="Total owed (current)" />
+            <MetricCardLarge
+              title="Net Cash Position"
+              value={formatCurrency(cashMetrics.netCashPosition)}
+              icon={Wallet}
+              subtitle="Cash − Credit Card Debt"
+              positive={cashMetrics.netCashPosition >= 0}
+            />
+          </div>
+          <SectionHeader title="Transaction Flows" subtitle={`${rangeLabel} inflows and outflows`} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <MetricCard title={`${rangeLabel} Inflow`} value={formatCurrency(cashMetrics.totalInflow)} icon={ArrowUpRight} subtitle="Positive transactions" />
+            <MetricCard title={`${rangeLabel} Outflow`} value={formatCurrency(cashMetrics.totalOutflow)} icon={ArrowDownRight} subtitle="Negative transactions (abs)" />
+          </div>
+        </>
+      )}
 
       {/* ═══ Additional info cards ═══ */}
       <div className="grid gap-4 md:grid-cols-3">
