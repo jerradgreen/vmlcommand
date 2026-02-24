@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format, addDays } from "date-fns";
 
-export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "ytd" | "custom";
+export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "ytd" | "last_year" | "12m" | "custom";
 
 export interface DateRange {
   preset: DatePreset;
@@ -29,6 +29,12 @@ function getDateBounds(range: DateRange): { from: Date | null; to: Date | null }
       return { from: startOfMonth(now), to: endOfDay(now) };
     case "ytd":
       return { from: startOfYear(now), to: endOfDay(now) };
+    case "last_year": {
+      const ly = now.getFullYear() - 1;
+      return { from: new Date(ly, 0, 1), to: endOfDay(new Date(ly, 11, 31)) };
+    }
+    case "12m":
+      return { from: startOfDay(subDays(now, 364)), to: endOfDay(now) };
     case "custom":
       return { from: range.from ?? null, to: range.to ?? null };
     default:
