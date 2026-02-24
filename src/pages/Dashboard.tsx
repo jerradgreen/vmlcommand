@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import AdSpendDetailDialog, { AdSpendDetailType } from "@/components/AdSpendDetailDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -94,6 +95,7 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>({ preset: "all" });
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
+  const [adDetail, setAdDetail] = useState<{ open: boolean; type: AdSpendDetailType }>({ open: false, type: "yesterday_ad_spend" });
   const navigate = useNavigate();
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
@@ -197,11 +199,11 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold mb-3">Ad Spend (MTD)</h2>
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-          <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" />
-          <MetricCard title="MTD Ad Spend" value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle="Month to date" />
-          <MetricCard title="MTD Revenue" value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle="Month to date" />
-          <MetricCard title="MTD ROAS" value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" />
-          <MetricCard title="Net After Ads" value={formatCurrency(m.netAfterAds)} icon={BarChart3} subtitle="Revenue − Ad Spend" />
+          <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => setAdDetail({ open: true, type: "yesterday_ad_spend" })} />
+          <MetricCard title="MTD Ad Spend" value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle="Month to date" onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
+          <MetricCard title="MTD Revenue" value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle="Month to date" onClick={() => setAdDetail({ open: true, type: "mtd_revenue" })} />
+          <MetricCard title="MTD ROAS" value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
+          <MetricCard title="Net After Ads" value={formatCurrency(m.netAfterAds)} icon={BarChart3} subtitle="Revenue − Ad Spend" onClick={() => setAdDetail({ open: true, type: "net_after_ads" })} />
         </div>
       </div>
 
@@ -212,6 +214,12 @@ export default function Dashboard() {
           <TrendChart data={trends} dataKey="sales" label="Sales" />
         </div>
       )}
+
+      <AdSpendDetailDialog
+        open={adDetail.open}
+        onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))}
+        type={adDetail.type}
+      />
     </div>
   );
 }
