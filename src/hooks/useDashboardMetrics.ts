@@ -57,7 +57,7 @@ export function useDashboardMetrics(range: DateRange) {
         salesQuery = salesQuery.lte("date", format(to, "yyyy-MM-dd"));
       }
 
-      // MTD boundaries (always computed)
+      // Date range for ad spend / bills / cogs — use selected range, fallback to MTD
       const now = new Date();
       const mtdFrom = format(startOfMonth(now), "yyyy-MM-dd");
       const mtdTo = format(now, "yyyy-MM-dd");
@@ -65,30 +65,33 @@ export function useDashboardMetrics(range: DateRange) {
       const todayStr = format(now, "yyyy-MM-dd");
       const next7Str = format(addDays(now, 7), "yyyy-MM-dd");
 
+      // For ad spend section: use selected range if set, otherwise MTD
+      const rangeFrom = from ? format(from, "yyyy-MM-dd") : mtdFrom;
+      const rangeTo = to ? format(to, "yyyy-MM-dd") : mtdTo;
+
       const [
         leadsRes, salesRes, earliestRes,
-        yesterdayExpRes, mtdExpRes, mtdSalesRes,
-        mtdBillsPaidRes, mtdCogsPaidRes,
+        yesterdayExpRes, rangeExpRes, rangeSalesRevRes,
+        rangeBillsPaidRes, rangeCogsPaidRes,
         next7BillsRes, next7CogsRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
         earliestQuery,
         supabase.from("expenses").select("amount").eq("category", "ads").eq("date", yesterdayStr),
-        supabase.from("expenses").select("amount").eq("category", "ads").gte("date", mtdFrom).lte("date", mtdTo),
-        supabase.from("sales").select("revenue").gte("date", mtdFrom).lte("date", mtdTo),
-        // Bills paid MTD
-        supabase.from("bills").select("amount").eq("status", "paid").gte("date", mtdFrom).lte("date", mtdTo),
-        // COGS paid MTD
-        supabase.from("cogs_payments").select("amount").eq("status", "paid").gte("date", mtdFrom).lte("date", mtdTo),
-        // Next 7 days bills due
+        supabase.from("expenses").select("amount").eq("category", "ads").gte("date", rangeFrom).lte("date", rangeTo),
+        supabase.from("sales").select("revenue").gte("date", rangeFrom).lte("date", rangeTo),
+        // Bills paid in range
+        supabase.from("bills").select("amount").eq("status", "paid").gte("date", rangeFrom).lte("date", rangeTo),
+        // COGS paid in range
+        supabase.from("cogs_payments").select("amount").eq("status", "paid").gte("date", rangeFrom).lte("date", rangeTo),
+        // Next 7 days bills due (always absolute)
         supabase.from("bills").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
-        // Next 7 days COGS due
+        // Next 7 days COGS due (always absolute)
         supabase.from("cogs_payments").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
       ]);
 
       const sales = salesRes.data ?? [];
-
       const totalLeads = leadsRes.count ?? 0;
       const totalSales = sales.length;
       const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
@@ -106,17 +109,17 @@ export function useDashboardMetrics(range: DateRange) {
       const earliestDate = earliestRes.data?.[0]?.date ?? null;
 
       const yesterdayAdSpend = (yesterdayExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-      const mtdAdSpend = (mtdExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-      const mtdRevenue = (mtdSalesRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
-      const mtdRoas = mtdAdSpend > 0 ? mtdRevenue / mtdAdSpend : 0;
-      const netAfterAds = mtdRevenue - mtdAdSpend;
+      const rangeAdSpend = (rangeExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      const rangeRevenue = (rangeSalesRevRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
+      const rangeRoas = rangeAdSpend > 0 ? rangeRevenue / rangeAdSpend : 0;
+      const netAfterAds = rangeRevenue - rangeAdSpend;
 
-      const mtdBillsPaid = (mtdBillsPaidRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-      const mtdCogsPaid = (mtdCogsPaidRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+      const rangeBillsPaid = (rangeBillsPaidRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+      const rangeCogsPaid = (rangeCogsPaidRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
       const next7BillsDue = (next7BillsRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
       const next7CogsDue = (next7CogsRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-      const mtdNetAfterAdsAndBills = mtdRevenue - mtdAdSpend - mtdBillsPaid;
-      const mtdProfitProxy = mtdRevenue - mtdAdSpend - mtdBillsPaid - mtdCogsPaid;
+      const rangeNetAfterAdsAndBills = rangeRevenue - rangeAdSpend - rangeBillsPaid;
+      const rangeProfitProxy = rangeRevenue - rangeAdSpend - rangeBillsPaid - rangeCogsPaid;
 
       return {
         earliestDate,
@@ -129,16 +132,16 @@ export function useDashboardMetrics(range: DateRange) {
         repeatDirectRevenue,
         unmatchedCount: unmatchedSales.length,
         yesterdayAdSpend,
-        mtdAdSpend,
-        mtdRevenue,
-        mtdRoas,
+        mtdAdSpend: rangeAdSpend,
+        mtdRevenue: rangeRevenue,
+        mtdRoas: rangeRoas,
         netAfterAds,
-        mtdBillsPaid,
-        mtdCogsPaid,
+        mtdBillsPaid: rangeBillsPaid,
+        mtdCogsPaid: rangeCogsPaid,
         next7BillsDue,
         next7CogsDue,
-        mtdNetAfterAdsAndBills,
-        mtdProfitProxy,
+        mtdNetAfterAdsAndBills: rangeNetAfterAdsAndBills,
+        mtdProfitProxy: rangeProfitProxy,
       };
     },
   });
