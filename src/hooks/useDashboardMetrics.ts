@@ -61,13 +61,13 @@ export function useDashboardMetrics(range: DateRange) {
       const now = new Date();
       const mtdFrom = format(startOfMonth(now), "yyyy-MM-dd");
       const mtdTo = format(now, "yyyy-MM-dd");
-      const todayStr = format(now, "yyyy-MM-dd");
+      const yesterdayStr = format(subDays(now, 1), "yyyy-MM-dd");
 
-      const [leadsRes, salesRes, earliestRes, todayExpRes, mtdExpRes, mtdSalesRes] = await Promise.all([
+      const [leadsRes, salesRes, earliestRes, yesterdayExpRes, mtdExpRes, mtdSalesRes] = await Promise.all([
         leadsCountQuery,
         salesQuery,
         earliestQuery,
-        supabase.from("expenses").select("amount").eq("category", "ads").eq("date", todayStr),
+        supabase.from("expenses").select("amount").eq("category", "ads").eq("date", yesterdayStr),
         supabase.from("expenses").select("amount").eq("category", "ads").gte("date", mtdFrom).lte("date", mtdTo),
         supabase.from("sales").select("revenue").gte("date", mtdFrom).lte("date", mtdTo),
       ]);
@@ -90,7 +90,7 @@ export function useDashboardMetrics(range: DateRange) {
       const repeatDirectRevenue = repeatDirectSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const earliestDate = earliestRes.data?.[0]?.date ?? null;
 
-      const todayAdSpend = (todayExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      const yesterdayAdSpend = (yesterdayExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       const mtdAdSpend = (mtdExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       const mtdRevenue = (mtdSalesRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const mtdRoas = mtdAdSpend > 0 ? mtdRevenue / mtdAdSpend : 0;
@@ -106,7 +106,7 @@ export function useDashboardMetrics(range: DateRange) {
         newLeadRevenue,
         repeatDirectRevenue,
         unmatchedCount: unmatchedSales.length,
-        todayAdSpend,
+        yesterdayAdSpend,
         mtdAdSpend,
         mtdRevenue,
         mtdRoas,
