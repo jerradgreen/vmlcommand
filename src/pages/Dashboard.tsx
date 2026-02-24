@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import AdSpendDetailDialog, { AdSpendDetailType } from "@/components/AdSpendDetailDialog";
 import BillsDetailDialog, { BillsDetailType } from "@/components/BillsDetailDialog";
 import CogsDetailDialog, { CogsDetailType } from "@/components/CogsDetailDialog";
@@ -15,10 +15,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { LineChart, Line, XAxis, YAxis } from "recharts";
 import { useDashboardMetrics, useTrendData, DateRange, DatePreset } from "@/hooks/useDashboardMetrics";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
-import { DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw, AlertCircle, CalendarIcon, Building2, Factory, Calculator, Clock } from "lucide-react";
+import {
+  DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw,
+  AlertCircle, CalendarIcon, Building2, Factory, Calculator, Clock, Percent,
+} from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+/* ── Metric Card ── */
 function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
   title: string;
   value: string;
@@ -43,6 +47,47 @@ function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
   );
 }
 
+/* ── Emphasized Metric Card (Net Profit Proxy) ── */
+function MetricCardLarge({ title, value, icon: Icon, subtitle, onClick, positive }: {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  subtitle?: string;
+  onClick?: () => void;
+  positive: boolean;
+}) {
+  return (
+    <Card
+      className={cn(
+        "hover:shadow-md transition-shadow md:col-span-2 border-2",
+        positive ? "border-emerald-500/50 bg-emerald-500/5 dark:border-emerald-400/40 dark:bg-emerald-400/5" : "border-destructive/50 bg-destructive/5",
+        onClick && "cursor-pointer",
+      )}
+      onClick={onClick}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className={cn("text-3xl font-bold", positive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>{value}</div>
+        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ── Section Header ── */
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="pt-2">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <p className="text-sm text-muted-foreground">{subtitle}</p>
+    </div>
+  );
+}
+
+/* ── Charts ── */
 const chartConfig = {
   revenue: { label: "Revenue", color: "hsl(220, 70%, 50%)" },
   leads: { label: "Leads", color: "hsl(142, 72%, 40%)" },
@@ -63,21 +108,10 @@ function TrendChart({ data, dataKey, label, formatFn }: {
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[200px] w-full">
           <LineChart data={data}>
-            <XAxis
-              dataKey="date"
-              tickFormatter={(d) => format(new Date(d), "MMM d")}
-              tick={{ fontSize: 11 }}
-              interval="preserveStartEnd"
-            />
+            <XAxis dataKey="date" tickFormatter={(d) => format(new Date(d), "MMM d")} tick={{ fontSize: 11 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={formatFn} width={50} />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Line
-              type="monotone"
-              dataKey={dataKey}
-              stroke={`var(--color-${dataKey})`}
-              strokeWidth={2}
-              dot={false}
-            />
+            <Line type="monotone" dataKey={dataKey} stroke={`var(--color-${dataKey})`} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartContainer>
       </CardContent>
@@ -85,6 +119,7 @@ function TrendChart({ data, dataKey, label, formatFn }: {
   );
 }
 
+/* ── Preset labels ── */
 const presetLabels: Record<DatePreset, string> = {
   all: "All Time",
   today: "Today",
@@ -96,6 +131,7 @@ const presetLabels: Record<DatePreset, string> = {
   custom: "Custom Range",
 };
 
+/* ══════════════════ DASHBOARD ══════════════════ */
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>({ preset: "all" });
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
@@ -144,7 +180,18 @@ export default function Dashboard() {
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
 
-  // Compute date bounds for detail dialogs
+  // Derived metrics
+  const contribution = m.mtdRevenue - m.mtdAdSpend - m.mtdCogsPaid;
+  const contributionMarginPct = m.mtdRevenue > 0 ? contribution / m.mtdRevenue : 0;
+  const adSpendPctOfRevenue = m.mtdRevenue > 0 ? m.mtdAdSpend / m.mtdRevenue : 0;
+  const cogsPctOfRevenue = m.mtdRevenue > 0 ? m.mtdCogsPaid / m.mtdRevenue : 0;
+  const overheadPctOfRevenue = m.mtdRevenue > 0 ? m.mtdBillsPaid / m.mtdRevenue : 0;
+  const totalOperatingCost = m.mtdAdSpend + m.mtdCogsPaid + m.mtdBillsPaid;
+  const netProfitMarginPct = m.mtdRevenue > 0 ? m.mtdProfitProxy / m.mtdRevenue : 0;
+  const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
+  const netAfterUpcomingDue = m.mtdProfitProxy - next7TotalDue;
+
+  // Date bounds for detail dialogs
   const rangeDateFrom = (() => {
     if (dateRange.preset === "custom" && dateRange.from) return format(dateRange.from, "yyyy-MM-dd");
     const now = new Date();
@@ -155,7 +202,7 @@ export default function Dashboard() {
       case "30d": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29), "yyyy-MM-dd");
       case "mtd": return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
       case "ytd": return format(new Date(now.getFullYear(), 0, 1), "yyyy-MM-dd");
-      default: return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"); // all → fallback MTD
+      default: return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
     }
   })();
   const rangeDateTo = (() => {
@@ -165,6 +212,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header + date picker */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
@@ -212,59 +260,64 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
-        <MetricCard title="Revenue" value={formatCurrency(m.totalRevenue)} icon={DollarSign} onClick={() => navigate("/sales")} />
-        <MetricCard title="Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => navigate("/leads")} />
-        <MetricCard title="Sales" value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
-        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => navigate("/sales")} />
-        <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} onClick={() => navigate("/sales")} />
+      {/* ═══ SECTION 1 — Revenue Engine ═══ */}
+      <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle={rangeLabel} onClick={() => navigate("/sales")} />
+        <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
+        <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => navigate("/sales")} />
         <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
+        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => navigate("/sales")} />
+      </div>
+
+      {/* ═══ SECTION 2 — Ad Performance (Scale Engine) ═══ */}
+      <SectionHeader title="Ad Performance (Scale Engine)" subtitle="Can I scale ads safely?" />
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
+        <MetricCard title={`${rangeLabel} ROAS`} value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
+        <MetricCard title="Contribution ($)" value={formatCurrency(contribution)} icon={Calculator} subtitle="Revenue − Ads − COGS" onClick={() => setProfitDetail({ open: true, type: "contribution" })} />
+        <MetricCard title="Contribution Margin %" value={formatPercent(contributionMarginPct)} icon={Percent} subtitle="Contribution ÷ Revenue" onClick={() => setProfitDetail({ open: true, type: "contribution" })} />
+        <MetricCard title="Ad Spend % of Revenue" value={formatPercent(adSpendPctOfRevenue)} icon={Percent} subtitle="Ad Spend ÷ Revenue" onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
+      </div>
+
+      {/* ═══ SECTION 3 — Cost Structure (Leak Detection) ═══ */}
+      <SectionHeader title="Cost Structure (Leak Detection)" subtitle="Where is money drifting?" />
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+        <MetricCard title="COGS % of Revenue" value={formatPercent(cogsPctOfRevenue)} icon={Percent} subtitle="COGS ÷ Revenue" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle="Bills paid" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
+        <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
+        <MetricCard title="Total Operating Cost" value={formatCurrency(totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
+      </div>
+
+      {/* ═══ SECTION 4 — Cash & Survival ═══ */}
+      <SectionHeader title="Cash & Survival" subtitle="Can I pay myself?" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCardLarge
+          title="Net Profit Proxy (All-In)"
+          value={formatCurrency(m.mtdProfitProxy)}
+          icon={Calculator}
+          subtitle="Revenue − Ads − COGS − Overhead"
+          positive={m.mtdProfitProxy >= 0}
+          onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })}
+        />
+        <MetricCard title="Net Profit Margin %" value={formatPercent(netProfitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
+        <MetricCard title="Next 7 Days Due" value={formatCurrency(next7TotalDue)} icon={CalendarIcon} subtitle="Bills + COGS due" onClick={() => setNext7DueOpen(true)} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <MetricCard title="Net After Upcoming Due" value={formatCurrency(netAfterUpcomingDue)} icon={Calculator} subtitle="Net Profit − Next 7 Days Due" onClick={() => setProfitDetail({ open: true, type: "net_after_upcoming_due" })} />
+      </div>
+
+      {/* ═══ Additional info cards ═══ */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard title="Total Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => navigate("/leads")} />
         <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" onClick={() => navigate("/sales")} />
         <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" onClick={() => navigate("/sales")} />
-        <MetricCard
-          title="Unmatched Sales"
-          value={formatNumber(m.unmatchedCount)}
-          icon={AlertCircle}
-          subtitle="Click to review"
-          onClick={() => navigate("/attribution")}
-        />
+        <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => setAdDetail({ open: true, type: "yesterday_ad_spend" })} />
+        <MetricCard title="Unmatched Sales" value={formatNumber(m.unmatchedCount)} icon={AlertCircle} subtitle="Click to review" onClick={() => navigate("/attribution")} />
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Ad Spend ({rangeLabel})</h2>
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-          <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => setAdDetail({ open: true, type: "yesterday_ad_spend" })} />
-          <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
-          <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_revenue" })} />
-          <MetricCard title={`${rangeLabel} ROAS`} value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
-          <MetricCard title="Net After Ads" value={formatCurrency(m.netAfterAds)} icon={BarChart3} subtitle="Revenue − Ad Spend" onClick={() => setAdDetail({ open: true, type: "net_after_ads" })} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Overhead ({rangeLabel})</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <MetricCard title={`${rangeLabel} Bills Paid`} value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle={rangeLabel} onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-          <MetricCard title="Next 7 Days Bills Due" value={formatCurrency(m.next7BillsDue)} icon={Building2} subtitle="Upcoming due/scheduled" onClick={() => setNext7DueOpen(true)} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-3">COGS / Manufacturer ({rangeLabel})</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <MetricCard title={`${rangeLabel} COGS Paid`} value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
-          <MetricCard title="Next 7 Days COGS Due" value={formatCurrency(m.next7CogsDue)} icon={Factory} subtitle="Upcoming due/scheduled" onClick={() => setNext7DueOpen(true)} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Profit Proxy ({rangeLabel})</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <MetricCard title="Net After Ads & Bills" value={formatCurrency(m.mtdNetAfterAdsAndBills)} icon={Calculator} subtitle="Revenue − Ads − Bills" onClick={() => setProfitDetail({ open: true, type: "net_after_ads_bills" })} />
-          <MetricCard title="Profit Proxy" value={formatCurrency(m.mtdProfitProxy)} icon={Calculator} subtitle="Revenue − Ads − Bills − COGS" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
-        </div>
-      </div>
-
+      {/* ═══ Trends ═══ */}
       {!trendsLoading && trends && (
         <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
           <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
@@ -273,30 +326,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      <AdSpendDetailDialog
-        open={adDetail.open}
-        onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))}
-        type={adDetail.type}
-        dateFrom={rangeDateFrom}
-        dateTo={rangeDateTo}
-        rangeLabel={rangeLabel}
-      />
-      <BillsDetailDialog
-        open={billsDetail.open}
-        onOpenChange={(open) => setBillsDetail((prev) => ({ ...prev, open }))}
-        type={billsDetail.type}
-        dateFrom={rangeDateFrom}
-        dateTo={rangeDateTo}
-        rangeLabel={rangeLabel}
-      />
-      <CogsDetailDialog
-        open={cogsDetail.open}
-        onOpenChange={(open) => setCogsDetail((prev) => ({ ...prev, open }))}
-        type={cogsDetail.type}
-        dateFrom={rangeDateFrom}
-        dateTo={rangeDateTo}
-        rangeLabel={rangeLabel}
-      />
+      {/* ═══ Detail Dialogs ═══ */}
+      <AdSpendDetailDialog open={adDetail.open} onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))} type={adDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
+      <BillsDetailDialog open={billsDetail.open} onOpenChange={(open) => setBillsDetail((prev) => ({ ...prev, open }))} type={billsDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
+      <CogsDetailDialog open={cogsDetail.open} onOpenChange={(open) => setCogsDetail((prev) => ({ ...prev, open }))} type={cogsDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
       <ProfitDetailDialog
         open={profitDetail.open}
         onOpenChange={(open) => setProfitDetail((prev) => ({ ...prev, open }))}
@@ -305,6 +338,7 @@ export default function Dashboard() {
         mtdAdSpend={m.mtdAdSpend}
         mtdBillsPaid={m.mtdBillsPaid}
         mtdCogsPaid={m.mtdCogsPaid}
+        next7TotalDue={next7TotalDue}
         rangeLabel={rangeLabel}
       />
       <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} />
