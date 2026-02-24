@@ -1,128 +1,43 @@
 
 
-# Updated Plan: Dashboard Date-Range Fix + Fintable Ingestion (with 3 Patches)
+# Implementation Plan: Transaction Classification + Rules System
 
-## Overview
+## Summary
+Implementing the fully approved plan with all tweaks, fixes, corrections, and the new composite index for scale. This involves:
 
-Implements the previously approved plan with three patches applied: credit card display logic, date normalization in edge functions, and raw_payload fallback handling.
+1. **Database migration** -- transaction_rules table, financial_transactions columns, indexes (including the new composite index), trigger for match_value_norm sync, seed 10 rules, SQL functions with null-safety
+2. **Edge function update** -- ingest-transaction gets normalizeText, description_norm, account_name_norm, and RPC classification call
+3. **New shared utility** -- src/lib/normalizeText.ts
+4. **New UI** -- Transactions page with two tabs (Transactions + Rules), TransactionEditSheet, RuleFormDialog
+5. **Routing/nav** -- Add /transactions route and nav item
 
----
+## Technical Details
 
-## Part A -- Fix "All Time" Date Range
+### Migration SQL
+- CREATE transaction_rules with match_value_norm column
+- ALTER financial_transactions adding txn_type, txn_category, vendor, rule_id_applied, is_locked, classified_at, description_norm, account_name_norm
+- 4 indexes on transaction_rules including `idx_transaction_rules_active_priority_created ON (is_active, priority, created_at DESC)`
+- 6 indexes on financial_transactions new columns
+- Trigger function + trigger for auto-normalizing match_value_norm on INSERT/UPDATE
+- Backfill description_norm and account_name_norm
+- Seed 10 rules (5 COGS + 2 transfer + 3 autopay)
+- apply_transaction_rules(p_txn_id) with coalesce null-safety and match_value_norm matching
+- apply_rules_to_unclassified(p_limit)
 
-**`src/hooks/useDashboardMetrics.ts`** (line 69)
+### Edge Function Changes
+- Add normalizeText helper
+- Include description_norm and account_name_norm in upsert
+- After upsert, select row id and call apply_transaction_rules RPC
+- Wrap classification in try/catch
 
-Change fallback from MTD to `"2000-01-01"`:
-```text
-Before: const rangeFrom = from ? format(from, "yyyy-MM-dd") : mtdFrom;
-After:  const rangeFrom = from ? format(from, "yyyy-MM-dd") : "2000-01-01";
-```
+### New Files
+- src/lib/normalizeText.ts
+- src/pages/Transactions.tsx (filterable table + rules tab)
+- src/components/TransactionEditSheet.tsx (edit panel with owner_draw default)
+- src/components/RuleFormDialog.tsx (create/edit rules with match_field dropdown)
 
-Also fix `rangeDateFrom` default case in `Dashboard.tsx` (line 203) to `"2000-01-01"`.
-
----
-
-## Part B -- Database Migration
-
-Create two tables: `financial_accounts` and `financial_transactions` with the schema from the approved plan (UUIDs, unique constraints, indexes, open RLS policies).
-
----
-
-## Part C -- Edge Functions (with all 3 patches applied)
-
-### `supabase/functions/ingest-account/index.ts`
-
-- CORS + OPTIONS, x-api-key validation
-- Require `account_id` and `balance`
-- **Patch 2 (date normalization)**: If `last_update` is provided and matches `MM/DD/YYYY`, convert to ISO before insert
-- **Patch 3 (raw_payload)**: If `body.raw_payload` exists, store it; else store entire `body` as `raw_payload`
-- Upsert on `(source_system, account_id)`
-
-### `supabase/functions/ingest-transaction/index.ts`
-
-- CORS + OPTIONS, x-api-key validation
-- Require `txn_date`, `amount`, `description`
-- **Patch 2 (date normalization)**: Accept `txn_date` in `YYYY-MM-DD` or `MM/DD/YYYY`; normalize to `YYYY-MM-DD`
-- **Patch 3 (raw_payload)**: If `body.raw_payload` exists, use it; else store entire `body` as `raw_payload`
-- **Improved external_id** (from previous approval): check raw_payload for stable ID keys (`id`, `transaction_id`, `txn_id`, `entry_id`, `plaid_transaction_id`); fallback to enriched SHA-256 hash including `account_id`, `pending`, `posted_at`
-- Upsert on `(source_system, external_id)`; return `{ ok: true, duplicate: true }` on 23505
-
-### `supabase/config.toml`
-
-Add both functions with `verify_jwt = false`.
-
----
-
-## Part D -- Settings Page
-
-Add two new `EndpointCard` entries for "Ingest Account" and "Ingest Transaction" with sample payloads.
-
----
-
-## Part E -- Cash Metrics Hook (with Patch 1)
-
-### `src/hooks/useCashMetrics.ts` (new file)
-
-Account classification via regex:
-```text
-const CREDIT_PATTERN = /card|visa|mastercard|discover|amex/i;
-```
-
-Returns:
-- `cashInBank` -- sum of balances for "bank" classified accounts
-- `cardsTotalRaw` -- sum of balances for "credit" classified accounts (stored as-is, typically negative)
-- `cardsOwedDisplay` -- `Math.abs(cardsTotalRaw)` (always positive for display)
-- `netCashPosition` -- `cashInBank + cardsTotalRaw` (signed math)
-- `totalInflow` -- sum of positive transaction amounts in selected date range
-- `totalOutflow` -- `Math.abs(sum of negative transaction amounts)` in selected date range
-- `isLoading`
-
-Balances ignore date picker; transactions respect it.
-
----
-
-## Part F -- Dashboard Cash & Survival Cards (with Patch 1)
-
-Add 5 cards to Cash & Survival section:
-
-1. **Cash in Bank** -- displays `cashInBank` (always current)
-2. **Credit Cards Owed** -- displays `cardsOwedDisplay` (positive number)
-3. **Net Cash Position** -- displays `netCashPosition` (uses signed math: `cashInBank + cardsTotalRaw`)
-4. **Total Inflow** -- respects date picker
-5. **Total Outflow** -- respects date picker
-
-All show "--" when no financial data exists.
-
----
-
-## Date Normalization Helper (shared by both edge functions)
-
-```text
-function normalizeDate(raw: string): string | null {
-  // Try MM/DD/YYYY
-  const mdyMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mdyMatch) {
-    const [, mm, dd, yyyy] = mdyMatch;
-    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
-  }
-  // Try YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  return null;
-}
-```
-
----
-
-## File Summary
-
-| File | Action |
-|------|--------|
-| `src/hooks/useDashboardMetrics.ts` | Fix All Time rangeFrom to "2000-01-01" |
-| `src/pages/Dashboard.tsx` | Fix rangeDateFrom default; add 5 cash cards |
-| `src/hooks/useCashMetrics.ts` | New hook with account classification + Patch 1 display logic |
-| `src/pages/Settings.tsx` | Add 2 endpoint cards |
-| `supabase/functions/ingest-account/index.ts` | New edge function with Patches 2+3 |
-| `supabase/functions/ingest-transaction/index.ts` | New edge function with improved dedup + Patches 2+3 |
-| `supabase/config.toml` | Add verify_jwt=false for both new functions |
-| Database migration | Create financial_accounts + financial_transactions tables |
+### Modified Files
+- src/App.tsx (add /transactions route)
+- src/components/AppLayout.tsx (add Transactions nav with Banknote icon)
+- supabase/functions/ingest-transaction/index.ts (normalizeText + classification)
 
