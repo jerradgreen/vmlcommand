@@ -138,6 +138,8 @@ export default function Dashboard() {
     ? `All Time (since ${format(new Date(m.earliestDate), "MMM d, yyyy")})`
     : `${presetLabels[dateRange.preset]} performance overview`;
 
+  const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -205,34 +207,34 @@ export default function Dashboard() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">Ad Spend (MTD)</h2>
+        <h2 className="text-lg font-semibold mb-3">Ad Spend ({rangeLabel})</h2>
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => setAdDetail({ open: true, type: "yesterday_ad_spend" })} />
-          <MetricCard title="MTD Ad Spend" value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle="Month to date" onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
-          <MetricCard title="MTD Revenue" value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle="Month to date" onClick={() => setAdDetail({ open: true, type: "mtd_revenue" })} />
-          <MetricCard title="MTD ROAS" value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
+          <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
+          <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_revenue" })} />
+          <MetricCard title={`${rangeLabel} ROAS`} value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
           <MetricCard title="Net After Ads" value={formatCurrency(m.netAfterAds)} icon={BarChart3} subtitle="Revenue − Ad Spend" onClick={() => setAdDetail({ open: true, type: "net_after_ads" })} />
         </div>
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">Overhead (MTD)</h2>
+        <h2 className="text-lg font-semibold mb-3">Overhead ({rangeLabel})</h2>
         <div className="grid gap-4 md:grid-cols-2">
-          <MetricCard title="MTD Bills Paid" value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle="Month to date" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
+          <MetricCard title={`${rangeLabel} Bills Paid`} value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle={rangeLabel} onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
           <MetricCard title="Next 7 Days Bills Due" value={formatCurrency(m.next7BillsDue)} icon={Building2} subtitle="Upcoming due/scheduled" onClick={() => setBillsDetail({ open: true, type: "next7_bills_due" })} />
         </div>
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">COGS / Manufacturer (MTD)</h2>
+        <h2 className="text-lg font-semibold mb-3">COGS / Manufacturer ({rangeLabel})</h2>
         <div className="grid gap-4 md:grid-cols-2">
-          <MetricCard title="MTD COGS Paid" value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle="Month to date" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+          <MetricCard title={`${rangeLabel} COGS Paid`} value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
           <MetricCard title="Next 7 Days COGS Due" value={formatCurrency(m.next7CogsDue)} icon={Factory} subtitle="Upcoming due/scheduled" onClick={() => setCogsDetail({ open: true, type: "next7_cogs_due" })} />
         </div>
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">Profit Proxy (MTD)</h2>
+        <h2 className="text-lg font-semibold mb-3">Profit Proxy ({rangeLabel})</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <MetricCard title="Net After Ads & Bills" value={formatCurrency(m.mtdNetAfterAdsAndBills)} icon={Calculator} subtitle="Revenue − Ads − Bills" onClick={() => setProfitDetail({ open: true, type: "net_after_ads_bills" })} />
           <MetricCard title="Profit Proxy" value={formatCurrency(m.mtdProfitProxy)} icon={Calculator} subtitle="Revenue − Ads − Bills − COGS" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
