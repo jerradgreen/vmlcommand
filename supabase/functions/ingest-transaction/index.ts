@@ -16,6 +16,14 @@ function normalizeDate(raw: string): string | null {
   return null;
 }
 
+function normalizeText(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function stableHash(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -72,7 +80,6 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Normalize txn_date
   const txn_date = normalizeDate(rawDate);
   if (!txn_date) {
     return new Response(
@@ -81,13 +88,16 @@ Deno.serve(async (req) => {
     );
   }
 
-  // raw_payload: use body.raw_payload if present, else store entire body
   const raw_payload = (body.raw_payload != null ? body.raw_payload : body) as Record<string, unknown>;
 
   const account_id = typeof body.account_id === "string" ? body.account_id.trim() : null;
   const account_name = typeof body.account_name === "string" ? body.account_name.trim() : null;
 
-  // Determine external_id: try stable keys from raw_payload first
+  // Compute normalized fields
+  const description_norm = normalizeText(description);
+  const account_name_norm = account_name ? normalizeText(account_name) : null;
+
+  // Determine external_id
   let external_id: string | null = null;
   if (raw_payload && typeof raw_payload === "object") {
     for (const key of STABLE_ID_KEYS) {
@@ -103,7 +113,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Fallback: enriched hash
   if (!external_id) {
     const pendingVal = raw_payload && typeof raw_payload === "object" ? (raw_payload as Record<string, unknown>).pending ?? "" : "";
     const postedVal = raw_payload && typeof raw_payload === "object"
@@ -126,6 +135,8 @@ Deno.serve(async (req) => {
       txn_date,
       amount,
       description,
+      description_norm,
+      account_name_norm,
       category: typeof body.category === "string" ? body.category : null,
       account_name,
       account_id,
@@ -133,9 +144,11 @@ Deno.serve(async (req) => {
       ingested_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    const { data: upsertData, error } = await supabase
       .from("financial_transactions")
-      .upsert(row, { onConflict: "source_system,external_id" });
+      .upsert(row, { onConflict: "source_system,external_id" })
+      .select("id")
+      .single();
 
     if (error) {
       if (error.code === "23505" || (error.message && error.message.includes("duplicate key"))) {
@@ -147,8 +160,21 @@ Deno.serve(async (req) => {
       throw error;
     }
 
+    // Classify via rules (best-effort, never fail ingestion)
+    let classification: unknown = null;
+    if (upsertData?.id) {
+      try {
+        const { data: classResult } = await supabase.rpc("apply_transaction_rules", {
+          p_txn_id: upsertData.id,
+        });
+        classification = classResult;
+      } catch (_classErr) {
+        // Classification failure should not block ingestion
+      }
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, external_id }),
+      JSON.stringify({ ok: true, external_id, id: upsertData?.id, classification }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: unknown) {

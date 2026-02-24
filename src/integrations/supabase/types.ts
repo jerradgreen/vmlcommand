@@ -200,43 +200,75 @@ export type Database = {
         Row: {
           account_id: string | null
           account_name: string | null
+          account_name_norm: string | null
           amount: number
           category: string | null
+          classified_at: string | null
           description: string | null
+          description_norm: string | null
           external_id: string
           id: string
           ingested_at: string | null
+          is_locked: boolean
           raw_payload: Json | null
+          rule_id_applied: string | null
           source_system: string
+          txn_category: string | null
           txn_date: string
+          txn_type: string | null
+          vendor: string | null
         }
         Insert: {
           account_id?: string | null
           account_name?: string | null
+          account_name_norm?: string | null
           amount: number
           category?: string | null
+          classified_at?: string | null
           description?: string | null
+          description_norm?: string | null
           external_id: string
           id?: string
           ingested_at?: string | null
+          is_locked?: boolean
           raw_payload?: Json | null
+          rule_id_applied?: string | null
           source_system?: string
+          txn_category?: string | null
           txn_date: string
+          txn_type?: string | null
+          vendor?: string | null
         }
         Update: {
           account_id?: string | null
           account_name?: string | null
+          account_name_norm?: string | null
           amount?: number
           category?: string | null
+          classified_at?: string | null
           description?: string | null
+          description_norm?: string | null
           external_id?: string
           id?: string
           ingested_at?: string | null
+          is_locked?: boolean
           raw_payload?: Json | null
+          rule_id_applied?: string | null
           source_system?: string
+          txn_category?: string | null
           txn_date?: string
+          txn_type?: string | null
+          vendor?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_rule_id_applied_fkey"
+            columns: ["rule_id_applied"]
+            isOneToOne: false
+            referencedRelation: "transaction_rules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ingestion_logs: {
         Row: {
@@ -445,11 +477,58 @@ export type Database = {
           },
         ]
       }
+      transaction_rules: {
+        Row: {
+          assign_category: string | null
+          assign_txn_type: string | null
+          assign_vendor: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          match_field: string
+          match_type: string
+          match_value: string
+          match_value_norm: string | null
+          notes: string | null
+          priority: number
+        }
+        Insert: {
+          assign_category?: string | null
+          assign_txn_type?: string | null
+          assign_vendor?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_field?: string
+          match_type: string
+          match_value: string
+          match_value_norm?: string | null
+          notes?: string | null
+          priority?: number
+        }
+        Update: {
+          assign_category?: string | null
+          assign_txn_type?: string | null
+          assign_vendor?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_field?: string
+          match_type?: string
+          match_value?: string
+          match_value_norm?: string | null
+          notes?: string | null
+          priority?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      apply_rules_to_unclassified: { Args: { p_limit?: number }; Returns: Json }
+      apply_transaction_rules: { Args: { p_txn_id: string }; Returns: Json }
       array_intersect: { Args: { a: string[]; b: string[] }; Returns: string[] }
       array_intersect_stem: {
         Args: { a: string[]; b: string[] }
