@@ -180,10 +180,8 @@ export default function Dashboard() {
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
 
-  // Derived metrics
-  const contribution = m.mtdRevenue - m.mtdAdSpend - m.mtdCogsPaid;
-  const contributionMarginPct = m.mtdRevenue > 0 ? contribution / m.mtdRevenue : 0;
-  const adSpendPctOfRevenue = m.mtdRevenue > 0 ? m.mtdAdSpend / m.mtdRevenue : 0;
+    // Derived metrics
+    const adSpendPctOfRevenue = m.mtdRevenue > 0 ? m.mtdAdSpend / m.mtdRevenue : 0;
   const cogsPctOfRevenue = m.mtdRevenue > 0 ? m.mtdCogsPaid / m.mtdRevenue : 0;
   const overheadPctOfRevenue = m.mtdRevenue > 0 ? m.mtdBillsPaid / m.mtdRevenue : 0;
   const totalOperatingCost = m.mtdAdSpend + m.mtdCogsPaid + m.mtdBillsPaid;
@@ -271,12 +269,10 @@ export default function Dashboard() {
       </div>
 
       {/* ═══ SECTION 2 — Ad Performance (Scale Engine) ═══ */}
-      <SectionHeader title="Ad Performance (Scale Engine)" subtitle="Can I scale ads safely?" />
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <SectionHeader title="Ad Performance" subtitle="Can I scale safely?" />
+      <div className="grid gap-4 md:grid-cols-3">
         <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
         <MetricCard title={`${rangeLabel} ROAS`} value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
-        <MetricCard title="Contribution ($)" value={formatCurrency(contribution)} icon={Calculator} subtitle="Revenue − Ads − COGS" onClick={() => setProfitDetail({ open: true, type: "contribution" })} />
-        <MetricCard title="Contribution Margin %" value={formatPercent(contributionMarginPct)} icon={Percent} subtitle="Contribution ÷ Revenue" onClick={() => setProfitDetail({ open: true, type: "contribution" })} />
         <MetricCard title="Ad Spend % of Revenue" value={formatPercent(adSpendPctOfRevenue)} icon={Percent} subtitle="Ad Spend ÷ Revenue" onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
       </div>
 
@@ -291,10 +287,10 @@ export default function Dashboard() {
       </div>
 
       {/* ═══ SECTION 4 — Cash & Survival ═══ */}
-      <SectionHeader title="Cash & Survival" subtitle="Can I pay myself?" />
+      <SectionHeader title="Cash & Survival" subtitle="What do I actually keep?" />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCardLarge
-          title="Net Profit Proxy (All-In)"
+          title="Net Profit"
           value={formatCurrency(m.mtdProfitProxy)}
           icon={Calculator}
           subtitle="Revenue − Ads − COGS − Overhead"
