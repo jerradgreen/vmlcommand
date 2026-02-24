@@ -187,34 +187,56 @@ export function useTrendData(range: DateRange) {
   return useQuery({
     queryKey: ["trend-data", format(trendFrom, "yyyy-MM-dd"), format(trendTo, "yyyy-MM-dd")],
     queryFn: async () => {
-      const [leadsRes, salesRes, expensesRes] = await Promise.all([
-        supabase
-          .from("leads")
-          .select("submitted_at")
-          .gte("submitted_at", trendFrom.toISOString())
-          .lte("submitted_at", trendTo.toISOString())
-          .order("submitted_at")
-          .limit(10000),
-        supabase
-          .from("sales")
-          .select("date, revenue")
-          .gte("date", format(trendFrom, "yyyy-MM-dd"))
-          .lte("date", format(trendTo, "yyyy-MM-dd"))
-          .order("date")
-          .limit(10000),
-        supabase
-          .from("expenses")
-          .select("date, amount")
-          .eq("category", "ads")
-          .gte("date", format(trendFrom, "yyyy-MM-dd"))
-          .lte("date", format(trendTo, "yyyy-MM-dd"))
-          .order("date")
-          .limit(10000),
+      const fetchAll = async <T>(queryFactory: (from: number, to: number) => any) => {
+        const pageSize = 1000;
+        let start = 0;
+        const allRows: T[] = [];
+
+        while (true) {
+          const { data, error } = await queryFactory(start, start + pageSize - 1);
+          if (error) throw error;
+
+          const chunk = data ?? [];
+          allRows.push(...chunk);
+
+          if (chunk.length < pageSize) break;
+          start += pageSize;
+        }
+
+        return allRows;
+      };
+
+      const [leads, sales, expenses] = await Promise.all([
+        fetchAll<{ submitted_at: string | null }>((fromRow, toRow) =>
+          supabase
+            .from("leads")
+            .select("submitted_at")
+            .gte("submitted_at", trendFrom.toISOString())
+            .lte("submitted_at", trendTo.toISOString())
+            .order("submitted_at")
+            .range(fromRow, toRow)
+        ),
+        fetchAll<{ date: string | null; revenue: number | null }>((fromRow, toRow) =>
+          supabase
+            .from("sales")
+            .select("date, revenue")
+            .gte("date", format(trendFrom, "yyyy-MM-dd"))
+            .lte("date", format(trendTo, "yyyy-MM-dd"))
+            .order("date")
+            .range(fromRow, toRow)
+        ),
+        fetchAll<{ date: string | null; amount: number | null }>((fromRow, toRow) =>
+          supabase
+            .from("expenses")
+            .select("date, amount")
+            .eq("category", "ads")
+            .gte("date", format(trendFrom, "yyyy-MM-dd"))
+            .lte("date", format(trendTo, "yyyy-MM-dd"))
+            .order("date")
+            .range(fromRow, toRow)
+        ),
       ]);
 
-      const leads = leadsRes.data ?? [];
-      const sales = salesRes.data ?? [];
-      const expenses = expensesRes.data ?? [];
 
       const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; adSpend: number }> = {};
       for (let i = 0; i <= days; i++) {
