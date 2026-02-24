@@ -187,7 +187,7 @@ export function useTrendData(range: DateRange) {
   return useQuery({
     queryKey: ["trend-data", format(trendFrom, "yyyy-MM-dd"), format(trendTo, "yyyy-MM-dd")],
     queryFn: async () => {
-      const [leadsRes, salesRes] = await Promise.all([
+      const [leadsRes, salesRes, expensesRes] = await Promise.all([
         supabase
           .from("leads")
           .select("submitted_at")
@@ -200,15 +200,23 @@ export function useTrendData(range: DateRange) {
           .gte("date", format(trendFrom, "yyyy-MM-dd"))
           .lte("date", format(trendTo, "yyyy-MM-dd"))
           .order("date"),
+        supabase
+          .from("expenses")
+          .select("date, amount")
+          .eq("category", "ads")
+          .gte("date", format(trendFrom, "yyyy-MM-dd"))
+          .lte("date", format(trendTo, "yyyy-MM-dd"))
+          .order("date"),
       ]);
 
       const leads = leadsRes.data ?? [];
       const sales = salesRes.data ?? [];
+      const expenses = expensesRes.data ?? [];
 
-      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number }> = {};
+      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; adSpend: number }> = {};
       for (let i = 0; i <= days; i++) {
         const d = format(subDays(trendTo, days - i), "yyyy-MM-dd");
-        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0 };
+        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0, adSpend: 0 };
       }
 
       leads.forEach((l) => {
@@ -224,6 +232,15 @@ export function useTrendData(range: DateRange) {
           if (dayMap[d]) {
             dayMap[d].sales++;
             dayMap[d].revenue += Number(s.revenue) || 0;
+          }
+        }
+      });
+
+      expenses.forEach((e) => {
+        if (e.date) {
+          const d = typeof e.date === "string" ? e.date : format(new Date(e.date), "yyyy-MM-dd");
+          if (dayMap[d]) {
+            dayMap[d].adSpend += Number(e.amount) || 0;
           }
         }
       });

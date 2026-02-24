@@ -94,6 +94,7 @@ const chartConfig = {
   revenue: { label: "Revenue", color: "hsl(220, 70%, 50%)" },
   leads: { label: "Leads", color: "hsl(142, 72%, 40%)" },
   sales: { label: "Sales", color: "hsl(38, 92%, 50%)" },
+  adSpend: { label: "Ad Spend", color: "hsl(0, 72%, 50%)" },
 };
 
 function TrendChart({ data, dataKey, label, formatFn }: {
@@ -343,8 +344,9 @@ export default function Dashboard() {
 
       {/* ═══ Trends ═══ */}
       {!trendsLoading && trends && (
-        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+          <TrendChart data={trends} dataKey="adSpend" label="Ad Spend" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
           <TrendChart data={trends} dataKey="leads" label="Leads" />
           <TrendChart data={trends} dataKey="sales" label="Sales" />
         </div>
