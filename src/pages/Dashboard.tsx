@@ -130,6 +130,8 @@ const presetLabels: Record<DatePreset, string> = {
   "30d": "Last 30 Days",
   mtd: "Month to Date",
   ytd: "Year to Date",
+  last_year: "Last Year",
+  "12m": "Last 12 Months",
   custom: "Custom Range",
 };
 
