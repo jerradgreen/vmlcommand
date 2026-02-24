@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AdSpendDetailDialog, { AdSpendDetailType } from "@/components/AdSpendDetailDialog";
+import BillsDetailDialog, { BillsDetailType } from "@/components/BillsDetailDialog";
+import CogsDetailDialog, { CogsDetailType } from "@/components/CogsDetailDialog";
+import ProfitDetailDialog, { ProfitDetailType } from "@/components/ProfitDetailDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { LineChart, Line, XAxis, YAxis } from "recharts";
 import { useDashboardMetrics, useTrendData, DateRange, DatePreset } from "@/hooks/useDashboardMetrics";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
-import { DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw, AlertCircle, CalendarIcon } from "lucide-react";
+import { DollarSign, Users, ShoppingCart, TrendingUp, BarChart3, RefreshCw, AlertCircle, CalendarIcon, Building2, Factory, Calculator } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +99,9 @@ export default function Dashboard() {
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
   const [adDetail, setAdDetail] = useState<{ open: boolean; type: AdSpendDetailType }>({ open: false, type: "yesterday_ad_spend" });
+  const [billsDetail, setBillsDetail] = useState<{ open: boolean; type: BillsDetailType }>({ open: false, type: "mtd_bills_paid" });
+  const [cogsDetail, setCogsDetail] = useState<{ open: boolean; type: CogsDetailType }>({ open: false, type: "mtd_cogs_paid" });
+  const [profitDetail, setProfitDetail] = useState<{ open: boolean; type: ProfitDetailType }>({ open: false, type: "profit_proxy" });
   const navigate = useNavigate();
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
@@ -124,6 +130,8 @@ export default function Dashboard() {
     closeRate: 0, avgOrderValue: 0,
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
     yesterdayAdSpend: 0, mtdAdSpend: 0, mtdRevenue: 0, mtdRoas: 0, netAfterAds: 0,
+    mtdBillsPaid: 0, mtdCogsPaid: 0, next7BillsDue: 0, next7CogsDue: 0,
+    mtdNetAfterAdsAndBills: 0, mtdProfitProxy: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -207,6 +215,30 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Overhead (MTD)</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <MetricCard title="MTD Bills Paid" value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle="Month to date" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
+          <MetricCard title="Next 7 Days Bills Due" value={formatCurrency(m.next7BillsDue)} icon={Building2} subtitle="Upcoming due/scheduled" onClick={() => setBillsDetail({ open: true, type: "next7_bills_due" })} />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-3">COGS / Manufacturer (MTD)</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <MetricCard title="MTD COGS Paid" value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle="Month to date" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+          <MetricCard title="Next 7 Days COGS Due" value={formatCurrency(m.next7CogsDue)} icon={Factory} subtitle="Upcoming due/scheduled" onClick={() => setCogsDetail({ open: true, type: "next7_cogs_due" })} />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Profit Proxy (MTD)</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <MetricCard title="Net After Ads & Bills" value={formatCurrency(m.mtdNetAfterAdsAndBills)} icon={Calculator} subtitle="Revenue − Ads − Bills" onClick={() => setProfitDetail({ open: true, type: "net_after_ads_bills" })} />
+          <MetricCard title="Profit Proxy" value={formatCurrency(m.mtdProfitProxy)} icon={Calculator} subtitle="Revenue − Ads − Bills − COGS" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
+        </div>
+      </div>
+
       {!trendsLoading && trends && (
         <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
           <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
@@ -219,6 +251,25 @@ export default function Dashboard() {
         open={adDetail.open}
         onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))}
         type={adDetail.type}
+      />
+      <BillsDetailDialog
+        open={billsDetail.open}
+        onOpenChange={(open) => setBillsDetail((prev) => ({ ...prev, open }))}
+        type={billsDetail.type}
+      />
+      <CogsDetailDialog
+        open={cogsDetail.open}
+        onOpenChange={(open) => setCogsDetail((prev) => ({ ...prev, open }))}
+        type={cogsDetail.type}
+      />
+      <ProfitDetailDialog
+        open={profitDetail.open}
+        onOpenChange={(open) => setProfitDetail((prev) => ({ ...prev, open }))}
+        type={profitDetail.type}
+        mtdRevenue={m.mtdRevenue}
+        mtdAdSpend={m.mtdAdSpend}
+        mtdBillsPaid={m.mtdBillsPaid}
+        mtdCogsPaid={m.mtdCogsPaid}
       />
     </div>
   );

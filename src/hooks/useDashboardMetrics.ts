@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format } from "date-fns";
+import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format, addDays } from "date-fns";
 
 export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "ytd" | "custom";
 
@@ -62,14 +62,29 @@ export function useDashboardMetrics(range: DateRange) {
       const mtdFrom = format(startOfMonth(now), "yyyy-MM-dd");
       const mtdTo = format(now, "yyyy-MM-dd");
       const yesterdayStr = format(subDays(now, 1), "yyyy-MM-dd");
+      const todayStr = format(now, "yyyy-MM-dd");
+      const next7Str = format(addDays(now, 7), "yyyy-MM-dd");
 
-      const [leadsRes, salesRes, earliestRes, yesterdayExpRes, mtdExpRes, mtdSalesRes] = await Promise.all([
+      const [
+        leadsRes, salesRes, earliestRes,
+        yesterdayExpRes, mtdExpRes, mtdSalesRes,
+        mtdBillsPaidRes, mtdCogsPaidRes,
+        next7BillsRes, next7CogsRes,
+      ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
         earliestQuery,
         supabase.from("expenses").select("amount").eq("category", "ads").eq("date", yesterdayStr),
         supabase.from("expenses").select("amount").eq("category", "ads").gte("date", mtdFrom).lte("date", mtdTo),
         supabase.from("sales").select("revenue").gte("date", mtdFrom).lte("date", mtdTo),
+        // Bills paid MTD
+        supabase.from("bills").select("amount").eq("status", "paid").gte("date", mtdFrom).lte("date", mtdTo),
+        // COGS paid MTD
+        supabase.from("cogs_payments").select("amount").eq("status", "paid").gte("date", mtdFrom).lte("date", mtdTo),
+        // Next 7 days bills due
+        supabase.from("bills").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
+        // Next 7 days COGS due
+        supabase.from("cogs_payments").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -96,6 +111,13 @@ export function useDashboardMetrics(range: DateRange) {
       const mtdRoas = mtdAdSpend > 0 ? mtdRevenue / mtdAdSpend : 0;
       const netAfterAds = mtdRevenue - mtdAdSpend;
 
+      const mtdBillsPaid = (mtdBillsPaidRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+      const mtdCogsPaid = (mtdCogsPaidRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+      const next7BillsDue = (next7BillsRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+      const next7CogsDue = (next7CogsRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+      const mtdNetAfterAdsAndBills = mtdRevenue - mtdAdSpend - mtdBillsPaid;
+      const mtdProfitProxy = mtdRevenue - mtdAdSpend - mtdBillsPaid - mtdCogsPaid;
+
       return {
         earliestDate,
         totalRevenue,
@@ -111,6 +133,12 @@ export function useDashboardMetrics(range: DateRange) {
         mtdRevenue,
         mtdRoas,
         netAfterAds,
+        mtdBillsPaid,
+        mtdCogsPaid,
+        next7BillsDue,
+        next7CogsDue,
+        mtdNetAfterAdsAndBills,
+        mtdProfitProxy,
       };
     },
   });
@@ -118,7 +146,6 @@ export function useDashboardMetrics(range: DateRange) {
 
 export function useTrendData(range: DateRange) {
   const { from, to } = getDateBounds(range);
-  // Default to 30 days if all-time
   const trendFrom = from ?? subDays(new Date(), 30);
   const trendTo = to ?? new Date();
   const days = Math.ceil((trendTo.getTime() - trendFrom.getTime()) / (1000 * 60 * 60 * 24));

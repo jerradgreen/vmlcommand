@@ -10,6 +10,8 @@ const BASE = `https://${PROJECT_ID}.supabase.co/functions/v1`;
 const LEAD_URL = `${BASE}/ingest-lead`;
 const SALE_URL = `${BASE}/ingest-sale`;
 const EXPENSE_URL = `${BASE}/ingest-expense`;
+const BILL_URL = `${BASE}/ingest-bill`;
+const COGS_URL = `${BASE}/ingest-cogs`;
 
 const LEAD_SAMPLE = JSON.stringify(
   {
@@ -49,6 +51,35 @@ const EXPENSE_SAMPLE = JSON.stringify(
     amount: 125.50,
     external_id: "gads-2025-06-20",
     notes: "Daily Google Ads spend",
+  },
+  null,
+  2
+);
+
+const BILL_SAMPLE = JSON.stringify(
+  {
+    date: "2025-06-20",
+    vendor: "QuickBooks Online",
+    amount: 85.00,
+    category: "overhead",
+    status: "paid",
+    due_date: "2025-06-25",
+    notes: "Monthly accounting software",
+  },
+  null,
+  2
+);
+
+const COGS_SAMPLE = JSON.stringify(
+  {
+    date: "2025-06-20",
+    amount: 320.00,
+    order_id: "ORD-9876",
+    vendor: "ABC Manufacturing",
+    category: "cogs",
+    status: "paid",
+    due_date: "2025-07-01",
+    notes: "Custom marquee letters production",
   },
   null,
   2
@@ -124,7 +155,7 @@ export default function Settings() {
         <p className="text-muted-foreground">Webhook endpoints for Zapier integration</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <EndpointCard
           title="Ingest Lead"
           description="POST Cognito form submissions here. Requires external_id."
@@ -142,6 +173,18 @@ export default function Settings() {
           description="POST daily ad spend. Requires date, platform, amount. Auto-generates external_id if missing."
           url={EXPENSE_URL}
           sample={EXPENSE_SAMPLE}
+        />
+        <EndpointCard
+          title="Ingest Bill"
+          description="POST overhead/recurring bills. Requires date, vendor, amount. Auto-generates external_id if missing."
+          url={BILL_URL}
+          sample={BILL_SAMPLE}
+        />
+        <EndpointCard
+          title="Ingest COGS"
+          description="POST manufacturer/production costs. Requires date, amount. Auto-generates external_id if missing."
+          url={COGS_URL}
+          sample={COGS_SAMPLE}
         />
       </div>
 

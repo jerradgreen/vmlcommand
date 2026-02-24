@@ -14,6 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
+      bills: {
+        Row: {
+          amount: number
+          category: string
+          date: string
+          due_date: string | null
+          external_id: string | null
+          id: string
+          ingested_at: string | null
+          notes: string | null
+          raw_payload: Json | null
+          source_system: string
+          status: string
+          vendor: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          date: string
+          due_date?: string | null
+          external_id?: string | null
+          id?: string
+          ingested_at?: string | null
+          notes?: string | null
+          raw_payload?: Json | null
+          source_system?: string
+          status?: string
+          vendor: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          date?: string
+          due_date?: string | null
+          external_id?: string | null
+          id?: string
+          ingested_at?: string | null
+          notes?: string | null
+          raw_payload?: Json | null
+          source_system?: string
+          status?: string
+          vendor?: string
+        }
+        Relationships: []
+      }
+      cogs_payments: {
+        Row: {
+          amount: number
+          category: string
+          date: string
+          due_date: string | null
+          external_id: string | null
+          id: string
+          ingested_at: string | null
+          notes: string | null
+          order_id: string | null
+          raw_payload: Json | null
+          sale_id: string | null
+          source_system: string
+          status: string
+          vendor: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          date: string
+          due_date?: string | null
+          external_id?: string | null
+          id?: string
+          ingested_at?: string | null
+          notes?: string | null
+          order_id?: string | null
+          raw_payload?: Json | null
+          sale_id?: string | null
+          source_system?: string
+          status?: string
+          vendor?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          date?: string
+          due_date?: string | null
+          external_id?: string | null
+          id?: string
+          ingested_at?: string | null
+          notes?: string | null
+          order_id?: string | null
+          raw_payload?: Json | null
+          sale_id?: string | null
+          source_system?: string
+          status?: string
+          vendor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cogs_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
