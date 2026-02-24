@@ -66,7 +66,7 @@ export function useDashboardMetrics(range: DateRange) {
       const next7Str = format(addDays(now, 7), "yyyy-MM-dd");
 
       // For ad spend section: use selected range if set, otherwise MTD
-      const rangeFrom = from ? format(from, "yyyy-MM-dd") : mtdFrom;
+      const rangeFrom = from ? format(from, "yyyy-MM-dd") : "2000-01-01";
       const rangeTo = to ? format(to, "yyyy-MM-dd") : mtdTo;
 
       const [

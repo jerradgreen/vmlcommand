@@ -12,6 +12,8 @@ const SALE_URL = `${BASE}/ingest-sale`;
 const EXPENSE_URL = `${BASE}/ingest-expense`;
 const BILL_URL = `${BASE}/ingest-bill`;
 const COGS_URL = `${BASE}/ingest-cogs`;
+const ACCOUNT_URL = `${BASE}/ingest-account`;
+const TRANSACTION_URL = `${BASE}/ingest-transaction`;
 
 const LEAD_SAMPLE = JSON.stringify(
   {
@@ -80,6 +82,32 @@ const COGS_SAMPLE = JSON.stringify(
     status: "paid",
     due_date: "2025-07-01",
     notes: "Custom marquee letters production",
+  },
+  null,
+  2
+);
+
+const ACCOUNT_SAMPLE = JSON.stringify(
+  {
+    account_id: "chase-checking-1234",
+    account_name: "Chase Business Checking",
+    institution: "Chase",
+    balance: 15420.50,
+    currency: "USD",
+    last_update: "2025-06-20T10:00:00Z",
+  },
+  null,
+  2
+);
+
+const TRANSACTION_SAMPLE = JSON.stringify(
+  {
+    txn_date: "2025-06-20",
+    amount: -125.50,
+    description: "Office supplies from Staples",
+    category: "office",
+    account_name: "Chase Business Checking",
+    account_id: "chase-checking-1234",
   },
   null,
   2
@@ -185,6 +213,18 @@ export default function Settings() {
           description="POST manufacturer/production costs. Requires date, amount. Auto-generates external_id if missing."
           url={COGS_URL}
           sample={COGS_SAMPLE}
+        />
+        <EndpointCard
+          title="Ingest Account"
+          description="POST financial account balances. Requires account_id and balance. Upserts on (source_system, account_id)."
+          url={ACCOUNT_URL}
+          sample={ACCOUNT_SAMPLE}
+        />
+        <EndpointCard
+          title="Ingest Transaction"
+          description="POST financial transactions. Requires txn_date, amount, description. Auto-generates external_id if missing."
+          url={TRANSACTION_URL}
+          sample={TRANSACTION_SAMPLE}
         />
       </div>
 
