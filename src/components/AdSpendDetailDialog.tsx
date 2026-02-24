@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
-import { format, subDays, startOfMonth } from "date-fns";
+import { format, subDays } from "date-fns";
 
 export type AdSpendDetailType =
   | "yesterday_ad_spend"
@@ -16,15 +16,9 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: AdSpendDetailType;
-}
-
-function useDateBounds() {
-  const now = new Date();
-  return {
-    yesterdayStr: format(subDays(now, 1), "yyyy-MM-dd"),
-    mtdFrom: format(startOfMonth(now), "yyyy-MM-dd"),
-    mtdTo: format(now, "yyyy-MM-dd"),
-  };
+  dateFrom: string;
+  dateTo: string;
+  rangeLabel: string;
 }
 
 function useExpenses(dateFrom: string, dateTo: string, enabled: boolean) {
@@ -60,30 +54,30 @@ function useSalesInRange(dateFrom: string, dateTo: string, enabled: boolean) {
   });
 }
 
-const titles: Record<AdSpendDetailType, string> = {
-  yesterday_ad_spend: "Yesterday Ad Spend",
-  mtd_ad_spend: "MTD Ad Spend",
-  mtd_revenue: "MTD Revenue",
-  mtd_roas: "MTD ROAS Breakdown",
-  net_after_ads: "Net After Ads Breakdown",
-};
-
-export default function AdSpendDetailDialog({ open, onOpenChange, type }: Props) {
-  const { yesterdayStr, mtdFrom, mtdTo } = useDateBounds();
+export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom, dateTo, rangeLabel }: Props) {
+  const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
 
   const showExpenses = ["yesterday_ad_spend", "mtd_ad_spend", "mtd_roas", "net_after_ads"].includes(type);
   const showSales = ["mtd_revenue", "mtd_roas", "net_after_ads"].includes(type);
 
-  const expDateFrom = type === "yesterday_ad_spend" ? yesterdayStr : mtdFrom;
-  const expDateTo = type === "yesterday_ad_spend" ? yesterdayStr : mtdTo;
+  const expDateFrom = type === "yesterday_ad_spend" ? yesterdayStr : dateFrom;
+  const expDateTo = type === "yesterday_ad_spend" ? yesterdayStr : dateTo;
 
   const { data: expenses, isLoading: expLoading } = useExpenses(expDateFrom, expDateTo, open && showExpenses);
-  const { data: sales, isLoading: salesLoading } = useSalesInRange(mtdFrom, mtdTo, open && showSales);
+  const { data: sales, isLoading: salesLoading } = useSalesInRange(dateFrom, dateTo, open && showSales);
 
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const totalSalesRev = (sales ?? []).reduce((s, r) => s + (Number(r.revenue) || 0), 0);
 
   const isLoading = (showExpenses && expLoading) || (showSales && salesLoading);
+
+  const titles: Record<AdSpendDetailType, string> = {
+    yesterday_ad_spend: "Yesterday Ad Spend",
+    mtd_ad_spend: `${rangeLabel} Ad Spend`,
+    mtd_revenue: `${rangeLabel} Revenue`,
+    mtd_roas: `${rangeLabel} ROAS Breakdown`,
+    net_after_ads: "Net After Ads Breakdown",
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,7 +123,7 @@ export default function AdSpendDetailDialog({ open, onOpenChange, type }: Props)
         {!isLoading && showSales && (
           <div className="space-y-2 mt-4">
             <h3 className="text-sm font-semibold">
-              MTD Revenue — {formatCurrency(totalSalesRev)}
+              {rangeLabel} Revenue — {formatCurrency(totalSalesRev)}
             </h3>
             {(sales ?? []).length === 0 ? (
               <p className="text-muted-foreground text-sm">No sales found.</p>
@@ -163,11 +157,11 @@ export default function AdSpendDetailDialog({ open, onOpenChange, type }: Props)
         {!isLoading && (type === "mtd_roas" || type === "net_after_ads") && (
           <div className="mt-4 border-t pt-3 space-y-1 text-sm">
             <div className="flex justify-between">
-              <span>MTD Revenue</span>
+              <span>{rangeLabel} Revenue</span>
               <span className="font-semibold">{formatCurrency(totalSalesRev)}</span>
             </div>
             <div className="flex justify-between">
-              <span>MTD Ad Spend</span>
+              <span>{rangeLabel} Ad Spend</span>
               <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
             </div>
             <div className="flex justify-between border-t pt-1 font-bold">

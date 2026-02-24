@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
-import { format, startOfMonth, addDays } from "date-fns";
+import { format, addDays } from "date-fns";
 
 export type CogsDetailType = "mtd_cogs_paid" | "next7_cogs_due";
 
@@ -11,24 +11,26 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: CogsDetailType;
+  dateFrom: string;
+  dateTo: string;
+  rangeLabel: string;
 }
 
-export default function CogsDetailDialog({ open, onOpenChange, type }: Props) {
+export default function CogsDetailDialog({ open, onOpenChange, type, dateFrom, dateTo, rangeLabel }: Props) {
   const now = new Date();
-  const mtdFrom = format(startOfMonth(now), "yyyy-MM-dd");
-  const mtdTo = format(now, "yyyy-MM-dd");
+  const todayStr = format(now, "yyyy-MM-dd");
   const next7To = format(addDays(now, 7), "yyyy-MM-dd");
 
   const { data: cogs, isLoading } = useQuery({
-    queryKey: ["cogs-detail", type],
+    queryKey: ["cogs-detail", type, dateFrom, dateTo],
     enabled: open,
     queryFn: async () => {
       let q = supabase.from("cogs_payments").select("*");
 
       if (type === "mtd_cogs_paid") {
-        q = q.eq("status", "paid").gte("date", mtdFrom).lte("date", mtdTo);
+        q = q.eq("status", "paid").gte("date", dateFrom).lte("date", dateTo);
       } else {
-        q = q.in("status", ["due", "scheduled"]).gte("due_date", format(now, "yyyy-MM-dd")).lte("due_date", next7To);
+        q = q.in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7To);
       }
 
       const { data } = await q.order("date", { ascending: false });
@@ -37,7 +39,7 @@ export default function CogsDetailDialog({ open, onOpenChange, type }: Props) {
   });
 
   const total = (cogs ?? []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
-  const title = type === "mtd_cogs_paid" ? "MTD COGS Paid" : "Next 7 Days COGS Due";
+  const title = type === "mtd_cogs_paid" ? `${rangeLabel} COGS Paid` : "Next 7 Days COGS Due";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
