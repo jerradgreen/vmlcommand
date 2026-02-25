@@ -84,7 +84,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-[400px] sm:w-[440px]">
+        <SheetContent className="w-[400px] sm:w-[440px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Edit Transaction</SheetTitle>
           </SheetHeader>
