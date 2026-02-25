@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { normalizeText } from "@/lib/normalizeText";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -80,10 +81,13 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
   const saveMutation = useMutation({
     mutationFn: async () => {
       const saveField = matchField === "word" ? "description" : matchField;
-      const saveMatchType = matchField === "word" ? "contains" : matchType;
+      const saveMatchType = matchField === "word" ? "regex" : matchType;
+      const saveValue = matchField === "word"
+        ? `\\m${normalizeText(matchValue)}\\M`
+        : matchValue;
       const payload = {
         match_type: saveMatchType,
-        match_value: matchValue,
+        match_value: saveValue,
         match_field: saveField,
         priority: parseInt(priority) || 50,
         assign_txn_type: assignTxnType || null,
