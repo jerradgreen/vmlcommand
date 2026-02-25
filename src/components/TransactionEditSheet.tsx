@@ -169,7 +169,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
           onOpenChange={setShowRuleDialog}
           onSaved={() => setShowRuleDialog(false)}
           prefill={{
-            match_value: transaction.description ?? "",
+            match_value: "",
             assign_txn_type: txnType || undefined,
             assign_category: txnCategory || undefined,
             assign_subcategory: txnSubcategory || undefined,
