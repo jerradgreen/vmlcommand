@@ -36,7 +36,7 @@ export const BUSINESS_CATEGORIES: Record<string, string[]> = {
   taxes: ["sales_tax", "income_tax", "payroll_tax", "other"],
   bank_fees: ["monthly_fee", "overdraft", "wire_fee", "other"],
   interest: ["credit_card_interest", "loan_interest", "other"],
-  transfer: ["credit_card_payment", "owner_transfer", "internal_transfer", "loan_repayment", "platform_payout"],
+  transfer: ["credit_card_payment", "owner_transfer", "internal_transfer", "loan_repayment", "platform_payout", "owner_contribution"],
   revenue: [],
 };
 
