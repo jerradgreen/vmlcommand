@@ -48,6 +48,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
     setTxnSubcategory("");
     if (val === "personal") {
       setTxnCategory("owner_draw");
+      setTxnSubcategory("personal_spending");
     }
   };
 

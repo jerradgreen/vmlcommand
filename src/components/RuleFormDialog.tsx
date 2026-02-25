@@ -65,8 +65,13 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
 
   const handleTypeChange = (val: string) => {
     setAssignTxnType(val);
-    setAssignCategory("");
-    setAssignSubcategory("");
+    if (val === "personal") {
+      setAssignCategory("owner_draw");
+      setAssignSubcategory("personal_spending");
+    } else {
+      setAssignCategory("");
+      setAssignSubcategory("");
+    }
   };
 
   const handleCategoryChange = (val: string) => {
