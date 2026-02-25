@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import RuleFormDialog from "./RuleFormDialog";
+import { getParentCategories, getSubcategories, categoryLabel } from "@/lib/categoryTaxonomy";
 
 type TransactionRow = {
   id: string;
@@ -18,6 +19,7 @@ type TransactionRow = {
   account_name: string | null;
   txn_type: string | null;
   txn_category: string | null;
+  txn_subcategory?: string | null;
   vendor: string | null;
   is_locked: boolean;
   rule_id_applied: string | null;
@@ -34,17 +36,28 @@ interface Props {
 export default function TransactionEditSheet({ transaction, open, onOpenChange, onSaved }: Props) {
   const [txnType, setTxnType] = useState(transaction.txn_type ?? "");
   const [txnCategory, setTxnCategory] = useState(transaction.txn_category ?? "");
+  const [txnSubcategory, setTxnSubcategory] = useState(transaction.txn_subcategory ?? "");
   const [vendor, setVendor] = useState(transaction.vendor ?? "");
   const [isLocked, setIsLocked] = useState(transaction.is_locked);
   const [showRuleDialog, setShowRuleDialog] = useState(false);
 
-  // Default owner_draw for personal
   const handleTypeChange = (val: string) => {
     setTxnType(val);
-    if (val === "personal" && !txnCategory) {
+    // Reset category/subcategory when type changes
+    setTxnCategory("");
+    setTxnSubcategory("");
+    if (val === "personal") {
       setTxnCategory("owner_draw");
     }
   };
+
+  const handleCategoryChange = (val: string) => {
+    setTxnCategory(val);
+    setTxnSubcategory(""); // Reset subcategory when parent changes
+  };
+
+  const parentCategories = getParentCategories(txnType || null);
+  const subcategories = txnCategory ? getSubcategories(txnCategory) : [];
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -53,6 +66,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
         .update({
           txn_type: txnType || null,
           txn_category: txnCategory || null,
+          txn_subcategory: txnSubcategory || null,
           vendor: vendor || null,
           is_locked: isLocked,
           classified_at: new Date().toISOString(),
@@ -103,17 +117,29 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
 
             <div>
               <Label>Category</Label>
-              <Select value={txnCategory} onValueChange={setTxnCategory}>
+              <Select value={txnCategory} onValueChange={handleCategoryChange}>
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cogs">COGS</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                  <SelectItem value="owner_draw">Owner Draw</SelectItem>
-                  <SelectItem value="overhead">Overhead</SelectItem>
-                  <SelectItem value="revenue">Revenue</SelectItem>
+                  {parentCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{categoryLabel(cat)}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {subcategories.length > 0 && (
+              <div>
+                <Label>Subcategory <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Select value={txnSubcategory} onValueChange={setTxnSubcategory}>
+                  <SelectTrigger><SelectValue placeholder="Select subcategory" /></SelectTrigger>
+                  <SelectContent>
+                    {subcategories.map((sub) => (
+                      <SelectItem key={sub} value={sub}>{categoryLabel(sub)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <Label>Vendor</Label>
@@ -146,6 +172,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
             match_value: transaction.description ?? "",
             assign_txn_type: txnType || undefined,
             assign_category: txnCategory || undefined,
+            assign_subcategory: txnSubcategory || undefined,
             assign_vendor: vendor || undefined,
           }}
         />

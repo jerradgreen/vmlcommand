@@ -215,6 +215,7 @@ export type Database = {
           source_system: string
           txn_category: string | null
           txn_date: string
+          txn_subcategory: string | null
           txn_type: string | null
           vendor: string | null
         }
@@ -236,6 +237,7 @@ export type Database = {
           source_system?: string
           txn_category?: string | null
           txn_date: string
+          txn_subcategory?: string | null
           txn_type?: string | null
           vendor?: string | null
         }
@@ -257,6 +259,7 @@ export type Database = {
           source_system?: string
           txn_category?: string | null
           txn_date?: string
+          txn_subcategory?: string | null
           txn_type?: string | null
           vendor?: string | null
         }
@@ -480,6 +483,7 @@ export type Database = {
       transaction_rules: {
         Row: {
           assign_category: string | null
+          assign_subcategory: string | null
           assign_txn_type: string | null
           assign_vendor: string | null
           created_at: string
@@ -494,6 +498,7 @@ export type Database = {
         }
         Insert: {
           assign_category?: string | null
+          assign_subcategory?: string | null
           assign_txn_type?: string | null
           assign_vendor?: string | null
           created_at?: string
@@ -508,6 +513,7 @@ export type Database = {
         }
         Update: {
           assign_category?: string | null
+          assign_subcategory?: string | null
           assign_txn_type?: string | null
           assign_vendor?: string | null
           created_at?: string
@@ -545,6 +551,10 @@ export type Database = {
       }
       extract_domain: { Args: { email: string }; Returns: string }
       get_attribution_diagnostics: { Args: never; Returns: Json }
+      get_cost_rollups: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       get_match_suggestions: {
         Args: { limit_n?: number; lookback_days?: number; p_sale_id: string }
         Returns: {

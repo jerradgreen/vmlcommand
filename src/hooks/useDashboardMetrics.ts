@@ -63,37 +63,43 @@ export function useDashboardMetrics(range: DateRange) {
         salesQuery = salesQuery.lte("date", format(to, "yyyy-MM-dd"));
       }
 
-      // Date range for ad spend / bills / cogs — use selected range, fallback to MTD
       const now = new Date();
-      const mtdFrom = format(startOfMonth(now), "yyyy-MM-dd");
-      const mtdTo = format(now, "yyyy-MM-dd");
       const yesterdayStr = format(subDays(now, 1), "yyyy-MM-dd");
       const todayStr = format(now, "yyyy-MM-dd");
       const next7Str = format(addDays(now, 7), "yyyy-MM-dd");
 
-      // For ad spend section: use selected range if set, otherwise MTD
+      // "All Time" defaults rangeFrom to 2000-01-01 (Fix Pack B)
       const rangeFrom = from ? format(from, "yyyy-MM-dd") : "2000-01-01";
-      const rangeTo = to ? format(to, "yyyy-MM-dd") : mtdTo;
+      const rangeTo = to ? format(to, "yyyy-MM-dd") : format(now, "yyyy-MM-dd");
+
+      // NOTE: txn_category='transfer' is NOT an expense and must be excluded from expense totals.
+      // Cost rollups are computed server-side via get_cost_rollups RPC which enforces:
+      //   txn_type='business', txn_category IS NOT NULL, txn_category != 'transfer'
+      //   Results are abs(sum(amount)) — always positive for display.
 
       const [
         leadsRes, salesRes, earliestRes,
-        yesterdayExpRes, rangeExpRes, rangeSalesRevRes,
-        rangeBillsPaidRes, rangeCogsPaidRes,
+        yesterdayExpRes,
+        costRollupsRes,
+        rangeSalesRevRes,
+        // Legacy fallback queries
+        rangeBillsPaidRes, rangeCogsPaidRes, rangeExpRes,
+        // Future-dated due items (always absolute, not in financial_transactions)
         next7BillsRes, next7CogsRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
         earliestQuery,
         supabase.from("expenses").select("amount").eq("category", "ads").eq("date", yesterdayStr),
-        supabase.from("expenses").select("amount").eq("category", "ads").gte("date", rangeFrom).lte("date", rangeTo),
+        // Primary: DB-side aggregation RPC
+        supabase.rpc("get_cost_rollups", { p_from: rangeFrom, p_to: rangeTo }),
         supabase.from("sales").select("revenue").gte("date", rangeFrom).lte("date", rangeTo),
-        // Bills paid in range
+        // Legacy fallback
         supabase.from("bills").select("amount").eq("status", "paid").gte("date", rangeFrom).lte("date", rangeTo),
-        // COGS paid in range
         supabase.from("cogs_payments").select("amount").eq("status", "paid").gte("date", rangeFrom).lte("date", rangeTo),
-        // Next 7 days bills due (always absolute)
+        supabase.from("expenses").select("amount").eq("category", "ads").gte("date", rangeFrom).lte("date", rangeTo),
+        // Next 7 days due (always absolute)
         supabase.from("bills").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
-        // Next 7 days COGS due (always absolute)
         supabase.from("cogs_payments").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
       ]);
 
@@ -107,10 +113,9 @@ export function useDashboardMetrics(range: DateRange) {
       const unmatchedSales = sales.filter((s) => s.sale_type === "unknown" && !s.lead_id);
 
       const closeRate = totalLeads > 0 ? newLeadSales.length / totalLeads : 0;
-
       const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
 
-      // Avg Days Lead to Sale: only new_lead sales with lead_id
+      // Avg Days Lead to Sale
       const matchedNewLeadSales = sales.filter((s) => s.sale_type === "new_lead" && s.lead_id);
       let avgDaysLeadToSale: number | null = null;
       if (matchedNewLeadSales.length > 0) {
@@ -134,22 +139,37 @@ export function useDashboardMetrics(range: DateRange) {
           }
         }
       }
+
       const newLeadRevenue = newLeadSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const repeatDirectRevenue = repeatDirectSales.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
       const earliestDate = earliestRes.data?.[0]?.date ?? null;
 
-      const yesterdayAdSpend = (yesterdayExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-      const rangeAdSpend = (rangeExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-      const rangeRevenue = (rangeSalesRevRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
-      const rangeRoas = rangeAdSpend > 0 ? rangeRevenue / rangeAdSpend : 0;
-      const netAfterAds = rangeRevenue - rangeAdSpend;
+      // ── Cost rollups from RPC (primary source) ──
+      // NOTE: txn_category='transfer' is NOT an expense and must be excluded from expense totals.
+      const rollups = costRollupsRes.data as { cogs_total: number; ads_spend_total: number; overhead_total: number } | null;
+      let cogsTotal = Number(rollups?.cogs_total ?? 0);
+      let adsSpendTotal = Number(rollups?.ads_spend_total ?? 0);
+      let overheadTotal = Number(rollups?.overhead_total ?? 0);
 
-      const rangeBillsPaid = (rangeBillsPaidRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-      const rangeCogsPaid = (rangeCogsPaidRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+      // Legacy fallback: only use if RPC returned all zeros AND legacy has data
+      const legacyCogs = (rangeCogsPaidRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+      const legacyOverhead = (rangeBillsPaidRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+      const legacyAds = (rangeExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+      if (cogsTotal === 0 && legacyCogs > 0) cogsTotal = legacyCogs;
+      if (adsSpendTotal === 0 && legacyAds > 0) adsSpendTotal = legacyAds;
+      if (overheadTotal === 0 && legacyOverhead > 0) overheadTotal = legacyOverhead;
+
+      const totalOperatingCost = cogsTotal + adsSpendTotal + overheadTotal;
+      const rangeRevenue = (rangeSalesRevRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
+      const netProfitProxy = rangeRevenue - totalOperatingCost;
+      // Safe division: return 0 when revenue is 0 (not NaN/Infinity)
+      const profitMarginPct = rangeRevenue > 0 ? netProfitProxy / rangeRevenue : 0;
+      const rangeRoas = adsSpendTotal > 0 ? rangeRevenue / adsSpendTotal : 0;
+
+      const yesterdayAdSpend = (yesterdayExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       const next7BillsDue = (next7BillsRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
       const next7CogsDue = (next7CogsRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-      const rangeNetAfterAdsAndBills = rangeRevenue - rangeAdSpend - rangeBillsPaid;
-      const rangeProfitProxy = rangeRevenue - rangeAdSpend - rangeBillsPaid - rangeCogsPaid;
 
       return {
         earliestDate,
@@ -163,16 +183,18 @@ export function useDashboardMetrics(range: DateRange) {
         repeatDirectRevenue,
         unmatchedCount: unmatchedSales.length,
         yesterdayAdSpend,
-        mtdAdSpend: rangeAdSpend,
-        mtdRevenue: rangeRevenue,
-        mtdRoas: rangeRoas,
-        netAfterAds,
-        mtdBillsPaid: rangeBillsPaid,
-        mtdCogsPaid: rangeCogsPaid,
+        // New primary fields from financial_transactions via RPC
+        cogsTotal,
+        adsSpendTotal,
+        overheadTotal,
+        totalOperatingCost,
+        rangeRevenue,
+        rangeRoas,
+        netProfitProxy,
+        profitMarginPct,
+        // Legacy due items
         next7BillsDue,
         next7CogsDue,
-        mtdNetAfterAdsAndBills: rangeNetAfterAdsAndBills,
-        mtdProfitProxy: rangeProfitProxy,
       };
     },
   });

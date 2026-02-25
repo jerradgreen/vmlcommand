@@ -12,21 +12,21 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: ProfitDetailType;
-  mtdRevenue: number;
-  mtdAdSpend: number;
-  mtdBillsPaid: number;
-  mtdCogsPaid: number;
+  rangeRevenue: number;
+  adsSpendTotal: number;
+  overheadTotal: number;
+  cogsTotal: number;
   next7TotalDue?: number;
   rangeLabel: string;
 }
 
 export default function ProfitDetailDialog({
-  open, onOpenChange, type, mtdRevenue, mtdAdSpend, mtdBillsPaid, mtdCogsPaid, next7TotalDue = 0, rangeLabel,
+  open, onOpenChange, type, rangeRevenue, adsSpendTotal, overheadTotal, cogsTotal, next7TotalDue = 0, rangeLabel,
 }: Props) {
-  const contribution = mtdRevenue - mtdAdSpend - mtdCogsPaid;
-  const netAfterAdsBills = mtdRevenue - mtdAdSpend - mtdBillsPaid;
-  const profitProxy = mtdRevenue - mtdAdSpend - mtdBillsPaid - mtdCogsPaid;
-  const totalOpCost = mtdAdSpend + mtdCogsPaid + mtdBillsPaid;
+  const contribution = rangeRevenue - adsSpendTotal - cogsTotal;
+  const netAfterAdsBills = rangeRevenue - adsSpendTotal - overheadTotal;
+  const profitProxy = rangeRevenue - adsSpendTotal - overheadTotal - cogsTotal;
+  const totalOpCost = adsSpendTotal + cogsTotal + overheadTotal;
   const netAfterDue = profitProxy - next7TotalDue;
 
   const titles: Record<ProfitDetailType, string> = {
@@ -45,50 +45,45 @@ export default function ProfitDetailDialog({
         </DialogHeader>
 
         <div className="space-y-2 text-sm">
-          {/* Revenue line — always shown */}
           <div className="flex justify-between">
             <span>{rangeLabel} Revenue</span>
-            <span className="font-semibold">{formatCurrency(mtdRevenue)}</span>
+            <span className="font-semibold">{formatCurrency(rangeRevenue)}</span>
           </div>
 
-          {/* Ad Spend line */}
           {type !== "total_operating_cost" && (
             <div className="flex justify-between">
               <span>− {rangeLabel} Ad Spend</span>
-              <span className="font-semibold text-destructive">{formatCurrency(mtdAdSpend)}</span>
+              <span className="font-semibold text-destructive">{formatCurrency(adsSpendTotal)}</span>
             </div>
           )}
 
-          {/* COGS line for contribution, profit_proxy, net_after_upcoming_due */}
           {["contribution", "profit_proxy", "net_after_upcoming_due"].includes(type) && (
             <div className="flex justify-between">
               <span>− {rangeLabel} COGS</span>
-              <span className="font-semibold text-destructive">{formatCurrency(mtdCogsPaid)}</span>
+              <span className="font-semibold text-destructive">{formatCurrency(cogsTotal)}</span>
             </div>
           )}
 
-          {/* Bills line for net_after_ads_bills, profit_proxy, net_after_upcoming_due */}
           {["net_after_ads_bills", "profit_proxy", "net_after_upcoming_due"].includes(type) && (
             <div className="flex justify-between">
-              <span>− {rangeLabel} Overhead (Bills)</span>
-              <span className="font-semibold text-destructive">{formatCurrency(mtdBillsPaid)}</span>
+              <span>− {rangeLabel} Overhead</span>
+              <span className="font-semibold text-destructive">{formatCurrency(overheadTotal)}</span>
             </div>
           )}
 
-          {/* Total operating cost breakdown */}
           {type === "total_operating_cost" && (
             <>
               <div className="flex justify-between">
                 <span>Ad Spend</span>
-                <span className="font-semibold text-destructive">{formatCurrency(mtdAdSpend)}</span>
+                <span className="font-semibold text-destructive">{formatCurrency(adsSpendTotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>COGS</span>
-                <span className="font-semibold text-destructive">{formatCurrency(mtdCogsPaid)}</span>
+                <span className="font-semibold text-destructive">{formatCurrency(cogsTotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Overhead (Bills)</span>
-                <span className="font-semibold text-destructive">{formatCurrency(mtdBillsPaid)}</span>
+                <span>Overhead</span>
+                <span className="font-semibold text-destructive">{formatCurrency(overheadTotal)}</span>
               </div>
               <div className="flex justify-between border-t pt-2 font-bold text-base">
                 <span>Total Operating Cost</span>
@@ -97,7 +92,6 @@ export default function ProfitDetailDialog({
             </>
           )}
 
-          {/* Contribution result */}
           {type === "contribution" && (
             <div className="flex justify-between border-t pt-2 font-bold text-base">
               <span>Contribution</span>
@@ -105,7 +99,6 @@ export default function ProfitDetailDialog({
             </div>
           )}
 
-          {/* Net after ads & bills result */}
           {type === "net_after_ads_bills" && (
             <div className="flex justify-between border-t pt-2 font-bold text-base">
               <span>Net After Ads & Bills</span>
@@ -113,7 +106,6 @@ export default function ProfitDetailDialog({
             </div>
           )}
 
-          {/* Profit proxy result */}
           {type === "profit_proxy" && (
             <div className="flex justify-between border-t pt-2 font-bold text-base">
               <span>Profit Proxy</span>
@@ -121,7 +113,6 @@ export default function ProfitDetailDialog({
             </div>
           )}
 
-          {/* Net after upcoming due */}
           {type === "net_after_upcoming_due" && (
             <>
               <div className="flex justify-between border-t pt-2 font-bold">
