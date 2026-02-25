@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Play, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import TransactionEditSheet from "@/components/TransactionEditSheet";
 import RuleFormDialog from "@/components/RuleFormDialog";
 import TransactionCsvImport from "@/components/TransactionCsvImport";
+import BulkLabelBar from "@/components/BulkLabelBar";
 
 const PAGE_SIZE = 50;
 
@@ -79,6 +81,7 @@ function TransactionsTab() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   const [editTxn, setEditTxn] = useState<TransactionRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
     queryKey: ["transactions", page, search, typeFilter, categoryFilter, uncategorizedOnly],
@@ -166,10 +169,31 @@ function TransactionsTab() {
         </Button>
       </div>
 
+      {/* Bulk Label Bar */}
+      {selectedIds.size > 0 && (
+        <BulkLabelBar
+          selectedIds={Array.from(selectedIds)}
+          onClear={() => setSelectedIds(new Set())}
+          onApplied={() => { setSelectedIds(new Set()); queryClient.invalidateQueries({ queryKey: ["transactions"] }); }}
+        />
+      )}
+
       {/* Table */}
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[40px]">
+              <Checkbox
+                checked={rows.length > 0 && rows.every((t) => selectedIds.has(t.id))}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedIds(new Set(rows.map((t) => t.id)));
+                  } else {
+                    setSelectedIds(new Set());
+                  }
+                }}
+              />
+            </TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="text-right">Amount</TableHead>
@@ -181,21 +205,33 @@ function TransactionsTab() {
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
           ) : rows.length === 0 ? (
-            <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>
           ) : (
             rows.map((txn) => (
-              <TableRow key={txn.id} className="cursor-pointer" onClick={() => setEditTxn(txn)}>
-                <TableCell className="whitespace-nowrap">{format(new Date(txn.txn_date), "MMM d, yyyy")}</TableCell>
-                <TableCell className="max-w-[300px] truncate">{txn.description}</TableCell>
-                <TableCell className="text-right whitespace-nowrap font-mono">
+              <TableRow key={txn.id} className="cursor-pointer">
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedIds.has(txn.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (checked) next.add(txn.id); else next.delete(txn.id);
+                        return next;
+                      });
+                    }}
+                  />
+                </TableCell>
+                <TableCell className="whitespace-nowrap" onClick={() => setEditTxn(txn)}>{format(new Date(txn.txn_date), "MMM d, yyyy")}</TableCell>
+                <TableCell className="max-w-[300px] truncate" onClick={() => setEditTxn(txn)}>{txn.description}</TableCell>
+                <TableCell className="text-right whitespace-nowrap font-mono" onClick={() => setEditTxn(txn)}>
                   {txn.amount < 0 ? "-" : ""}${Math.abs(txn.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </TableCell>
-                <TableCell className="max-w-[140px] truncate text-muted-foreground">{txn.account_name}</TableCell>
-                <TableCell>{txn.txn_type ? <Badge variant="secondary">{txn.txn_type}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
-                <TableCell>{txn.txn_category ? <Badge variant="outline">{txn.txn_category}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
-                <TableCell className="max-w-[120px] truncate">{txn.vendor ?? "—"}</TableCell>
+                <TableCell className="max-w-[140px] truncate text-muted-foreground" onClick={() => setEditTxn(txn)}>{txn.account_name}</TableCell>
+                <TableCell onClick={() => setEditTxn(txn)}>{txn.txn_type ? <Badge variant="secondary">{txn.txn_type}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
+                <TableCell onClick={() => setEditTxn(txn)}>{txn.txn_category ? <Badge variant="outline">{txn.txn_category}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
+                <TableCell className="max-w-[120px] truncate" onClick={() => setEditTxn(txn)}>{txn.vendor ?? "—"}</TableCell>
               </TableRow>
             ))
           )}
