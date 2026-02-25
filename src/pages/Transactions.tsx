@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import TransactionEditSheet from "@/components/TransactionEditSheet";
 import RuleFormDialog from "@/components/RuleFormDialog";
+import TransactionCsvImport from "@/components/TransactionCsvImport";
 
 const PAGE_SIZE = 50;
 
@@ -158,6 +159,7 @@ function TransactionsTab() {
           <Switch id="uncat" checked={uncategorizedOnly} onCheckedChange={(v) => { setUncategorizedOnly(v); setPage(0); }} />
           <Label htmlFor="uncat" className="text-sm whitespace-nowrap">Uncategorized only</Label>
         </div>
+        <TransactionCsvImport />
         <Button size="sm" variant="outline" onClick={() => runRulesMutation.mutate()} disabled={runRulesMutation.isPending}>
           <Play className="h-4 w-4 mr-1" />
           Run Rules
