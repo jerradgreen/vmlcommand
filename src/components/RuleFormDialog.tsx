@@ -123,6 +123,7 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
                 <SelectContent>
                   <SelectItem value="description">Description</SelectItem>
                   <SelectItem value="account_name">Account Name</SelectItem>
+                  <SelectItem value="vendor">Vendor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
