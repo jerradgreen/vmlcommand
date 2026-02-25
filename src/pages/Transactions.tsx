@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getAllParentCategories, categoryLabel } from "@/lib/categoryTaxonomy";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -149,10 +150,9 @@ function TransactionsTab() {
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="Category" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="cogs">COGS</SelectItem>
-            <SelectItem value="transfer">Transfer</SelectItem>
-            <SelectItem value="owner_draw">Owner Draw</SelectItem>
-            <SelectItem value="overhead">Overhead</SelectItem>
+            {getAllParentCategories().map((cat) => (
+              <SelectItem key={cat} value={cat}>{categoryLabel(cat)}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2">

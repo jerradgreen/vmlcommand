@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { getParentCategories, getSubcategories, categoryLabel } from "@/lib/categoryTaxonomy";
 
 type RuleRow = {
   id: string;
@@ -18,6 +19,7 @@ type RuleRow = {
   match_field: string;
   assign_txn_type: string | null;
   assign_category: string | null;
+  assign_subcategory?: string | null;
   assign_vendor: string | null;
   notes: string | null;
   created_at: string;
@@ -32,6 +34,7 @@ interface Props {
     match_value?: string;
     assign_txn_type?: string;
     assign_category?: string;
+    assign_subcategory?: string;
     assign_vendor?: string;
   };
 }
@@ -44,9 +47,24 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
   const [priority, setPriority] = useState(String(rule?.priority ?? 50));
   const [assignTxnType, setAssignTxnType] = useState(rule?.assign_txn_type ?? prefill?.assign_txn_type ?? "");
   const [assignCategory, setAssignCategory] = useState(rule?.assign_category ?? prefill?.assign_category ?? "");
+  const [assignSubcategory, setAssignSubcategory] = useState(rule?.assign_subcategory ?? prefill?.assign_subcategory ?? "");
   const [assignVendor, setAssignVendor] = useState(rule?.assign_vendor ?? prefill?.assign_vendor ?? "");
   const [isActive, setIsActive] = useState(rule?.is_active ?? true);
   const [notes, setNotes] = useState(rule?.notes ?? "");
+
+  const handleTypeChange = (val: string) => {
+    setAssignTxnType(val);
+    setAssignCategory("");
+    setAssignSubcategory("");
+  };
+
+  const handleCategoryChange = (val: string) => {
+    setAssignCategory(val);
+    setAssignSubcategory("");
+  };
+
+  const parentCategories = getParentCategories(assignTxnType || null);
+  const subcategories = assignCategory ? getSubcategories(assignCategory) : [];
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -57,10 +75,10 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
         priority: parseInt(priority) || 50,
         assign_txn_type: assignTxnType || null,
         assign_category: assignCategory || null,
+        assign_subcategory: assignSubcategory || null,
         assign_vendor: assignVendor || null,
         is_active: isActive,
         notes: notes || null,
-        // match_value_norm is auto-set by DB trigger
       };
 
       if (isEdit) {
@@ -120,31 +138,42 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
             <Input type="number" value={priority} onChange={(e) => setPriority(e.target.value)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Assign Type</Label>
-              <Select value={assignTxnType} onValueChange={setAssignTxnType}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="personal">Personal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Assign Category</Label>
-              <Select value={assignCategory} onValueChange={setAssignCategory}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cogs">COGS</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                  <SelectItem value="owner_draw">Owner Draw</SelectItem>
-                  <SelectItem value="overhead">Overhead</SelectItem>
-                  <SelectItem value="revenue">Revenue</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label>Assign Type</Label>
+            <Select value={assignTxnType} onValueChange={handleTypeChange}>
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="personal">Personal</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          <div>
+            <Label>Assign Category</Label>
+            <Select value={assignCategory} onValueChange={handleCategoryChange}>
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                {parentCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{categoryLabel(cat)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {subcategories.length > 0 && (
+            <div>
+              <Label>Assign Subcategory <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Select value={assignSubcategory} onValueChange={setAssignSubcategory}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  {subcategories.map((sub) => (
+                    <SelectItem key={sub} value={sub}>{categoryLabel(sub)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label>Assign Vendor</Label>

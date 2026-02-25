@@ -175,9 +175,11 @@ export default function Dashboard() {
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
     closeRate: 0, avgOrderValue: 0, avgDaysLeadToSale: null as number | null,
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
-    yesterdayAdSpend: 0, mtdAdSpend: 0, mtdRevenue: 0, mtdRoas: 0, netAfterAds: 0,
-    mtdBillsPaid: 0, mtdCogsPaid: 0, next7BillsDue: 0, next7CogsDue: 0,
-    mtdNetAfterAdsAndBills: 0, mtdProfitProxy: 0,
+    yesterdayAdSpend: 0,
+    cogsTotal: 0, adsSpendTotal: 0, overheadTotal: 0,
+    totalOperatingCost: 0, rangeRevenue: 0, rangeRoas: 0,
+    netProfitProxy: 0, profitMarginPct: 0,
+    next7BillsDue: 0, next7CogsDue: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -186,14 +188,12 @@ export default function Dashboard() {
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
 
-    // Derived metrics
-    const adSpendPctOfRevenue = m.mtdRevenue > 0 ? m.mtdAdSpend / m.mtdRevenue : 0;
-  const cogsPctOfRevenue = m.mtdRevenue > 0 ? m.mtdCogsPaid / m.mtdRevenue : 0;
-  const overheadPctOfRevenue = m.mtdRevenue > 0 ? m.mtdBillsPaid / m.mtdRevenue : 0;
-  const totalOperatingCost = m.mtdAdSpend + m.mtdCogsPaid + m.mtdBillsPaid;
-  const netProfitMarginPct = m.mtdRevenue > 0 ? m.mtdProfitProxy / m.mtdRevenue : 0;
+  // Derived metrics — using new RPC-backed fields
+  const adSpendPctOfRevenue = m.rangeRevenue > 0 ? m.adsSpendTotal / m.rangeRevenue : 0;
+  const cogsPctOfRevenue = m.rangeRevenue > 0 ? m.cogsTotal / m.rangeRevenue : 0;
+  const overheadPctOfRevenue = m.rangeRevenue > 0 ? m.overheadTotal / m.rangeRevenue : 0;
   const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
-  const netAfterUpcomingDue = m.mtdProfitProxy - next7TotalDue;
+  const netAfterUpcomingDue = m.netProfitProxy - next7TotalDue;
 
   // Date bounds for detail dialogs
   const rangeDateFrom = (() => {
@@ -267,7 +267,7 @@ export default function Dashboard() {
       {/* ═══ SECTION 1 — Revenue Engine ═══ */}
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.mtdRevenue)} icon={DollarSign} subtitle={rangeLabel} onClick={() => navigate("/sales")} />
+        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.rangeRevenue)} icon={DollarSign} subtitle={rangeLabel} onClick={() => navigate("/sales")} />
         <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
         <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => navigate("/sales")} />
         <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
@@ -277,19 +277,19 @@ export default function Dashboard() {
       {/* ═══ SECTION 2 — Ad Performance (Scale Engine) ═══ */}
       <SectionHeader title="Ad Performance" subtitle="Can I scale safely?" />
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.mtdAdSpend)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
-        <MetricCard title={`${rangeLabel} ROAS`} value={m.mtdRoas > 0 ? `${m.mtdRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
+        <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.adsSpendTotal)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
+        <MetricCard title={`${rangeLabel} ROAS`} value={m.rangeRoas > 0 ? `${m.rangeRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
         <MetricCard title="Ad Spend % of Revenue" value={formatPercent(adSpendPctOfRevenue)} icon={Percent} subtitle="Ad Spend ÷ Revenue" onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
       </div>
 
       {/* ═══ SECTION 3 — Cost Structure (Leak Detection) ═══ */}
       <SectionHeader title="Cost Structure (Leak Detection)" subtitle="Where is money drifting?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.mtdCogsPaid)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.cogsTotal)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
         <MetricCard title="COGS % of Revenue" value={formatPercent(cogsPctOfRevenue)} icon={Percent} subtitle="COGS ÷ Revenue" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
-        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.mtdBillsPaid)} icon={Building2} subtitle="Bills paid" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
+        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle="Overhead" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
         <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-        <MetricCard title="Total Operating Cost" value={formatCurrency(totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
+        <MetricCard title="Total Operating Cost" value={formatCurrency(m.totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
       </div>
 
       {/* ═══ SECTION 4 — Cash & Survival ═══ */}
@@ -297,13 +297,13 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCardLarge
           title="Net Profit"
-          value={formatCurrency(m.mtdProfitProxy)}
+          value={formatCurrency(m.netProfitProxy)}
           icon={Calculator}
           subtitle="Revenue − Ads − COGS − Overhead"
-          positive={m.mtdProfitProxy >= 0}
+          positive={m.netProfitProxy >= 0}
           onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })}
         />
-        <MetricCard title="Net Profit Margin %" value={formatPercent(netProfitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
+        <MetricCard title="Net Profit Margin %" value={formatPercent(m.profitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
         <MetricCard title="Next 7 Days Due" value={formatCurrency(next7TotalDue)} icon={CalendarIcon} subtitle="Bills + COGS due" onClick={() => setNext7DueOpen(true)} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -360,10 +360,10 @@ export default function Dashboard() {
         open={profitDetail.open}
         onOpenChange={(open) => setProfitDetail((prev) => ({ ...prev, open }))}
         type={profitDetail.type}
-        mtdRevenue={m.mtdRevenue}
-        mtdAdSpend={m.mtdAdSpend}
-        mtdBillsPaid={m.mtdBillsPaid}
-        mtdCogsPaid={m.mtdCogsPaid}
+        rangeRevenue={m.rangeRevenue}
+        adsSpendTotal={m.adsSpendTotal}
+        overheadTotal={m.overheadTotal}
+        cogsTotal={m.cogsTotal}
         next7TotalDue={next7TotalDue}
         rangeLabel={rangeLabel}
       />
