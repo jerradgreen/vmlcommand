@@ -46,6 +46,15 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
   const [matchType, setMatchType] = useState(rule?.match_type ?? "contains");
   const [matchValue, setMatchValue] = useState(rule?.match_value ?? (prefill?.match_field === "word" ? "" : (prefill?.match_value ?? "")));
   const [matchField, setMatchField] = useState(rule?.match_field ?? prefill?.match_field ?? "description");
+
+  const handleMatchFieldChange = (val: string) => {
+    setMatchField(val);
+    if (val === "word") {
+      setMatchValue("");
+    } else if (val === "description" && prefill?.source_description) {
+      setMatchValue(prefill.source_description);
+    }
+  };
   const [priority, setPriority] = useState(String(rule?.priority ?? 50));
   const [assignTxnType, setAssignTxnType] = useState(rule?.assign_txn_type ?? prefill?.assign_txn_type ?? "");
   const [assignCategory, setAssignCategory] = useState(rule?.assign_category ?? prefill?.assign_category ?? "");
@@ -122,7 +131,7 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
             </div>
             <div>
               <Label>Match Field</Label>
-              <Select value={matchField} onValueChange={setMatchField}>
+              <Select value={matchField} onValueChange={handleMatchFieldChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="description">Description</SelectItem>
@@ -134,7 +143,7 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
             </div>
           </div>
 
-          {matchField === "word" && prefill?.source_description && (
+          {prefill?.source_description && (
             <div className="rounded-md bg-muted p-3">
               <Label className="text-xs text-muted-foreground">Original Description</Label>
               <p className="text-sm mt-1 break-words">{prefill.source_description}</p>
