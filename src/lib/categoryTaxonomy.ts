@@ -25,7 +25,7 @@ export const BUSINESS_CATEGORIES: Record<string, string[]> = {
   seo: ["seo_tools", "backlink_services", "content_tools", "other"],
   software: ["shopify_subscription", "app_subscription", "saas_tools", "other"],
   subscriptions: ["online_services", "memberships", "other"],
-  contractor_payments: ["freelance_labor", "consulting", "other"],
+  contractor_payments: ["freelance_labor", "consulting", "accounting", "other"],
   office_expense: ["supplies", "furniture", "other"],
   rent: ["warehouse", "office_space", "storage_unit"],
   utilities: ["electricity", "internet", "phone", "other"],
