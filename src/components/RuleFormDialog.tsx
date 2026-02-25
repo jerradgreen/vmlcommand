@@ -137,7 +137,7 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
                   <SelectItem value="description">Description</SelectItem>
                   <SelectItem value="account_name">Account Name</SelectItem>
                   <SelectItem value="vendor">Vendor</SelectItem>
-                  <SelectItem value="word">Word (keyword in description)</SelectItem>
+                  <SelectItem value="word">Word / Phrase (keyword in description)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -151,8 +151,8 @@ export default function RuleFormDialog({ rule, open, onOpenChange, onSaved, pref
           )}
 
           <div>
-            <Label>{matchField === "word" ? "Keyword" : "Match Value"}</Label>
-            <Input value={matchValue} onChange={(e) => setMatchValue(e.target.value)} placeholder={matchField === "word" ? "e.g. Chase, Shell, Facebook" : "e.g. fosterweld"} />
+            <Label>{matchField === "word" ? "Word / Phrase" : "Match Value"}</Label>
+            <Input value={matchValue} onChange={(e) => setMatchValue(e.target.value)} placeholder={matchField === "word" ? "e.g. State Farm, Wells Fargo" : "e.g. fosterweld"} />
           </div>
 
           <div>
