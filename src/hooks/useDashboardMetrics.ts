@@ -88,23 +88,29 @@ export function useDashboardMetrics(range: DateRange) {
         next7BillsRes, next7CogsRes,
         // Fully loaded marketing rollup (scalar numeric)
         marketingRollupRes,
+        // Deposit-based revenue (hybrid approach: bank = source of truth)
+        depositRevenueRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
         earliestQuery,
         supabase.from("expenses").select("amount").eq("category", "ads").eq("date", yesterdayStr),
-        // Primary: DB-side aggregation RPC
         supabase.rpc("get_cost_rollups", { p_from: rangeFrom, p_to: rangeTo }),
         supabase.from("sales").select("revenue").gte("date", rangeFrom).lte("date", rangeTo),
-        // Legacy fallback
         supabase.from("bills").select("amount").eq("status", "paid").gte("date", rangeFrom).lte("date", rangeTo),
         supabase.from("cogs_payments").select("amount").eq("status", "paid").gte("date", rangeFrom).lte("date", rangeTo),
         supabase.from("expenses").select("amount").eq("category", "ads").gte("date", rangeFrom).lte("date", rangeTo),
-        // Next 7 days due (always absolute)
         supabase.from("bills").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
         supabase.from("cogs_payments").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
-        // Marketing rollup RPC (scalar numeric)
         supabase.rpc("get_marketing_rollup", { p_from: rangeFrom, p_to: rangeTo }),
+        // Deposit-based revenue: customer_payment + platform_payout (positive amounts)
+        supabase
+          .from("financial_transactions")
+          .select("amount")
+          .in("txn_subcategory", ["customer_payment", "platform_payout"])
+          .gt("amount", 0)
+          .gte("txn_date", rangeFrom)
+          .lte("txn_date", rangeTo),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -166,10 +172,17 @@ export function useDashboardMetrics(range: DateRange) {
 
       const totalOperatingCost = cogsTotal + adsSpendTotal + overheadTotal;
       const rangeRevenue = (rangeSalesRevRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
-      const netProfitProxy = rangeRevenue - totalOperatingCost;
+
+      // Deposit-based revenue (hybrid approach: bank deposits = source of truth for total revenue)
+      const depositRevenue = (depositRevenueRes.data ?? []).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
+      // Use deposit revenue for profit calculations (more accurate than sales sheet)
+      const netProfitProxy = depositRevenue - totalOperatingCost;
       // Safe division: return 0 when revenue is 0 (not NaN/Infinity)
-      const profitMarginPct = rangeRevenue > 0 ? netProfitProxy / rangeRevenue : 0;
-      const rangeRoas = adsSpendTotal > 0 ? rangeRevenue / adsSpendTotal : 0;
+      const profitMarginPct = depositRevenue > 0 ? netProfitProxy / depositRevenue : 0;
+      const rangeRoas = adsSpendTotal > 0 ? depositRevenue / adsSpendTotal : 0;
+      // Coverage: what % of deposit revenue is accounted for in sales records
+      const salesCoveragePct = depositRevenue > 0 ? rangeRevenue / depositRevenue : 0;
 
       const yesterdayAdSpend = (yesterdayExpRes.data ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       const next7BillsDue = (next7BillsRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
@@ -179,12 +192,12 @@ export function useDashboardMetrics(range: DateRange) {
       const fullyLoadedMarketingCost = Number(marketingRollupRes.data ?? 0);
       const rangeSalesCount = totalSales;
       const fullyLoadedCPO = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
-      const revenuePerSale = rangeSalesCount > 0 ? rangeRevenue / rangeSalesCount : 0;
+      const revenuePerSale = rangeSalesCount > 0 ? depositRevenue / rangeSalesCount : 0;
       const cogsPerSale = rangeSalesCount > 0 ? cogsTotal / rangeSalesCount : 0;
       const contributionMarginPerSale = revenuePerSale - cogsPerSale;
       const marketingPerSale = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
       const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale;
-      const marketingPctOfRevenue = rangeRevenue > 0 ? fullyLoadedMarketingCost / rangeRevenue : 0;
+      const marketingPctOfRevenue = depositRevenue > 0 ? fullyLoadedMarketingCost / depositRevenue : 0;
 
       return {
         earliestDate,
@@ -203,10 +216,12 @@ export function useDashboardMetrics(range: DateRange) {
         adsSpendTotal,
         overheadTotal,
         totalOperatingCost,
+        depositRevenue,
         rangeRevenue,
         rangeRoas,
         netProfitProxy,
         profitMarginPct,
+        salesCoveragePct,
         // Legacy due items
         next7BillsDue,
         next7CogsDue,

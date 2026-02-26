@@ -1,8 +1,9 @@
 import { useReconciliation } from "@/hooks/useReconciliation";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatPercent } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle2, TrendingDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Reconciliation() {
@@ -13,15 +14,21 @@ export default function Reconciliation() {
 
   const { months, totalDeposits, totalSales, totalGap } = data;
   const hasMissing = totalGap > 500;
+  const coveragePct = totalDeposits > 0 ? totalSales / totalDeposits : 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Revenue Reconciliation</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Compares bank deposits (customer payments &amp; platform payouts) against recorded sales.
-          If deposits exceed sales, you likely have orders missing from your sales sheet — e.g. QuickBooks invoices or wire transfers.
-        </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Revenue Reconciliation</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Compares bank deposits (customer payments &amp; platform payouts) against recorded sales.
+            If deposits exceed sales, you likely have orders missing from your sales sheet.
+          </p>
+        </div>
+        <Badge variant={coveragePct >= 0.95 ? "default" : coveragePct >= 0.7 ? "secondary" : "destructive"} className="text-sm px-3 py-1">
+          Sales Coverage: {formatPercent(coveragePct)}
+        </Badge>
       </div>
 
       {/* Summary cards */}
