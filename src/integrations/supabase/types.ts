@@ -555,6 +555,10 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      get_marketing_rollup: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
+      }
       get_match_suggestions: {
         Args: { limit_n?: number; lookback_days?: number; p_sale_id: string }
         Returns: {
