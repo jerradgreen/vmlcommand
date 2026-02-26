@@ -186,7 +186,7 @@ export default function Dashboard() {
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
-    ? `All Time (since ${format(new Date(m.earliestDate), "MMM d, yyyy")})`
+    ? `All Time (since Jan 1, 2025)`
     : `${presetLabels[dateRange.preset]} performance overview`;
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
