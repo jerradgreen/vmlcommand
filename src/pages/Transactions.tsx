@@ -79,12 +79,41 @@ function TransactionsTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [ruleFilter, setRuleFilter] = useState<string>("all");
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   const [editTxn, setEditTxn] = useState<TransactionRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Fetch rules with transaction counts for the audit dropdown
+  const { data: ruleOptions } = useQuery({
+    queryKey: ["rule-audit-options"],
+    queryFn: async () => {
+      const { data: rules, error: rulesErr } = await supabase
+        .from("transaction_rules")
+        .select("id, match_value, match_type, is_active");
+      if (rulesErr) throw rulesErr;
+
+      // Get counts per rule
+      const { data: counts, error: countErr } = await supabase
+        .from("financial_transactions")
+        .select("rule_id_applied")
+        .not("rule_id_applied", "is", null);
+      if (countErr) throw countErr;
+
+      const countMap: Record<string, number> = {};
+      (counts ?? []).forEach((r: { rule_id_applied: string | null }) => {
+        if (r.rule_id_applied) countMap[r.rule_id_applied] = (countMap[r.rule_id_applied] || 0) + 1;
+      });
+
+      return (rules ?? [])
+        .map((r) => ({ id: r.id, label: `${r.match_value}${r.is_active ? "" : " (off)"}`, count: countMap[r.id] || 0 }))
+        .filter((r) => r.count > 0)
+        .sort((a, b) => b.count - a.count);
+    },
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions", page, search, typeFilter, categoryFilter, uncategorizedOnly],
+    queryKey: ["transactions", page, search, typeFilter, categoryFilter, ruleFilter, uncategorizedOnly],
     queryFn: async () => {
       let q = supabase
         .from("financial_transactions")
@@ -100,6 +129,9 @@ function TransactionsTab() {
       }
       if (categoryFilter !== "all") {
         q = q.eq("txn_category", categoryFilter);
+      }
+      if (ruleFilter !== "all") {
+        q = q.eq("rule_id_applied", ruleFilter);
       }
       if (uncategorizedOnly) {
         q = q.is("txn_type", null);
@@ -155,6 +187,15 @@ function TransactionsTab() {
             <SelectItem value="all">All Categories</SelectItem>
             {getAllParentCategories().map((cat) => (
               <SelectItem key={cat} value={cat}>{categoryLabel(cat)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={ruleFilter} onValueChange={(v) => { setRuleFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Classified by Rule" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Rules</SelectItem>
+            {(ruleOptions ?? []).map((r) => (
+              <SelectItem key={r.id} value={r.id}>{r.label} — {r.count} txns</SelectItem>
             ))}
           </SelectContent>
         </Select>
