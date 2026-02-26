@@ -180,6 +180,9 @@ export default function Dashboard() {
     totalOperatingCost: 0, rangeRevenue: 0, rangeRoas: 0,
     netProfitProxy: 0, profitMarginPct: 0,
     next7BillsDue: 0, next7CogsDue: 0,
+    fullyLoadedMarketingCost: 0, fullyLoadedCPO: 0,
+    revenuePerSale: 0, contributionMarginPerSale: 0,
+    profitPerSale: 0, marketingPctOfRevenue: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -292,7 +295,32 @@ export default function Dashboard() {
         <MetricCard title="Total Operating Cost" value={formatCurrency(m.totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
       </div>
 
-      {/* ═══ SECTION 4 — Cash & Survival ═══ */}
+      {/* ═══ SECTION 4 — Unit Economics ═══ */}
+      <SectionHeader title="Unit Economics" subtitle="Per-sale profitability" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Fully Loaded Marketing / Sale</CardTitle>
+            <Calculator className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(m.fullyLoadedCPO)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Total marketing ÷ sales</p>
+            <p className="text-xs text-muted-foreground">{formatPercent(m.marketingPctOfRevenue)} of revenue</p>
+          </CardContent>
+        </Card>
+        <MetricCard title="Revenue / Sale" value={formatCurrency(m.revenuePerSale)} icon={DollarSign} subtitle="Revenue ÷ sales" />
+        <MetricCard title="Contribution Margin / Sale" value={formatCurrency(m.contributionMarginPerSale)} icon={TrendingUp} subtitle="Revenue − COGS per sale" />
+        <MetricCardLarge
+          title="Profit / Sale"
+          value={formatCurrency(m.profitPerSale)}
+          icon={Wallet}
+          subtitle="After COGS + marketing"
+          positive={m.profitPerSale >= 0}
+        />
+      </div>
+
+      {/* ═══ SECTION 5 — Cash & Survival ═══ */}
       <SectionHeader title="Cash & Survival" subtitle="What do I actually keep?" />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCardLarge

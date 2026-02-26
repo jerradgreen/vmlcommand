@@ -1,24 +1,20 @@
+## Plan: Unit Economics Section (CPO + Profit Per Sale)
 
+### Implemented
 
-## Updated Plan: Add `marketingPctOfRevenue` to Unit Economics
+1. **DB RPC `get_marketing_rollup(p_from date, p_to date)`** — returns scalar `numeric`.
+   - Sums `abs(amount)` from `financial_transactions` where `txn_type='business'` and `txn_category IN ('advertising_media','advertising_tools','contractor_payments','creative_services','seo')`.
+   - Null-safe: `coalesce(p_from, '2000-01-01'::date)`, `coalesce(p_to, current_date)`.
 
-Everything from the previous plan stays the same. Two small additions:
+2. **`src/hooks/useDashboardMetrics.ts`** — calls RPC, returns:
+   - `fullyLoadedMarketingCost`, `fullyLoadedCPO`, `revenuePerSale`, `contributionMarginPerSale`, `profitPerSale`, `marketingPctOfRevenue`
+   - All use safe division (0 when no sales or no revenue).
 
-### 1. `src/hooks/useDashboardMetrics.ts`
-- After computing `fullyLoadedMarketingCost`, add:
-  ```ts
-  const marketingPctOfRevenue = rangeRevenue > 0 ? fullyLoadedMarketingCost / rangeRevenue : 0;
-  ```
-- Return `marketingPctOfRevenue` alongside existing new fields.
+3. **`src/pages/Dashboard.tsx`** — "Unit Economics" section with 4 cards:
+   - Fully Loaded Marketing / Sale (CPO) — with `{X}% of revenue` secondary line
+   - Revenue / Sale
+   - Contribution Margin / Sale
+   - Profit / Sale (green/red conditional)
 
-### 2. `src/pages/Dashboard.tsx`
-- On the "Fully Loaded Marketing / Sale" card, add a secondary line below the value:
-  ```
-  {formatPercent(m.marketingPctOfRevenue)} of revenue
-  ```
-  Styled as muted/small text (e.g., `text-xs text-muted-foreground`).
-
-### Files modified
-- `src/hooks/useDashboardMetrics.ts` — add `marketingPctOfRevenue` field
-- `src/pages/Dashboard.tsx` — show secondary line on marketing card
-
+### Future: True CAC
+- Requires tracking new customers (first purchase). `fullyLoadedCAC = marketing / newCustomers`.

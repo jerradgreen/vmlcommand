@@ -86,6 +86,8 @@ export function useDashboardMetrics(range: DateRange) {
         rangeBillsPaidRes, rangeCogsPaidRes, rangeExpRes,
         // Future-dated due items (always absolute, not in financial_transactions)
         next7BillsRes, next7CogsRes,
+        // Fully loaded marketing rollup (scalar numeric)
+        marketingRollupRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
@@ -101,6 +103,8 @@ export function useDashboardMetrics(range: DateRange) {
         // Next 7 days due (always absolute)
         supabase.from("bills").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
         supabase.from("cogs_payments").select("amount").in("status", ["due", "scheduled"]).gte("due_date", todayStr).lte("due_date", next7Str),
+        // Marketing rollup RPC (scalar numeric)
+        supabase.rpc("get_marketing_rollup", { p_from: rangeFrom, p_to: rangeTo }),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -171,6 +175,17 @@ export function useDashboardMetrics(range: DateRange) {
       const next7BillsDue = (next7BillsRes.data ?? []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
       const next7CogsDue = (next7CogsRes.data ?? []).reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
 
+      // ── Unit Economics ──
+      const fullyLoadedMarketingCost = Number(marketingRollupRes.data ?? 0);
+      const rangeSalesCount = totalSales;
+      const fullyLoadedCPO = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
+      const revenuePerSale = rangeSalesCount > 0 ? rangeRevenue / rangeSalesCount : 0;
+      const cogsPerSale = rangeSalesCount > 0 ? cogsTotal / rangeSalesCount : 0;
+      const contributionMarginPerSale = revenuePerSale - cogsPerSale;
+      const marketingPerSale = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
+      const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale;
+      const marketingPctOfRevenue = rangeRevenue > 0 ? fullyLoadedMarketingCost / rangeRevenue : 0;
+
       return {
         earliestDate,
         totalRevenue,
@@ -195,6 +210,13 @@ export function useDashboardMetrics(range: DateRange) {
         // Legacy due items
         next7BillsDue,
         next7CogsDue,
+        // Unit Economics
+        fullyLoadedMarketingCost,
+        fullyLoadedCPO,
+        revenuePerSale,
+        contributionMarginPerSale,
+        profitPerSale,
+        marketingPctOfRevenue,
       };
     },
   });
