@@ -177,8 +177,8 @@ export default function Dashboard() {
     newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
     yesterdayAdSpend: 0,
     cogsTotal: 0, adsSpendTotal: 0, overheadTotal: 0,
-    totalOperatingCost: 0, rangeRevenue: 0, rangeRoas: 0,
-    netProfitProxy: 0, profitMarginPct: 0,
+    totalOperatingCost: 0, depositRevenue: 0, rangeRevenue: 0, rangeRoas: 0,
+    netProfitProxy: 0, profitMarginPct: 0, salesCoveragePct: 0,
     next7BillsDue: 0, next7CogsDue: 0,
     fullyLoadedMarketingCost: 0, fullyLoadedCPO: 0,
     revenuePerSale: 0, contributionMarginPerSale: 0,
@@ -192,9 +192,9 @@ export default function Dashboard() {
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
 
   // Derived metrics — using new RPC-backed fields
-  const adSpendPctOfRevenue = m.rangeRevenue > 0 ? m.adsSpendTotal / m.rangeRevenue : 0;
-  const cogsPctOfRevenue = m.rangeRevenue > 0 ? m.cogsTotal / m.rangeRevenue : 0;
-  const overheadPctOfRevenue = m.rangeRevenue > 0 ? m.overheadTotal / m.rangeRevenue : 0;
+  const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
+  const cogsPctOfRevenue = m.depositRevenue > 0 ? m.cogsTotal / m.depositRevenue : 0;
+  const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
   const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
   const netAfterUpcomingDue = m.netProfitProxy - next7TotalDue;
 
@@ -270,7 +270,7 @@ export default function Dashboard() {
       {/* ═══ SECTION 1 — Revenue Engine ═══ */}
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.rangeRevenue)} icon={DollarSign} subtitle={rangeLabel} onClick={() => navigate("/sales")} />
+        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.depositRevenue)} icon={DollarSign} subtitle={`${formatPercent(m.salesCoveragePct)} matched to sales records`} onClick={() => navigate("/sales")} />
         <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
         <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => navigate("/sales")} />
         <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
@@ -388,7 +388,7 @@ export default function Dashboard() {
         open={profitDetail.open}
         onOpenChange={(open) => setProfitDetail((prev) => ({ ...prev, open }))}
         type={profitDetail.type}
-        rangeRevenue={m.rangeRevenue}
+        rangeRevenue={m.depositRevenue}
         adsSpendTotal={m.adsSpendTotal}
         overheadTotal={m.overheadTotal}
         cogsTotal={m.cogsTotal}
