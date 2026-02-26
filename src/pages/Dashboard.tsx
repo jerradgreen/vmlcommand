@@ -138,7 +138,7 @@ const presetLabels: Record<DatePreset, string> = {
 
 /* ══════════════════ DASHBOARD ══════════════════ */
 export default function Dashboard() {
-  const [dateRange, setDateRange] = useState<DateRange>({ preset: "all" });
+  const [dateRange, setDateRange] = useState<DateRange>({ preset: "ytd" });
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
   const [adDetail, setAdDetail] = useState<{ open: boolean; type: AdSpendDetailType }>({ open: false, type: "yesterday_ad_spend" });
