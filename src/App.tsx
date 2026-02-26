@@ -11,6 +11,7 @@ import Attribution from "./pages/Attribution";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
+import Reconciliation from "./pages/Reconciliation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/attribution" element={<Attribution />} />
             <Route path="/import" element={<Import />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/reconciliation" element={<Reconciliation />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />

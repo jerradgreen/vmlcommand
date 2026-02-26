@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Settings, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Scale, Settings, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useEffect } from "react";
@@ -15,6 +15,7 @@ const navItems = [
   { to: "/attribution", label: "Attribution Inbox", icon: Inbox, badgeKey: "attribution" },
   { to: "/import", label: "Import Data", icon: Upload },
   { to: "/transactions", label: "Transactions", icon: Banknote },
+  { to: "/reconciliation", label: "Reconciliation", icon: Scale },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
