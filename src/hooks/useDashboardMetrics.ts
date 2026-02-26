@@ -69,7 +69,7 @@ export function useDashboardMetrics(range: DateRange) {
       const next7Str = format(addDays(now, 7), "yyyy-MM-dd");
 
       // "All Time" defaults rangeFrom to 2000-01-01 (Fix Pack B)
-      const rangeFrom = from ? format(from, "yyyy-MM-dd") : "2000-01-01";
+      const rangeFrom = from ? format(from, "yyyy-MM-dd") : "2025-01-01";
       const rangeTo = to ? format(to, "yyyy-MM-dd") : format(now, "yyyy-MM-dd");
 
       // NOTE: txn_category='transfer' is NOT an expense and must be excluded from expense totals.
