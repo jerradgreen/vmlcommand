@@ -93,8 +93,6 @@ const ACCOUNT_SAMPLE = JSON.stringify(
     account_name: "Chase Business Checking",
     institution: "Chase",
     balance: 15420.50,
-    currency: "USD",
-    last_update: "2025-06-20T10:00:00Z",
   },
   null,
   2

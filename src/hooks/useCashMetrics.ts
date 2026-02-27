@@ -3,13 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "./useDashboardMetrics";
 import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format } from "date-fns";
 
-const CREDIT_PATTERN = /card|visa|mastercard|discover|amex/i;
-
-function classifyAccount(account_name?: string | null, institution?: string | null): "credit" | "bank" {
-  const combined = `${account_name ?? ""} ${institution ?? ""}`;
-  return CREDIT_PATTERN.test(combined) ? "credit" : "bank";
-}
-
 function getDateBounds(range: DateRange): { from: Date | null; to: Date | null } {
   const now = new Date();
   switch (range.preset) {
@@ -35,26 +28,30 @@ export function useCashMetrics(range: DateRange) {
   return useQuery({
     queryKey: ["cash-metrics", rangeFrom, rangeTo],
     queryFn: async () => {
-      const [accountsRes, txnRes] = await Promise.all([
-        supabase.from("financial_accounts").select("account_name, institution, balance"),
+      const [balancesRes, txnRes] = await Promise.all([
+        supabase.from("account_balances").select("account_type, balance, updated_at"),
         supabase.from("financial_transactions").select("amount").gte("txn_date", rangeFrom).lte("txn_date", rangeTo),
       ]);
 
-      const accounts = accountsRes.data ?? [];
+      const balances = balancesRes.data ?? [];
       let cashInBank = 0;
-      let cardsTotalRaw = 0;
+      let totalCreditCardDebt = 0;
+      let lastUpdated: string | null = null;
 
-      for (const a of accounts) {
+      for (const a of balances) {
         const bal = Number(a.balance) || 0;
-        if (classifyAccount(a.account_name, a.institution) === "credit") {
-          cardsTotalRaw += bal;
+        if (a.account_type === "credit_card") {
+          totalCreditCardDebt += bal;
         } else {
           cashInBank += bal;
         }
+        // Track most recent updated_at
+        if (a.updated_at && (!lastUpdated || a.updated_at > lastUpdated)) {
+          lastUpdated = a.updated_at;
+        }
       }
 
-      const cardsOwedDisplay = Math.abs(cardsTotalRaw);
-      const netCashPosition = cashInBank + cardsTotalRaw;
+      const netCashPosition = cashInBank - totalCreditCardDebt;
 
       const txns = txnRes.data ?? [];
       let totalInflow = 0;
@@ -68,12 +65,12 @@ export function useCashMetrics(range: DateRange) {
 
       return {
         cashInBank,
-        cardsTotalRaw,
-        cardsOwedDisplay,
+        cardsOwedDisplay: totalCreditCardDebt,
         netCashPosition,
         totalInflow,
         totalOutflow,
-        hasData: accounts.length > 0 || txns.length > 0,
+        lastUpdated,
+        hasData: balances.length > 0 || txns.length > 0,
       };
     },
   });

@@ -341,7 +341,7 @@ export default function Dashboard() {
       {/* ═══ Cash & Bank Balances ═══ */}
       {cashMetrics && cashMetrics.hasData && (
         <>
-          <SectionHeader title="Bank & Card Balances" subtitle="Current account positions (ignores date picker)" />
+          <SectionHeader title="Bank & Card Balances" subtitle={cashMetrics.lastUpdated ? `Last updated ${new Date(cashMetrics.lastUpdated).toLocaleString()}` : "Current account positions (ignores date picker)"} />
           <div className="grid gap-4 md:grid-cols-3">
             <MetricCard title="Cash in Bank" value={formatCurrency(cashMetrics.cashInBank)} icon={Landmark} subtitle="Current balance" />
             <MetricCard title="Credit Cards Owed" value={formatCurrency(cashMetrics.cardsOwedDisplay)} icon={CreditCard} subtitle="Total owed (current)" />
