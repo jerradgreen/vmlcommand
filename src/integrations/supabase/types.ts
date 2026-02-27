@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      account_type_overrides: {
+        Row: {
+          created_at: string
+          external_account_id: string
+          forced_account_type: string
+          id: string
+          note: string | null
+          source_system: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_account_id: string
+          forced_account_type: string
+          id?: string
+          note?: string | null
+          source_system?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_account_id?: string
+          forced_account_type?: string
+          id?: string
+          note?: string | null
+          source_system?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bills: {
         Row: {
           amount: number
@@ -603,6 +633,10 @@ export type Database = {
           reasons: string[]
           score: number
         }[]
+      }
+      get_personal_draw_rollup: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
       }
       is_free_email_domain: { Args: { domain: string }; Returns: boolean }
       match_sale_by_id: { Args: { p_sale_id: string }; Returns: Json }

@@ -183,6 +183,7 @@ export default function Dashboard() {
     fullyLoadedMarketingCost: 0, fullyLoadedCPO: 0,
     revenuePerSale: 0, contributionMarginPerSale: 0,
     profitPerSale: 0, marketingPctOfRevenue: 0,
+    personalDrawTotal: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -336,6 +337,7 @@ export default function Dashboard() {
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard title="Net After Upcoming Due" value={formatCurrency(netAfterUpcomingDue)} icon={Calculator} subtitle="Net Profit − Next 7 Days Due" onClick={() => setProfitDetail({ open: true, type: "net_after_upcoming_due" })} />
+        <MetricCard title="Owner Pay (Personal Spend)" value={formatCurrency(m.personalDrawTotal)} icon={Wallet} subtitle="Personal transactions in this range" />
       </div>
 
       {/* ═══ Cash & Bank Balances ═══ */}
