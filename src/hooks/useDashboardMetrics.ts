@@ -90,6 +90,7 @@ export function useDashboardMetrics(range: DateRange) {
         marketingRollupRes,
         // Deposit-based revenue (hybrid approach: bank = source of truth)
         depositRevenueRes,
+        personalDrawRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
@@ -111,6 +112,8 @@ export function useDashboardMetrics(range: DateRange) {
           .gt("amount", 0)
           .gte("txn_date", rangeFrom)
           .lte("txn_date", rangeTo),
+        // Personal draw rollup
+        supabase.rpc("get_personal_draw_rollup", { p_from: rangeFrom, p_to: rangeTo }),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -199,6 +202,9 @@ export function useDashboardMetrics(range: DateRange) {
       const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale;
       const marketingPctOfRevenue = depositRevenue > 0 ? fullyLoadedMarketingCost / depositRevenue : 0;
 
+      // ── Personal Draw ──
+      const personalDrawTotal = Number(personalDrawRes.data ?? 0);
+
       return {
         earliestDate,
         totalRevenue,
@@ -232,6 +238,7 @@ export function useDashboardMetrics(range: DateRange) {
         contributionMarginPerSale,
         profitPerSale,
         marketingPctOfRevenue,
+        personalDrawTotal,
       };
     },
   });
