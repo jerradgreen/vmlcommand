@@ -1,7 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Scale, Settings, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Scale, Settings, Menu, X, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useEffect } from "react";
@@ -23,6 +23,12 @@ export default function AppLayout() {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -83,6 +89,12 @@ export default function AppLayout() {
           </NavLink>
         ))}
       </nav>
+      <div className="mt-auto p-3">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sidebar-foreground/70" onClick={handleLogout}>
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
+      </div>
     </>
   );
 
