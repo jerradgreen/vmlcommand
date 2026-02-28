@@ -247,6 +247,11 @@ export function useDashboardMetrics(range: DateRange) {
       const overheadOneTimeTotal = (overheadSplitRes.data ?? []).reduce((sum, d) => sum + Math.abs(Number(d.amount) || 0), 0);
       const overheadRecurringTotal = overheadTotal - overheadOneTimeTotal;
 
+      // ── Monthly run-rate: recurring ÷ months in range + one-time ÷ 12 ──
+      const rangeDays = Math.max(1, Math.ceil((new Date(rangeTo).getTime() - new Date(rangeFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const rangeMonths = Math.max(1, rangeDays / 30.44); // avg days per month
+      const overheadMonthlyRunRate = (overheadRecurringTotal / rangeMonths) + (overheadOneTimeTotal / 12);
+
       // ── Accrual COGS Overlay ──
       const accrualData = accrualRollupRes.data as {
         estimated_mfg_total: number; allocated_mfg_total: number;
@@ -301,6 +306,7 @@ export function useDashboardMetrics(range: DateRange) {
         personalDrawTotal,
         overheadRecurringTotal,
         overheadOneTimeTotal,
+        overheadMonthlyRunRate,
         shopifyCapitalPaid,
         shopifyCapitalRemaining,
         shopifyCapitalPaidInRange,

@@ -165,9 +165,12 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
     ],
   },
   mtd_overhead: {
-    title: "Overhead",
+    title: "Overhead (Monthly Run-Rate)",
     formula: [
-      { label: "Overhead", valueKey: "overheadTotal", sign: "=" },
+      { label: "Recurring (in range)", valueKey: "overheadRecurringTotal", sign: "info" },
+      { label: "One-time (in range)", valueKey: "overheadOneTimeTotal", sign: "info" },
+      { label: "Monthly Run-Rate", valueKey: "overheadMonthlyRunRate", sign: "=" },
+      { label: "Actual Total Spent", valueKey: "overheadTotal", sign: "info" },
     ],
     dataTables: ["overhead_txns"],
   },
