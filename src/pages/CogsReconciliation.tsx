@@ -33,6 +33,8 @@ interface SaleRow {
   revenue: number;
   estimated_cogs_pct: number;
   manufacturing_status: string;
+  email: string | null;
+  product_name: string | null;
   allocated_mfg: number;
 }
 
@@ -83,7 +85,7 @@ function useSalesForAllocation(dateFrom: string | null, dateTo: string | null, s
   return useQuery({
     queryKey: ["sales-for-allocation", dateFrom, dateTo, showUnpaidOnly],
     queryFn: async () => {
-      let q = supabase.from("sales").select("id, date, order_id, revenue, estimated_cogs_pct, manufacturing_status");
+      let q = supabase.from("sales").select("id, date, order_id, revenue, estimated_cogs_pct, manufacturing_status, email, product_name");
       if (dateFrom) q = q.gte("date", dateFrom);
       if (dateTo) q = q.lte("date", dateTo);
       if (showUnpaidOnly) q = q.in("manufacturing_status", ["unpaid", "partial"]);
@@ -442,6 +444,8 @@ export default function CogsReconciliation() {
                       <TableHead className="w-8"></TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Order</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Product</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right">Est %</TableHead>
                       <TableHead className="text-right">Est Mfg</TableHead>
@@ -467,6 +471,8 @@ export default function CogsReconciliation() {
                           </TableCell>
                           <TableCell className="text-xs">{s.date}</TableCell>
                           <TableCell className="text-xs font-medium">{s.order_id}</TableCell>
+                          <TableCell className="text-xs max-w-[140px] truncate" title={s.email ?? ""}>{s.email ?? "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[140px] truncate" title={s.product_name ?? ""}>{s.product_name ?? "—"}</TableCell>
                           <TableCell className="text-right text-xs">{formatCurrency(s.revenue)}</TableCell>
                           <TableCell className="text-right text-xs">
                             {isEditing ? (
