@@ -10,9 +10,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { CalendarIcon, Factory, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -139,13 +138,11 @@ export default function CogsReconciliation() {
 
   const [salesDateFrom, setSalesDateFrom] = useState<Date | undefined>(subDays(new Date(), 120));
   const [salesDateTo, setSalesDateTo] = useState<Date | undefined>(new Date());
-  const [showUnpaidOnly, setShowUnpaidOnly] = useState(false);
+  const [showUnpaidOnly, setShowUnpaidOnly] = useState(true);
   const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
   const [selectedSaleIds, setSelectedSaleIds] = useState<Set<string>>(new Set());
   const [allocationMode, setAllocationMode] = useState<"auto" | "manual">("auto");
   const [manualAmounts, setManualAmounts] = useState<Record<string, string>>({});
-  const [editingCogsPct, setEditingCogsPct] = useState<string | null>(null);
-  const [cogsPctValue, setCogsPctValue] = useState("");
 
   const salesFrom = salesDateFrom ? format(salesDateFrom, "yyyy-MM-dd") : null;
   const salesTo = salesDateTo ? format(salesDateTo, "yyyy-MM-dd") : null;
@@ -176,13 +173,6 @@ export default function CogsReconciliation() {
 
       for (const a of allocations) {
         if (a.amount < 0) throw new Error("Allocation cannot be negative");
-        const sale = sales.find((s) => s.id === a.sale_id);
-        if (sale) {
-          const remainingMfg = Math.max(sale.revenue * sale.estimated_cogs_pct - sale.allocated_mfg, 0);
-          if (a.amount > remainingMfg + 0.01) {
-            throw new Error(`Allocation for ${sale.order_id} ($${a.amount.toFixed(2)}) exceeds remaining mfg ($${remainingMfg.toFixed(2)})`);
-          }
-        }
       }
 
       // Insert allocations
@@ -198,16 +188,9 @@ export default function CogsReconciliation() {
       const { error } = await supabase.from("cogs_allocations").insert(rows);
       if (error) throw error;
 
-      // Update manufacturing_status for each affected sale
+      // Mark all allocated sales as "paid"
       for (const a of allocations.filter((x) => x.amount > 0)) {
-        const sale = sales.find((s) => s.id === a.sale_id);
-        if (!sale) continue;
-        const newAllocated = sale.allocated_mfg + a.amount;
-        const estimated = sale.revenue * sale.estimated_cogs_pct;
-        let status = "unpaid";
-        if (newAllocated > 0 && newAllocated < estimated) status = "partial";
-        if (newAllocated >= estimated) status = "paid";
-        await supabase.from("sales").update({ manufacturing_status: status }).eq("id", a.sale_id);
+        await supabase.from("sales").update({ manufacturing_status: "paid" }).eq("id", a.sale_id);
       }
     },
     onSuccess: () => {
@@ -260,36 +243,16 @@ export default function CogsReconciliation() {
     },
   });
 
-  /* ── Update estimated_cogs_pct ── */
-  const updateCogsPctMutation = useMutation({
-    mutationFn: async ({ saleId, pct }: { saleId: string; pct: number }) => {
-      if (pct < 0 || pct > 1) throw new Error("Percentage must be between 0 and 1");
-      const { error } = await supabase.from("sales").update({ estimated_cogs_pct: pct }).eq("id", saleId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setEditingCogsPct(null);
-      invalidateAll();
-    },
-    onError: (err: Error) => {
-      toast({ title: "Update failed", description: err.message, variant: "destructive" });
-    },
-  });
 
   /* ── Auto-split computation ── */
   const computeAutoSplit = useCallback(() => {
     if (!selectedTxn || selectedSaleIds.size === 0) return [];
     const selectedSales = sales.filter((s) => selectedSaleIds.has(s.id));
-    const totalRemaining = selectedSales.reduce((sum, s) => sum + Math.max(s.revenue * s.estimated_cogs_pct - s.allocated_mfg, 0), 0);
-    if (totalRemaining === 0) return selectedSales.map((s) => ({ sale_id: s.id, amount: 0 }));
+    const count = selectedSales.length;
+    if (count === 0) return [];
 
-    let pool = txnRemainingUnallocated;
-    return selectedSales.map((s) => {
-      const remainingMfg = Math.max(s.revenue * s.estimated_cogs_pct - s.allocated_mfg, 0);
-      const share = (remainingMfg / totalRemaining) * Math.min(txnRemainingUnallocated, totalRemaining);
-      const amount = Math.min(share, remainingMfg);
-      return { sale_id: s.id, amount: Math.round(amount * 100) / 100 };
-    });
+    const perSale = Math.round((txnRemainingUnallocated / count) * 100) / 100;
+    return selectedSales.map((s) => ({ sale_id: s.id, amount: perSale }));
   }, [selectedTxn, selectedSaleIds, sales, txnRemainingUnallocated]);
 
   const handleSave = () => {
@@ -313,10 +276,6 @@ export default function CogsReconciliation() {
     });
   };
 
-  const statusBadge = (status: string) => {
-    const variant = status === "paid" ? "default" : status === "partial" ? "secondary" : "outline";
-    return <Badge variant={variant}>{status}</Badge>;
-  };
 
   return (
     <div className="space-y-6">
@@ -447,26 +406,18 @@ export default function CogsReconciliation() {
                       <TableHead>Email</TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-right">Est %</TableHead>
-                      <TableHead className="text-right">Est Mfg</TableHead>
-                      <TableHead className="text-right">Allocated</TableHead>
-                      <TableHead className="text-right">Remaining</TableHead>
-                      <TableHead>Status</TableHead>
                       {allocationMode === "manual" && <TableHead className="text-right">Amount</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sales.map((s) => {
-                      const estMfg = s.revenue * s.estimated_cogs_pct;
-                      const remaining = Math.max(estMfg - s.allocated_mfg, 0);
-                      const isEditing = editingCogsPct === s.id;
                       return (
                         <TableRow key={s.id}>
                           <TableCell>
                             <Checkbox
                               checked={selectedSaleIds.has(s.id)}
                               onCheckedChange={() => toggleSale(s.id)}
-                              disabled={!selectedTxnId || remaining === 0}
+                              disabled={!selectedTxnId}
                             />
                           </TableCell>
                           <TableCell className="text-xs">{s.date}</TableCell>
@@ -474,51 +425,12 @@ export default function CogsReconciliation() {
                           <TableCell className="text-xs max-w-[140px] truncate" title={s.email ?? ""}>{s.email ?? "—"}</TableCell>
                           <TableCell className="text-xs max-w-[140px] truncate" title={s.product_name ?? ""}>{s.product_name ?? "—"}</TableCell>
                           <TableCell className="text-right text-xs">{formatCurrency(s.revenue)}</TableCell>
-                          <TableCell className="text-right text-xs">
-                            {isEditing ? (
-                              <Input
-                                className="h-6 w-16 text-xs"
-                                value={cogsPctValue}
-                                onChange={(e) => setCogsPctValue(e.target.value)}
-                                onBlur={() => {
-                                  const v = parseFloat(cogsPctValue);
-                                  if (!isNaN(v) && v >= 0 && v <= 100) {
-                                    updateCogsPctMutation.mutate({ saleId: s.id, pct: v / 100 });
-                                  } else {
-                                    setEditingCogsPct(null);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                                  if (e.key === "Escape") setEditingCogsPct(null);
-                                }}
-                                autoFocus
-                              />
-                            ) : (
-                              <span
-                                className="cursor-pointer hover:underline"
-                                onClick={() => {
-                                  setEditingCogsPct(s.id);
-                                  setCogsPctValue((s.estimated_cogs_pct * 100).toFixed(0));
-                                }}
-                              >
-                                {(s.estimated_cogs_pct * 100).toFixed(0)}%
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-xs">{formatCurrency(estMfg)}</TableCell>
-                          <TableCell className="text-right text-xs">{formatCurrency(s.allocated_mfg)}</TableCell>
-                          <TableCell className={cn("text-right text-xs font-medium", remaining > 0 ? "text-amber-600" : "text-emerald-600")}>
-                            {formatCurrency(remaining)}
-                          </TableCell>
-                          <TableCell>{statusBadge(s.manufacturing_status)}</TableCell>
                           {allocationMode === "manual" && selectedSaleIds.has(s.id) && (
                             <TableCell className="text-right">
                               <Input
                                 className="h-6 w-20 text-xs"
                                 type="number"
                                 min={0}
-                                max={remaining}
                                 value={manualAmounts[s.id] ?? ""}
                                 onChange={(e) => setManualAmounts((p) => ({ ...p, [s.id]: e.target.value }))}
                               />
@@ -553,7 +465,7 @@ export default function CogsReconciliation() {
 
                 {allocationMode === "auto" && (
                   <div className="text-xs text-muted-foreground">
-                    Will distribute {formatCurrency(Math.min(txnRemainingUnallocated, sales.filter((s) => selectedSaleIds.has(s.id)).reduce((sum, s) => sum + Math.max(s.revenue * s.estimated_cogs_pct - s.allocated_mfg, 0), 0)))} proportionally across selected sales.
+                    Will split {formatCurrency(txnRemainingUnallocated)} evenly across {selectedSaleIds.size} selected sale(s).
                   </div>
                 )}
 
