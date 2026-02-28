@@ -15,7 +15,7 @@ export const OVERHEAD_PARENT_CATS = [
 ] as const;
 
 export const BUSINESS_CATEGORIES: Record<string, string[]> = {
-  cogs: ["manufacturing", "overseas_supplier", "domestic_supplier", "raw_materials", "custom_parts"],
+  cogs: ["domestic_manufacturing", "international_manufacturing", "raw_materials", "custom_parts"],
   shipping_cogs: ["freight_international", "freight_domestic", "ltl_shipping", "parcel_shipping"],
   merchant_fees: ["shopify_payments", "stripe", "paypal", "adp", "other"],
   packaging: ["boxes", "foam", "tape", "labels", "misc"],
