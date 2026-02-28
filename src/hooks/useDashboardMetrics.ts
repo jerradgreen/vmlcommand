@@ -91,6 +91,7 @@ export function useDashboardMetrics(range: DateRange) {
         // Deposit-based revenue (hybrid approach: bank = source of truth)
         depositRevenueRes,
         personalDrawRes,
+        shopifyCapitalRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
@@ -114,6 +115,8 @@ export function useDashboardMetrics(range: DateRange) {
           .lte("txn_date", rangeTo),
         // Personal draw rollup
         supabase.rpc("get_personal_draw_rollup", { p_from: rangeFrom, p_to: rangeTo }),
+        // Shopify Capital summary
+        supabase.rpc("get_shopify_capital_summary", { p_from: rangeFrom, p_to: rangeTo }),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -173,7 +176,13 @@ export function useDashboardMetrics(range: DateRange) {
       if (adsSpendTotal === 0 && legacyAds > 0) adsSpendTotal = legacyAds;
       if (overheadTotal === 0 && legacyOverhead > 0) overheadTotal = legacyOverhead;
 
-      const totalOperatingCost = cogsTotal + adsSpendTotal + overheadTotal;
+      // ── Shopify Capital ──
+      const capitalData = shopifyCapitalRes.data as { paid_to_date: number; remaining_balance: number; paid_in_range: number } | null;
+      const shopifyCapitalPaid = Number(capitalData?.paid_to_date ?? 0);
+      const shopifyCapitalRemaining = Number(capitalData?.remaining_balance ?? 0);
+      const shopifyCapitalPaidInRange = Number(capitalData?.paid_in_range ?? 0);
+
+      const totalOperatingCost = cogsTotal + adsSpendTotal + overheadTotal + shopifyCapitalPaidInRange;
       const rangeRevenue = (rangeSalesRevRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
 
       // Deposit-based revenue (hybrid approach: bank deposits = source of truth for total revenue)
@@ -199,7 +208,8 @@ export function useDashboardMetrics(range: DateRange) {
       const cogsPerSale = rangeSalesCount > 0 ? cogsTotal / rangeSalesCount : 0;
       const contributionMarginPerSale = revenuePerSale - cogsPerSale;
       const marketingPerSale = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
-      const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale;
+      const loanPaybackPerSale = rangeSalesCount > 0 ? shopifyCapitalPaidInRange / rangeSalesCount : 0;
+      const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale - loanPaybackPerSale;
       const marketingPctOfRevenue = depositRevenue > 0 ? fullyLoadedMarketingCost / depositRevenue : 0;
 
       // ── Personal Draw ──
@@ -239,6 +249,10 @@ export function useDashboardMetrics(range: DateRange) {
         profitPerSale,
         marketingPctOfRevenue,
         personalDrawTotal,
+        shopifyCapitalPaid,
+        shopifyCapitalRemaining,
+        shopifyCapitalPaidInRange,
+        loanPaybackPerSale,
       };
     },
   });

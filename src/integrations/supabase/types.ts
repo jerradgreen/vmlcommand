@@ -543,6 +543,36 @@ export type Database = {
           },
         ]
       }
+      shopify_capital_loans: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string | null
+          payback_cap: number
+          repayment_rate: number
+          start_order_number_int: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          payback_cap: number
+          repayment_rate: number
+          start_order_number_int: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          payback_cap?: number
+          repayment_rate?: number
+          start_order_number_int?: number
+        }
+        Relationships: []
+      }
       transaction_rules: {
         Row: {
           assign_category: string | null
@@ -637,6 +667,10 @@ export type Database = {
       get_personal_draw_rollup: {
         Args: { p_from: string; p_to: string }
         Returns: number
+      }
+      get_shopify_capital_summary: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
       }
       is_free_email_domain: { Args: { domain: string }; Returns: boolean }
       match_sale_by_id: { Args: { p_sale_id: string }; Returns: Json }
