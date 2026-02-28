@@ -139,6 +139,28 @@ function useDataTable(type: DataTableType | null, rangeFrom: string, rangeTo: st
             .order("start_order_number_int", { ascending: true });
           return data ?? [];
         }
+        case "overhead_txns": {
+          const overheadCats = ['software','subscriptions','contractor_payments','office_expense',
+            'rent','utilities','insurance','equipment','creative_services','seo',
+            'advertising_tools','education','taxes','bank_fees','interest'];
+          const { data } = await supabase.from("financial_transactions")
+            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount")
+            .eq("txn_type", "business")
+            .in("txn_category", overheadCats)
+            .gte("txn_date", rangeFrom).lte("txn_date", rangeTo)
+            .order("txn_date", { ascending: false });
+          return data ?? [];
+        }
+        case "cogs_txns": {
+          const cogsCats = ['cogs','shipping_cogs','merchant_fees','packaging'];
+          const { data } = await supabase.from("financial_transactions")
+            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount")
+            .eq("txn_type", "business")
+            .in("txn_category", cogsCats)
+            .gte("txn_date", rangeFrom).lte("txn_date", rangeTo)
+            .order("txn_date", { ascending: false });
+          return data ?? [];
+        }
         default:
           return [];
       }
@@ -296,6 +318,35 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
                   <TableCell className="font-mono">{l.start_order_number_int}</TableCell>
                   <TableCell>{(Number(l.repayment_rate) * 100).toFixed(0)}%</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(l.payback_cap))}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+
+    case "overhead_txns":
+    case "cogs_txns":
+      return (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">
+            {type === "overhead_txns" ? "Overhead" : "COGS"} Transactions — {formatCurrency(total)}
+          </h3>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Vendor</TableHead>
+              <TableHead>Category</TableHead><TableHead>Subcategory</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {data.map((t: any) => (
+                <TableRow key={t.id}>
+                  <TableCell>{t.txn_date}</TableCell>
+                  <TableCell className="max-w-[200px] truncate text-xs">{t.description ?? "—"}</TableCell>
+                  <TableCell>{t.vendor ?? "—"}</TableCell>
+                  <TableCell>{t.txn_category ?? "—"}</TableCell>
+                  <TableCell>{t.txn_subcategory ?? "—"}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Math.abs(Number(t.amount)))}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

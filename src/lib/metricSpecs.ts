@@ -65,6 +65,8 @@ export type DataTableType =
   | "leads_list"
   | "bills_paid"
   | "cogs_paid"
+  | "cogs_txns"
+  | "overhead_txns"
   | "next7_bills"
   | "next7_cogs"
   | "shopify_capital_loans";
@@ -145,7 +147,7 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
       { label: "Accrued Mfg Remaining", valueKey: "accruedMfgRemaining", sign: "+" },
       { label: "Adjusted COGS", valueKey: "adjustedCogsTotal", sign: "=" },
     ],
-    dataTables: ["cogs_paid"],
+    dataTables: ["cogs_txns"],
   },
   mtd_cogs_paid: {
     title: "COGS Paid",
@@ -167,7 +169,7 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
     formula: [
       { label: "Overhead", valueKey: "overheadTotal", sign: "=" },
     ],
-    dataTables: ["bills_paid"],
+    dataTables: ["overhead_txns"],
   },
   mtd_bills_paid: {
     title: "Bills Paid",
