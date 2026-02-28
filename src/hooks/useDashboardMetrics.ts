@@ -225,9 +225,6 @@ export function useDashboardMetrics(range: DateRange) {
       const marketingPerSale = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
       // Loan payback per sale uses ONLY loan-qualifying sales as denominator
       const loanPaybackPerSale = loanQualifyingSalesCountInRange > 0 ? shopifyCapitalPaidInRange / loanQualifyingSalesCountInRange : 0;
-      // Net profit per sale uses overall averages for global costs, loan spread across all sales as avg
-      const loanPaybackPerSaleAvg = rangeSalesCount > 0 ? shopifyCapitalPaidInRange / rangeSalesCount : 0;
-      const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale - loanPaybackPerSaleAvg;
       const marketingPctOfRevenue = depositRevenue > 0 ? fullyLoadedMarketingCost / depositRevenue : 0;
 
       // ── Personal Draw ──
@@ -250,6 +247,7 @@ export function useDashboardMetrics(range: DateRange) {
       const adjustedNetProfit = depositRevenue - adjustedTotalOperatingCost;
       const adjustedCogsPct = depositRevenue > 0 ? adjustedCogsTotal / depositRevenue : 0;
       const adjustedProfitMarginPct = depositRevenue > 0 ? adjustedNetProfit / depositRevenue : 0;
+      const profitPerSale = rangeSalesCount > 0 ? adjustedNetProfit / rangeSalesCount : 0;
 
       return {
         earliestDate,

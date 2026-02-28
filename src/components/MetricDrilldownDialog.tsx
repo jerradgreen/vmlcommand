@@ -49,8 +49,6 @@ function resolveValue(key: string, m: Record<string, any>): number {
       return m.totalSales > 0 ? (m.cogsTotal || 0) / m.totalSales : 0;
     case "_marketingPerSale":
       return m.totalSales > 0 ? (m.fullyLoadedMarketingCost || 0) / m.totalSales : 0;
-    case "_loanPerSaleAvg":
-      return m.totalSales > 0 ? (m.shopifyCapitalPaidInRange || 0) / m.totalSales : 0;
     case "_loanQualifyingSalesCount":
       return m.loanQualifyingSalesCountInRange || 0;
     case "_paybackCap":

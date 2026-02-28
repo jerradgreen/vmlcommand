@@ -282,7 +282,7 @@ export default function Dashboard() {
           title="Net Profit per Sale"
           value={formatCurrency(m.profitPerSale)}
           icon={Wallet}
-          subtitle="Revenue − COGS − marketing − loan (avg)"
+          subtitle="Adjusted Net Profit ÷ Sales Count"
           positive={m.profitPerSale >= 0}
           onClick={() => openDrilldown("np_per_sale")}
         />
