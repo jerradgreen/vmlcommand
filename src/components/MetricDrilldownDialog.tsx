@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,6 +8,7 @@ import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 import { MetricSpec, MetricSpecId, metricSpecs, DataTableType } from "@/lib/metricSpecs";
 import { format, addDays } from "date-fns";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import TransactionEditSheet from "./TransactionEditSheet";
 
 interface Props {
   open: boolean;
@@ -144,7 +146,7 @@ function useDataTable(type: DataTableType | null, rangeFrom: string, rangeTo: st
             'rent','utilities','insurance','equipment','creative_services','seo',
             'advertising_tools','education','taxes','bank_fees','interest'];
           const { data } = await supabase.from("financial_transactions")
-            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount, is_recurring")
+            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount, is_recurring, account_name, txn_type, is_locked, rule_id_applied, classified_at")
             .eq("txn_type", "business")
             .in("txn_category", overheadCats)
             .gte("txn_date", rangeFrom).lte("txn_date", rangeTo)
@@ -154,7 +156,7 @@ function useDataTable(type: DataTableType | null, rangeFrom: string, rangeTo: st
         case "cogs_txns": {
           const cogsCats = ['cogs','shipping_cogs','merchant_fees','packaging'];
           const { data } = await supabase.from("financial_transactions")
-            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount")
+            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount, is_recurring, account_name, txn_type, is_locked, rule_id_applied, classified_at")
             .eq("txn_type", "business")
             .in("txn_category", cogsCats)
             .gte("txn_date", rangeFrom).lte("txn_date", rangeTo)
@@ -168,7 +170,7 @@ function useDataTable(type: DataTableType | null, rangeFrom: string, rangeTo: st
   });
 }
 
-function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
+function DataTableView({ type, data, onTransactionClick }: { type: DataTableType; data: any[]; onTransactionClick?: (txn: any) => void }) {
   if (data.length === 0) return <p className="text-muted-foreground text-sm">No records found.</p>;
 
   const total = data.reduce((s: number, r: any) => s + (Number(r.amount ?? r.revenue ?? 0) || 0), 0);
@@ -341,7 +343,7 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
             </TableRow></TableHeader>
             <TableBody>
               {data.map((t: any) => (
-                <TableRow key={t.id}>
+                <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onTransactionClick?.(t)}>
                   <TableCell>{t.txn_date}</TableCell>
                   <TableCell className="max-w-[200px] truncate text-xs">{t.description ?? "—"}</TableCell>
                   <TableCell>{t.vendor ?? "—"}</TableCell>
@@ -369,6 +371,8 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
 
 export default function MetricDrilldownDialog({ open, onOpenChange, specId, metrics, rangeFrom, rangeTo, rangeLabel }: Props) {
   const spec = specId ? metricSpecs[specId] : null;
+  const queryClient = useQueryClient();
+  const [editingTxn, setEditingTxn] = useState<any>(null);
 
   // Use the first data table if present
   const primaryTable = spec?.dataTables?.[0] ?? null;
@@ -380,6 +384,14 @@ export default function MetricDrilldownDialog({ open, onOpenChange, specId, metr
 
   const salesCoverage = metrics.depositRevenue > 0 ? metrics.rangeRevenue / metrics.depositRevenue : 0;
   const isLoading = primaryLoading || secondaryLoading;
+
+  const isTransactionTable = (t: DataTableType | null) => t === "overhead_txns" || t === "cogs_txns";
+  const handleTransactionClick = (txn: any) => setEditingTxn(txn);
+  const handleTxnSaved = () => {
+    setEditingTxn(null);
+    queryClient.invalidateQueries({ queryKey: ["drilldown-data"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -432,16 +444,25 @@ export default function MetricDrilldownDialog({ open, onOpenChange, specId, metr
 
         {!isLoading && primaryTable && primaryData && (
           <div className="mt-4">
-            <DataTableView type={primaryTable} data={primaryData} />
+            <DataTableView type={primaryTable} data={primaryData} onTransactionClick={isTransactionTable(primaryTable) ? handleTransactionClick : undefined} />
           </div>
         )}
 
         {!isLoading && secondaryTable && secondaryData && (
           <div className="mt-4">
-            <DataTableView type={secondaryTable} data={secondaryData} />
+            <DataTableView type={secondaryTable} data={secondaryData} onTransactionClick={isTransactionTable(secondaryTable) ? handleTransactionClick : undefined} />
           </div>
         )}
       </DialogContent>
+
+      {editingTxn && (
+        <TransactionEditSheet
+          transaction={editingTxn}
+          open={!!editingTxn}
+          onOpenChange={(o) => { if (!o) setEditingTxn(null); }}
+          onSaved={handleTxnSaved}
+        />
+      )}
     </Dialog>
   );
 }
