@@ -406,6 +406,7 @@ export default function CogsReconciliation() {
                       <TableHead>Email</TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Est Mfg</TableHead>
                       {allocationMode === "manual" && <TableHead className="text-right">Amount</TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -425,6 +426,7 @@ export default function CogsReconciliation() {
                           <TableCell className="text-xs max-w-[140px] truncate" title={s.email ?? ""}>{s.email ?? "—"}</TableCell>
                           <TableCell className="text-xs max-w-[140px] truncate" title={s.product_name ?? ""}>{s.product_name ?? "—"}</TableCell>
                           <TableCell className="text-right text-xs">{formatCurrency(s.revenue)}</TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">{formatCurrency(s.revenue * s.estimated_cogs_pct)}</TableCell>
                           {allocationMode === "manual" && selectedSaleIds.has(s.id) && (
                             <TableCell className="text-right">
                               <Input
