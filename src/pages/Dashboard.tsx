@@ -185,6 +185,7 @@ export default function Dashboard() {
     profitPerSale: 0, marketingPctOfRevenue: 0,
     personalDrawTotal: 0,
     shopifyCapitalPaid: 0, shopifyCapitalRemaining: 0, shopifyCapitalPaidInRange: 0, loanPaybackPerSale: 0,
+    loanQualifyingSalesCountInRange: 0, shopifySalesCountInRange: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -310,23 +311,23 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Marketing Cost Per Sale</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Marketing Cost per Sale</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(m.fullyLoadedCPO)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total marketing ÷ sales</p>
+            <p className="text-xs text-muted-foreground mt-1">Total marketing ÷ all sales (Shopify + manual)</p>
             <p className="text-xs text-muted-foreground">{formatPercent(m.marketingPctOfRevenue)} of revenue</p>
           </CardContent>
         </Card>
-        <MetricCard title="Revenue Per Sale" value={formatCurrency(m.revenuePerSale)} icon={DollarSign} subtitle="Revenue ÷ sales" />
-        <MetricCard title="Gross Profit Per Sale" value={formatCurrency(m.contributionMarginPerSale)} icon={TrendingUp} subtitle="Revenue − product cost" />
-        <MetricCard title="Loan Payback / Sale" value={formatCurrency(m.loanPaybackPerSale)} icon={Landmark} subtitle="Capital paid ÷ sales" />
+        <MetricCard title="Revenue Per Sale" value={formatCurrency(m.revenuePerSale)} icon={DollarSign} subtitle="Revenue ÷ all sales" />
+        <MetricCard title="Gross Profit per Sale" value={formatCurrency(m.contributionMarginPerSale)} icon={TrendingUp} subtitle="Revenue per sale − COGS per sale (before marketing)" />
+        <MetricCard title="Shopify Capital Cost per Affected Sale" value={formatCurrency(m.loanPaybackPerSale)} icon={Landmark} subtitle={`Only Shopify orders #VML18412+ (${m.loanQualifyingSalesCountInRange} qualifying sales)`} />
         <MetricCardLarge
-          title="Net Profit Per Sale"
+          title="Net Profit per Sale"
           value={formatCurrency(m.profitPerSale)}
           icon={Wallet}
-          subtitle="After COGS + marketing + loan"
+          subtitle="Revenue per sale − COGS − marketing − loan (avg across all sales)"
           positive={m.profitPerSale >= 0}
         />
       </div>
