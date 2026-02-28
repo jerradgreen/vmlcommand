@@ -295,27 +295,11 @@ export default function Dashboard() {
       {/* ═══ SECTION 3 — Cost Structure (Leak Detection) ═══ */}
       <SectionHeader title="Cost Structure (Leak Detection)" subtitle="Where is money drifting?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.cogsTotal)} icon={Factory} subtitle={rangeLabel} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
-        <MetricCard title="COGS % of Revenue" value={formatPercent(cogsPctOfRevenue)} icon={Percent} subtitle="COGS ÷ Revenue" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.adjustedCogsTotal)} icon={Factory} subtitle={`Cash ${formatCurrency(m.cogsTotal)} + Accrued ${formatCurrency(m.accruedMfgRemaining)}`} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
+        <MetricCard title="COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
         <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle="Overhead" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
         <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-        <MetricCard title="Total Operating Cost" value={formatCurrency(m.totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
-      </div>
-
-      {/* ═══ Adjusted (Accrual) View ═══ */}
-      <SectionHeader title="Adjusted (Accrual) View" subtitle="Cash COGS + unpaid estimated manufacturing = true cost picture" />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Adjusted COGS" value={formatCurrency(m.adjustedCogsTotal)} icon={Factory} subtitle={`Cash ${formatCurrency(m.cogsTotal)} + Accrued ${formatCurrency(m.accruedMfgRemaining)}`} onClick={() => navigate("/cogs-reconciliation")} />
-        <MetricCard title="Adjusted COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" />
-        <MetricCardLarge
-          title="Adjusted Net Profit"
-          value={formatCurrency(m.adjustedNetProfit)}
-          icon={Calculator}
-          subtitle={`Unpaid: ${m.mfgUnpaidCount} · Partial: ${m.mfgPartialCount} · Paid: ${m.mfgPaidCount}`}
-          positive={m.adjustedNetProfit >= 0}
-          onClick={() => navigate("/cogs-reconciliation")}
-        />
-        <MetricCard title="Adjusted Profit Margin" value={formatPercent(m.adjustedProfitMarginPct)} icon={Percent} subtitle="Adjusted Net Profit ÷ Revenue" />
+        <MetricCard title="Total Operating Cost" value={formatCurrency(m.adjustedTotalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
       </div>
 
       {/* ═══ Shopify Capital ═══ */}
