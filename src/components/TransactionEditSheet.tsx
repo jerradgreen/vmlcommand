@@ -22,6 +22,7 @@ type TransactionRow = {
   txn_subcategory?: string | null;
   vendor: string | null;
   is_locked: boolean;
+  is_recurring: boolean;
   rule_id_applied: string | null;
   classified_at: string | null;
 };
@@ -39,6 +40,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
   const [txnSubcategory, setTxnSubcategory] = useState(transaction.txn_subcategory ?? "");
   const [vendor, setVendor] = useState(transaction.vendor ?? "");
   const [isLocked, setIsLocked] = useState(transaction.is_locked);
+  const [isRecurring, setIsRecurring] = useState(transaction.is_recurring ?? true);
   const [showRuleDialog, setShowRuleDialog] = useState(false);
 
   const handleTypeChange = (val: string) => {
@@ -70,6 +72,7 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
           txn_subcategory: txnSubcategory || null,
           vendor: vendor || null,
           is_locked: isLocked,
+          is_recurring: isRecurring,
           classified_at: new Date().toISOString(),
         })
         .eq("id", transaction.id);
@@ -145,6 +148,11 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
             <div>
               <Label>Vendor</Label>
               <Input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="e.g. FosterWeld" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch id="recurring" checked={isRecurring} onCheckedChange={setIsRecurring} />
+              <Label htmlFor="recurring">Recurring expense</Label>
             </div>
 
             <div className="flex items-center gap-2">

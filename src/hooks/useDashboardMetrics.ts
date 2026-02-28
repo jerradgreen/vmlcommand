@@ -94,6 +94,8 @@ export function useDashboardMetrics(range: DateRange) {
         shopifyCapitalRes,
         salesCountsRes,
         accrualRollupRes,
+        // Overhead recurring vs one-time split
+        overheadSplitRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
@@ -123,6 +125,17 @@ export function useDashboardMetrics(range: DateRange) {
         supabase.rpc("get_sales_counts", { p_from: rangeFrom, p_to: rangeTo }),
         // Accrued manufacturing COGS rollup
         supabase.rpc("get_accrued_mfg_cogs_rollup", { p_from: rangeFrom, p_to: rangeTo }),
+        // Overhead one-time split
+        supabase
+          .from("financial_transactions")
+          .select("amount")
+          .eq("txn_type", "business")
+          .eq("is_recurring", false)
+          .in("txn_category", ['software','subscriptions','contractor_payments','office_expense',
+            'rent','utilities','insurance','equipment','creative_services','seo',
+            'advertising_tools','education','taxes','bank_fees','interest'])
+          .gte("txn_date", rangeFrom)
+          .lte("txn_date", rangeTo),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -230,6 +243,10 @@ export function useDashboardMetrics(range: DateRange) {
       // ── Personal Draw ──
       const personalDrawTotal = Number(personalDrawRes.data ?? 0);
 
+      // ── Overhead recurring/one-time split ──
+      const overheadOneTimeTotal = (overheadSplitRes.data ?? []).reduce((sum, d) => sum + Math.abs(Number(d.amount) || 0), 0);
+      const overheadRecurringTotal = overheadTotal - overheadOneTimeTotal;
+
       // ── Accrual COGS Overlay ──
       const accrualData = accrualRollupRes.data as {
         estimated_mfg_total: number; allocated_mfg_total: number;
@@ -282,6 +299,8 @@ export function useDashboardMetrics(range: DateRange) {
         profitPerSale,
         marketingPctOfRevenue,
         personalDrawTotal,
+        overheadRecurringTotal,
+        overheadOneTimeTotal,
         shopifyCapitalPaid,
         shopifyCapitalRemaining,
         shopifyCapitalPaidInRange,

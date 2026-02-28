@@ -31,6 +31,7 @@ type TransactionRow = {
   txn_category: string | null;
   vendor: string | null;
   is_locked: boolean;
+  is_recurring: boolean;
   rule_id_applied: string | null;
   classified_at: string | null;
 };
@@ -117,7 +118,7 @@ function TransactionsTab() {
     queryFn: async () => {
       let q = supabase
         .from("financial_transactions")
-        .select("id, txn_date, description, amount, account_name, txn_type, txn_category, vendor, is_locked, rule_id_applied, classified_at", { count: "exact" })
+        .select("id, txn_date, description, amount, account_name, txn_type, txn_category, vendor, is_locked, is_recurring, rule_id_applied, classified_at", { count: "exact" })
         .order("txn_date", { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
