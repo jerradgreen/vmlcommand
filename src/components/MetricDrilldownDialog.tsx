@@ -144,7 +144,7 @@ function useDataTable(type: DataTableType | null, rangeFrom: string, rangeTo: st
             'rent','utilities','insurance','equipment','creative_services','seo',
             'advertising_tools','education','taxes','bank_fees','interest'];
           const { data } = await supabase.from("financial_transactions")
-            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount")
+            .select("id, txn_date, description, vendor, txn_category, txn_subcategory, amount, is_recurring")
             .eq("txn_type", "business")
             .in("txn_category", overheadCats)
             .gte("txn_date", rangeFrom).lte("txn_date", rangeTo)
@@ -336,6 +336,7 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
             <TableHeader><TableRow>
               <TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Vendor</TableHead>
               <TableHead>Category</TableHead><TableHead>Subcategory</TableHead>
+              {type === "overhead_txns" && <TableHead>Type</TableHead>}
               <TableHead className="text-right">Amount</TableHead>
             </TableRow></TableHeader>
             <TableBody>
@@ -346,6 +347,13 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
                   <TableCell>{t.vendor ?? "—"}</TableCell>
                   <TableCell>{t.txn_category ?? "—"}</TableCell>
                   <TableCell>{t.txn_subcategory ?? "—"}</TableCell>
+                  {type === "overhead_txns" && (
+                    <TableCell>
+                      <Badge variant={t.is_recurring === false ? "destructive" : "outline"}>
+                        {t.is_recurring === false ? "One-time" : "Recurring"}
+                      </Badge>
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">{formatCurrency(Math.abs(Number(t.amount)))}</TableCell>
                 </TableRow>
               ))}

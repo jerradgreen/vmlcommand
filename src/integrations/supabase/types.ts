@@ -318,6 +318,7 @@ export type Database = {
           id: string
           ingested_at: string | null
           is_locked: boolean
+          is_recurring: boolean
           raw_payload: Json | null
           rule_id_applied: string | null
           source_system: string
@@ -340,6 +341,7 @@ export type Database = {
           id?: string
           ingested_at?: string | null
           is_locked?: boolean
+          is_recurring?: boolean
           raw_payload?: Json | null
           rule_id_applied?: string | null
           source_system?: string
@@ -362,6 +364,7 @@ export type Database = {
           id?: string
           ingested_at?: string | null
           is_locked?: boolean
+          is_recurring?: boolean
           raw_payload?: Json | null
           rule_id_applied?: string | null
           source_system?: string

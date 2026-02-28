@@ -157,6 +157,8 @@ export default function Dashboard() {
     revenuePerSale: 0, contributionMarginPerSale: 0,
     profitPerSale: 0, marketingPctOfRevenue: 0,
     personalDrawTotal: 0,
+    overheadRecurringTotal: 0,
+    overheadOneTimeTotal: 0,
     shopifyCapitalPaid: 0, shopifyCapitalRemaining: 0, shopifyCapitalPaidInRange: 0, loanPaybackPerSale: 0,
     loanQualifyingSalesCountInRange: 0, shopifySalesCountInRange: 0,
     accruedMfgRemaining: 0, estimatedMfgTotal: 0, allocatedMfgTotal: 0,
@@ -247,7 +249,7 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.adjustedCogsTotal)} icon={Factory} subtitle={`Cash ${formatCurrency(m.cogsTotal)} + Accrued ${formatCurrency(m.accruedMfgRemaining)}`} onClick={() => openDrilldown("mtd_cogs")} />
         <MetricCard title="COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" onClick={() => openDrilldown("cogs_pct")} />
-        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle="Overhead" onClick={() => openDrilldown("mtd_overhead")} />
+        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle={m.overheadOneTimeTotal > 0 ? `Recurring: ${formatCurrency(m.overheadRecurringTotal)} / One-time: ${formatCurrency(m.overheadOneTimeTotal)}` : "Overhead"} onClick={() => openDrilldown("mtd_overhead")} />
         <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => openDrilldown("overhead_pct")} />
         <MetricCard title="Total Operating Cost" value={formatCurrency(m.adjustedTotalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => openDrilldown("total_operating_cost")} />
       </div>
