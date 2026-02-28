@@ -1,39 +1,49 @@
 
 
-## Making Your App Private After Publishing
+## Shopify Capital Loan Tracking — Implementation
 
-Right now your app has no authentication — anyone with the URL can see your financial data. To lock it down so only you can access it, we need to add a simple login gate.
+### Task 1: Database Migration
 
-### Approach: Password-Protected Login
+Single migration creating:
 
-Since you're the only user, the simplest approach is a single login page that requires your email and password. Every page in the app will redirect to login if you're not authenticated.
+1. **`shopify_capital_loans` table** with RLS, seeded with one row
+2. **Partial unique index** `one_active_shopify_capital_loan ON (id) WHERE is_active = true`
+3. **Performance indexes** on `sales(order_id)` and `sales(date)`
+4. **RPC `get_shopify_capital_summary(p_from date, p_to date)`** — cast-safe parsing, cumulative-capped paid_in_range logic, returns jsonb with 6 fields
 
-### Implementation Steps
+### Task 2: Update `src/hooks/useDashboardMetrics.ts`
 
-**Step 1 — Enable authentication and create your account**
-- Configure the auth system with email/password sign-in
-- You'll create your account once, then use it to log in going forward
+- Add `supabase.rpc('get_shopify_capital_summary', { p_from: rangeFrom, p_to: rangeTo })` as a new entry in the existing `Promise.all` (line 94–117)
+- Extract `shopifyCapitalRemaining`, `shopifyCapitalPaid`, `shopifyCapitalPaidInRange` from result
+- Update line 176: `totalOperatingCost = cogsTotal + adsSpendTotal + overheadTotal + shopifyCapitalPaidInRange`
+- Recalculate `netProfitProxy`, `profitMarginPct` using updated `totalOperatingCost`
+- Add `loanPaybackPerSale = rangeSalesCount > 0 ? shopifyCapitalPaidInRange / rangeSalesCount : 0`
+- Update `profitPerSale` to subtract `loanPaybackPerSale`
+- Return all new fields
 
-**Step 2 — Create a Login page**
-- Simple email + password form at `/login`
-- No signup form (you don't want anyone else creating accounts)
-- Include a "forgot password" flow just in case
+### Task 3: Update `src/pages/Dashboard.tsx`
 
-**Step 3 — Add an auth guard wrapper**
-- Wrap all existing routes in a component that checks for an active session
-- If not logged in → redirect to `/login`
-- If logged in → show the app normally
+- Add defaults to fallback metrics object (line 180–184): `shopifyCapitalRemaining: 0, shopifyCapitalPaid: 0, shopifyCapitalPaidInRange: 0, loanPaybackPerSale: 0`
+- New **"Shopify Capital"** section between Cost Structure and Unit Economics:
+  - 3 cards in a `grid md:grid-cols-3`:
+    - "Shopify Capital Remaining" — `Landmark` icon
+    - "Shopify Capital Paid To Date" — `DollarSign` icon
+    - "Shopify Capital Paid (This Period)" — `CalendarIcon` icon
+  - Subtitle: `"13% of Shopify revenue from #VML18412 forward (auto-stops at $0)"`
+- Unit Economics section: add "Loan Payback / Sale" `MetricCard` showing `formatCurrency(m.loanPaybackPerSale)`
+- Update Net Profit subtitle from `"Revenue − Ads − COGS − Overhead"` to `"Revenue − Ads − COGS − Overhead − Loan"`
 
-**Step 4 — Add a logout button**
-- Small logout button in the app layout (sidebar or header)
+### Task 4: Update `src/integrations/supabase/types.ts`
 
-### Files modified
-- `src/pages/Login.tsx` — new login page
-- `src/pages/ResetPassword.tsx` — new password reset page
-- `src/components/AuthGuard.tsx` — new auth wrapper component
-- `src/App.tsx` — wrap routes with auth guard, add `/login` route
-- `src/components/AppLayout.tsx` — add logout button
+This file auto-updates after migration. The new RPC signature will be:
+```
+get_shopify_capital_summary: { Args: { p_from: string; p_to: string }; Returns: Json }
+```
 
-### What this means for publishing
-Once this is implemented, anyone who visits your published URL will see a login screen. Only you (with your email and password) can get past it. Your financial data stays private.
+### Validation
+
+After deployment, run:
+```sql
+SELECT * FROM get_shopify_capital_summary('2025-01-01'::date, current_date);
+```
 
