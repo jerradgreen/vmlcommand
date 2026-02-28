@@ -11,6 +11,8 @@
 export type MetricSpecId =
   // Revenue Engine
   | "mtd_revenue"
+  | "mtd_sales"
+  | "close_rate"
   // Ad Performance
   | "yesterday_ad_spend"
   | "mtd_ad_spend"
@@ -38,6 +40,10 @@ export type MetricSpecId =
   | "next7_due"
   | "net_after_upcoming_due"
   // Additional
+  | "total_leads"
+  | "new_lead_revenue"
+  | "repeat_direct_revenue"
+  | "unmatched_sales"
   | "mtd_bills_paid"
   | "mtd_cogs_paid"
   | "net_after_ads";
@@ -53,6 +59,10 @@ export interface FormulaLine {
 export type DataTableType =
   | "ad_expenses"
   | "sales_list"
+  | "sales_new_lead"
+  | "sales_repeat_direct"
+  | "sales_unmatched"
+  | "leads_list"
   | "bills_paid"
   | "cogs_paid"
   | "next7_bills"
@@ -76,6 +86,22 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
       { label: "Sales Sheet Total", valueKey: "rangeRevenue", sign: "info" },
     ],
     dataTables: ["sales_list"],
+  },
+  mtd_sales: {
+    title: "Sales",
+    formula: [
+      { label: "Total Sales", valueKey: "totalSales", sign: "=" },
+    ],
+    dataTables: ["sales_list"],
+  },
+  close_rate: {
+    title: "Confirmed Close Rate",
+    formula: [
+      { label: "New Lead Sales", valueKey: "newLeadSalesCount", sign: "info" },
+      { label: "Total Leads", valueKey: "totalLeads", sign: "info" },
+      { label: "Close Rate", valueKey: "_closeRatePct", sign: "=" },
+    ],
+    dataTables: ["sales_new_lead", "leads_list"],
   },
 
   // ── Ad Performance ──
@@ -278,6 +304,36 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
       { label: "Next 7 Days Due", valueKey: "_next7TotalDue", sign: "-" },
       { label: "Net After Upcoming Due", valueKey: "_netAfterUpcomingDue", sign: "=" },
     ],
+  },
+  total_leads: {
+    title: "Total Leads",
+    formula: [
+      { label: "Leads in Range", valueKey: "totalLeads", sign: "=" },
+    ],
+    dataTables: ["leads_list"],
+  },
+  new_lead_revenue: {
+    title: "New Lead Revenue",
+    formula: [
+      { label: "New Lead Revenue", valueKey: "newLeadRevenue", sign: "=" },
+      { label: "New Lead Sales", valueKey: "newLeadSalesCount", sign: "info" },
+    ],
+    dataTables: ["sales_new_lead"],
+  },
+  repeat_direct_revenue: {
+    title: "Repeat/Direct Revenue",
+    formula: [
+      { label: "Repeat/Direct Revenue", valueKey: "repeatDirectRevenue", sign: "=" },
+      { label: "Repeat/Direct Sales", valueKey: "repeatDirectSalesCount", sign: "info" },
+    ],
+    dataTables: ["sales_repeat_direct"],
+  },
+  unmatched_sales: {
+    title: "Unmatched Sales",
+    formula: [
+      { label: "Unmatched Sales", valueKey: "unmatchedCount", sign: "=" },
+    ],
+    dataTables: ["sales_unmatched"],
   },
   net_after_ads: {
     title: "Net After Ads",

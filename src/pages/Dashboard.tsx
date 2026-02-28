@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import MetricDrilldownDialog from "@/components/MetricDrilldownDialog";
 import { MetricSpecId } from "@/lib/metricSpecs";
 import LeadToSaleDetailDialog from "@/components/LeadToSaleDetailDialog";
@@ -118,7 +117,7 @@ export default function Dashboard() {
   const [drilldown, setDrilldown] = useState<{ open: boolean; specId: MetricSpecId | null }>({ open: false, specId: null });
   const [leadToSaleOpen, setLeadToSaleOpen] = useState(false);
   const [next7DueOpen, setNext7DueOpen] = useState(false);
-  const navigate = useNavigate();
+  
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
   const { data: trends, isLoading: trendsLoading } = useTrendData(dateRange);
@@ -147,7 +146,8 @@ export default function Dashboard() {
     earliestDate: null as string | null,
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
     closeRate: 0, avgOrderValue: 0, avgDaysLeadToSale: null as number | null,
-    newLeadRevenue: 0, repeatDirectRevenue: 0, unmatchedCount: 0,
+    newLeadRevenue: 0, repeatDirectRevenue: 0,
+    newLeadSalesCount: 0, repeatDirectSalesCount: 0, unmatchedCount: 0,
     yesterdayAdSpend: 0,
     cogsTotal: 0, adsSpendTotal: 0, overheadTotal: 0,
     totalOperatingCost: 0, depositRevenue: 0, rangeRevenue: 0, rangeRoas: 0,
@@ -228,10 +228,10 @@ export default function Dashboard() {
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.depositRevenue)} icon={DollarSign} subtitle={`${formatPercent(m.salesCoveragePct)} matched to sales records`} onClick={() => openDrilldown("mtd_revenue")} />
-        <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => openDrilldown("mtd_revenue")} />
+        <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => openDrilldown("mtd_sales")} />
         <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => openDrilldown("revenue_per_sale")} />
         <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
-        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => openDrilldown("mtd_revenue")} />
+        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => openDrilldown("close_rate")} />
       </div>
 
       {/* ═══ SECTION 2 — Ad Performance ═══ */}
@@ -326,11 +326,11 @@ export default function Dashboard() {
 
       {/* ═══ Additional info cards ═══ */}
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard title="Total Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => navigate("/leads")} />
-        <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" onClick={() => navigate("/sales")} />
-        <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" onClick={() => navigate("/sales")} />
+        <MetricCard title="Total Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => openDrilldown("total_leads")} />
+        <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" onClick={() => openDrilldown("new_lead_revenue")} />
+        <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" onClick={() => openDrilldown("repeat_direct_revenue")} />
         <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => openDrilldown("yesterday_ad_spend")} />
-        <MetricCard title="Unmatched Sales" value={formatNumber(m.unmatchedCount)} icon={AlertCircle} subtitle="Click to review" onClick={() => navigate("/attribution")} />
+        <MetricCard title="Unmatched Sales" value={formatNumber(m.unmatchedCount)} icon={AlertCircle} subtitle="Click to review" onClick={() => openDrilldown("unmatched_sales")} />
       </div>
 
       {/* ═══ Trends ═══ */}

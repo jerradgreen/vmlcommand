@@ -133,8 +133,11 @@ export function useDashboardMetrics(range: DateRange) {
       const newLeadSales = sales.filter((s) => s.sale_type === "new_lead");
       const repeatDirectSales = sales.filter((s) => s.sale_type === "repeat_direct");
       const unmatchedSales = sales.filter((s) => s.sale_type === "unknown" && !s.lead_id);
+      const newLeadSalesCount = newLeadSales.length;
+      const repeatDirectSalesCount = repeatDirectSales.length;
+      const unmatchedSalesCount = unmatchedSales.length;
 
-      const closeRate = totalLeads > 0 ? newLeadSales.length / totalLeads : 0;
+      const closeRate = totalLeads > 0 ? newLeadSalesCount / totalLeads : 0;
 
       // Avg Days Lead to Sale
       const matchedNewLeadSales = sales.filter((s) => s.sale_type === "new_lead" && s.lead_id);
@@ -258,7 +261,9 @@ export function useDashboardMetrics(range: DateRange) {
         avgDaysLeadToSale,
         newLeadRevenue,
         repeatDirectRevenue,
-        unmatchedCount: unmatchedSales.length,
+        newLeadSalesCount,
+        repeatDirectSalesCount,
+        unmatchedCount: unmatchedSalesCount,
         yesterdayAdSpend,
         cogsTotal,
         adsSpendTotal,
