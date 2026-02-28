@@ -167,6 +167,7 @@ export default function Dashboard() {
     adjustedCogsTotal: 0, adjustedTotalOperatingCost: 0,
     adjustedNetProfit: 0, adjustedCogsPct: 0, adjustedProfitMarginPct: 0,
     cogsMonthlyRunRate: 0, adsMonthlyRunRate: 0, loanMonthlyRunRate: 0, accruedMfgMonthlyRunRate: 0, totalOpCostMonthlyRunRate: 0,
+    revenueMonthlyRunRate: 0, netProfitMonthlyRunRate: 0, netProfitPerSaleRunRate: 0, profitMarginPctRunRate: 0,
     rangeFrom: "2025-01-01", rangeTo: format(new Date(), "yyyy-MM-dd"),
   };
 
@@ -178,7 +179,7 @@ export default function Dashboard() {
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
   const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
       const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
-    const netAfterUpcomingDue = m.adjustedNetProfit - next7TotalDue;
+    const netAfterUpcomingDue = m.netProfitMonthlyRunRate - next7TotalDue;
 
   return (
     <div className="space-y-6">
@@ -284,10 +285,10 @@ export default function Dashboard() {
         <MetricCard title="Loan Cost per Affected Sale" value={formatCurrency(m.loanPaybackPerSale)} icon={Landmark} subtitle={`${m.loanQualifyingSalesCountInRange} qualifying sales`} onClick={() => openDrilldown("loan_per_sale")} />
         <MetricCardLarge
           title="Net Profit per Sale"
-          value={formatCurrency(m.profitPerSale)}
+          value={formatCurrency(m.netProfitPerSaleRunRate)}
           icon={Wallet}
-          subtitle="Adjusted Net Profit ÷ Sales Count"
-          positive={m.profitPerSale >= 0}
+          subtitle="Run-rate Net Profit ÷ Sales Count"
+          positive={m.netProfitPerSaleRunRate >= 0}
           onClick={() => openDrilldown("np_per_sale")}
         />
       </div>
@@ -297,13 +298,13 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCardLarge
           title="Net Profit"
-          value={formatCurrency(m.adjustedNetProfit)}
+          value={formatCurrency(m.netProfitMonthlyRunRate)}
           icon={Calculator}
-          subtitle="Revenue − Ads − Adj COGS − Overhead − Loan"
-          positive={m.adjustedNetProfit >= 0}
+          subtitle={`${formatCurrency(m.netProfitMonthlyRunRate)}/mo run-rate · Actual: ${formatCurrency(m.adjustedNetProfit)}`}
+          positive={m.netProfitMonthlyRunRate >= 0}
           onClick={() => openDrilldown("net_profit")}
         />
-        <MetricCard title="Net Profit Margin %" value={formatPercent(m.adjustedProfitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => openDrilldown("profit_margin")} />
+        <MetricCard title="Net Profit Margin %" value={formatPercent(m.profitMarginPctRunRate)} icon={Percent} subtitle="Run-rate Net Profit ÷ Revenue" onClick={() => openDrilldown("profit_margin")} />
         <MetricCard title="Next 7 Days Due" value={formatCurrency(next7TotalDue)} icon={CalendarIcon} subtitle="Bills + COGS due" onClick={() => setNext7DueOpen(true)} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
