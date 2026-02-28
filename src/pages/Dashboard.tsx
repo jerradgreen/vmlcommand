@@ -228,10 +228,10 @@ export default function Dashboard() {
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.depositRevenue)} icon={DollarSign} subtitle={`${formatPercent(m.salesCoveragePct)} matched to sales records`} onClick={() => openDrilldown("mtd_revenue")} />
-        <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
+        <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => openDrilldown("mtd_revenue")} />
         <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => openDrilldown("revenue_per_sale")} />
         <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
-        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => navigate("/sales")} />
+        <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => openDrilldown("mtd_revenue")} />
       </div>
 
       {/* ═══ SECTION 2 — Ad Performance ═══ */}
@@ -353,7 +353,7 @@ export default function Dashboard() {
         rangeTo={m.rangeTo}
         rangeLabel={rangeLabel}
       />
-      <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} />
+      <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} rangeFrom={m.rangeFrom} rangeTo={m.rangeTo} rangeLabel={rangeLabel} />
       <Next7DueDetailDialog open={next7DueOpen} onOpenChange={setNext7DueOpen} />
     </div>
   );
