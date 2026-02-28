@@ -151,8 +151,8 @@ export default function TransactionEditSheet({ transaction, open, onOpenChange, 
             </div>
 
             <div className="flex items-center gap-2">
-              <Switch id="recurring" checked={isRecurring} onCheckedChange={setIsRecurring} />
-              <Label htmlFor="recurring">Recurring expense</Label>
+              <Switch id="one-time" checked={!isRecurring} onCheckedChange={(checked) => setIsRecurring(!checked)} />
+              <Label htmlFor="one-time">One-time expense <span className="text-muted-foreground text-xs">(excludes from run-rate overhead)</span></Label>
             </div>
 
             <div className="flex items-center gap-2">
