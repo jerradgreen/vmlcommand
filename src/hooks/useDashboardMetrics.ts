@@ -93,6 +93,7 @@ export function useDashboardMetrics(range: DateRange) {
         personalDrawRes,
         shopifyCapitalRes,
         salesCountsRes,
+        accrualRollupRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
@@ -120,6 +121,8 @@ export function useDashboardMetrics(range: DateRange) {
         supabase.rpc("get_shopify_capital_summary", { p_from: rangeFrom, p_to: rangeTo }),
         // Sales counts by segment
         supabase.rpc("get_sales_counts", { p_from: rangeFrom, p_to: rangeTo }),
+        // Accrued manufacturing COGS rollup
+        supabase.rpc("get_accrued_mfg_cogs_rollup", { p_from: rangeFrom, p_to: rangeTo }),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -226,6 +229,24 @@ export function useDashboardMetrics(range: DateRange) {
       // ── Personal Draw ──
       const personalDrawTotal = Number(personalDrawRes.data ?? 0);
 
+      // ── Accrual COGS Overlay ──
+      const accrualData = accrualRollupRes.data as {
+        estimated_mfg_total: number; allocated_mfg_total: number;
+        accrued_mfg_remaining_total: number;
+        unpaid_count: number; partial_count: number; paid_count: number;
+      } | null;
+      const accruedMfgRemaining = Number(accrualData?.accrued_mfg_remaining_total ?? 0);
+      const estimatedMfgTotal = Number(accrualData?.estimated_mfg_total ?? 0);
+      const allocatedMfgTotal = Number(accrualData?.allocated_mfg_total ?? 0);
+      const mfgUnpaidCount = Number(accrualData?.unpaid_count ?? 0);
+      const mfgPartialCount = Number(accrualData?.partial_count ?? 0);
+      const mfgPaidCount = Number(accrualData?.paid_count ?? 0);
+      const adjustedCogsTotal = cogsTotal + accruedMfgRemaining;
+      const adjustedTotalOperatingCost = adjustedCogsTotal + adsSpendTotal + overheadTotal + shopifyCapitalPaidInRange;
+      const adjustedNetProfit = depositRevenue - adjustedTotalOperatingCost;
+      const adjustedCogsPct = depositRevenue > 0 ? adjustedCogsTotal / depositRevenue : 0;
+      const adjustedProfitMarginPct = depositRevenue > 0 ? adjustedNetProfit / depositRevenue : 0;
+
       return {
         earliestDate,
         totalRevenue,
@@ -266,6 +287,18 @@ export function useDashboardMetrics(range: DateRange) {
         loanPaybackPerSale,
         loanQualifyingSalesCountInRange,
         shopifySalesCountInRange,
+        // Accrual COGS overlay
+        accruedMfgRemaining,
+        estimatedMfgTotal,
+        allocatedMfgTotal,
+        mfgUnpaidCount,
+        mfgPartialCount,
+        mfgPaidCount,
+        adjustedCogsTotal,
+        adjustedTotalOperatingCost,
+        adjustedNetProfit,
+        adjustedCogsPct,
+        adjustedProfitMarginPct,
       };
     },
   });

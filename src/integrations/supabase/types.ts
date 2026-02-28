@@ -122,6 +122,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cogs_allocations: {
+        Row: {
+          allocated_amount: number
+          allocation_date: string
+          financial_transaction_id: string
+          id: string
+          notes: string | null
+          sale_id: string
+          vendor_name: string | null
+        }
+        Insert: {
+          allocated_amount: number
+          allocation_date?: string
+          financial_transaction_id: string
+          id?: string
+          notes?: string | null
+          sale_id: string
+          vendor_name?: string | null
+        }
+        Update: {
+          allocated_amount?: number
+          allocation_date?: string
+          financial_transaction_id?: string
+          id?: string
+          notes?: string | null
+          sale_id?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cogs_allocations_financial_transaction_id_fkey"
+            columns: ["financial_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cogs_allocations_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cogs_payments: {
         Row: {
           amount: number
@@ -451,10 +496,12 @@ export type Database = {
           email: string | null
           email_domain: string | null
           email_norm: string | null
+          estimated_cogs_pct: number
           external_id: string | null
           id: string
           ingested_at: string | null
           lead_id: string | null
+          manufacturing_status: string
           match_confidence: number | null
           match_method: string | null
           match_reason: string | null
@@ -478,10 +525,12 @@ export type Database = {
           email?: string | null
           email_domain?: string | null
           email_norm?: string | null
+          estimated_cogs_pct?: number
           external_id?: string | null
           id?: string
           ingested_at?: string | null
           lead_id?: string | null
+          manufacturing_status?: string
           match_confidence?: number | null
           match_method?: string | null
           match_reason?: string | null
@@ -505,10 +554,12 @@ export type Database = {
           email?: string | null
           email_domain?: string | null
           email_norm?: string | null
+          estimated_cogs_pct?: number
           external_id?: string | null
           id?: string
           ingested_at?: string | null
           lead_id?: string | null
+          manufacturing_status?: string
           match_confidence?: number | null
           match_method?: string | null
           match_reason?: string | null
@@ -643,6 +694,10 @@ export type Database = {
         Returns: Json
       }
       extract_domain: { Args: { email: string }; Returns: string }
+      get_accrued_mfg_cogs_rollup: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       get_attribution_diagnostics: { Args: never; Returns: Json }
       get_cost_rollups: {
         Args: { p_from: string; p_to: string }
