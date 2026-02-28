@@ -1,31 +1,32 @@
 
 
-## Plan: Fix Net Profit per Sale reconciliation
+## Plan: Add "recurring vs one-time" flag to financial transactions
 
-### 1. `src/hooks/useDashboardMetrics.ts` (lines 228-230)
-Replace piecemeal calculation with:
-```ts
-const profitPerSale = rangeSalesCount > 0 ? adjustedNetProfit / rangeSalesCount : 0;
+This adds a simple flag so you can distinguish regular monthly costs from annual/one-time charges like the $3,500 accountant fee. The dashboard will then show **recurring overhead** separately, giving you an accurate run-rate view.
+
+### What changes
+
+**1. Database migration — add `is_recurring` column**
+```sql
+ALTER TABLE financial_transactions 
+  ADD COLUMN is_recurring boolean NOT NULL DEFAULT true;
 ```
-Remove `loanPaybackPerSaleAvg` (line 229).
+Default `true` so existing transactions keep working. One-time items get manually flagged `false`.
 
-### 2. `src/lib/metricSpecs.ts` (lines 259-269)
-Replace `np_per_sale` formula with:
-```ts
-np_per_sale: {
-  title: "Net Profit per Sale",
-  formula: [
-    { label: "Adjusted Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
-    { label: "÷ Sales Count", valueKey: "_totalSales", sign: "info" },
-    { label: "Net Profit per Sale", valueKey: "profitPerSale", sign: "=" },
-  ],
-  mixesDepositsAndSales: true,
-},
-```
+**2. `src/components/TransactionEditSheet.tsx`**
+- Add a toggle: **"Recurring expense?"** (on/off) below the existing Lock toggle
+- Save `is_recurring` on update
 
-### 3. `src/pages/Dashboard.tsx` (line 285)
-Change subtitle from `"Revenue − COGS − marketing − loan (avg)"` to `"Adjusted Net Profit ÷ Sales Count"`.
+**3. Dashboard overhead card — show breakdown**
+- Update the Overhead subtitle on `src/pages/Dashboard.tsx` to show `"Recurring: $X / One-time: $Y"`
+- Fetch the split via an updated query or a small RPC
 
-### 4. `src/components/MetricDrilldownDialog.tsx`
-Remove `_loanPerSaleAvg` from `resolveValue` if present, ensure `_totalSales` resolves to `totalSales`.
+**4. `src/components/MetricDrilldownDialog.tsx` — overhead_txns table**
+- Add an `is_recurring` badge/column to the overhead transactions drilldown table so you can see which items are flagged
+
+**5. `get_cost_rollups` RPC — no change needed**
+- Total overhead stays the same (both recurring + one-time). The split is cosmetic/informational only, so Net Profit calculations remain unchanged.
+
+### User action needed after deploy
+Flag the $3,500 accountant fee as `is_recurring = false` via the Transaction Edit sheet. The overhead card will then show the split.
 
