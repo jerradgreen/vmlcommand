@@ -53,9 +53,9 @@ function useMfgTransactions() {
     queryFn: async () => {
       const { data: txns, error } = await supabase
         .from("financial_transactions")
-        .select("id, txn_date, description, vendor, amount")
+        .select("id, txn_date, description, vendor, amount, txn_subcategory")
         .eq("txn_category", "cogs")
-        .eq("txn_subcategory", "manufacturing")
+        .in("txn_subcategory", ["manufacturing", "domestic_supplier", "overseas_supplier"])
         .order("txn_date", { ascending: false });
       if (error) throw error;
 
