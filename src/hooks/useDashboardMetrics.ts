@@ -135,7 +135,6 @@ export function useDashboardMetrics(range: DateRange) {
       const unmatchedSales = sales.filter((s) => s.sale_type === "unknown" && !s.lead_id);
 
       const closeRate = totalLeads > 0 ? newLeadSales.length / totalLeads : 0;
-      const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
 
       // Avg Days Lead to Sale
       const matchedNewLeadSales = sales.filter((s) => s.sale_type === "new_lead" && s.lead_id);
@@ -198,6 +197,8 @@ export function useDashboardMetrics(range: DateRange) {
 
       // Deposit-based revenue (hybrid approach: bank deposits = source of truth for total revenue)
       const depositRevenue = (depositRevenueRes.data ?? []).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+      // AOV uses deposit revenue (bank = source of truth), not sales sheet
+      const avgOrderValue = totalSales > 0 ? depositRevenue / totalSales : 0;
 
       // Use deposit revenue for profit calculations (more accurate than sales sheet)
       const netProfitProxy = depositRevenue - totalOperatingCost;
