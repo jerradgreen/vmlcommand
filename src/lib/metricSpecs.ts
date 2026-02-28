@@ -1,0 +1,291 @@
+/**
+ * MetricSpec — unified configuration for every clickable dashboard card.
+ *
+ * Each spec describes:
+ *   - title / subtitle shown in the drilldown header
+ *   - formula: line-by-line breakdown items (each is a label + value-key)
+ *   - dataTable: optional list query to show rows (e.g. ad spend transactions)
+ *   - mixesDepositsAndSales: triggers the Sales Coverage badge/warning
+ */
+
+export type MetricSpecId =
+  // Revenue Engine
+  | "mtd_revenue"
+  // Ad Performance
+  | "yesterday_ad_spend"
+  | "mtd_ad_spend"
+  | "mtd_roas"
+  | "ad_spend_pct"
+  // Cost Structure
+  | "mtd_cogs"
+  | "cogs_pct"
+  | "mtd_overhead"
+  | "overhead_pct"
+  | "total_operating_cost"
+  // Shopify Capital
+  | "shopify_capital_remaining"
+  | "shopify_capital_paid"
+  | "shopify_capital_in_range"
+  // Unit Economics
+  | "marketing_cpo"
+  | "revenue_per_sale"
+  | "gp_per_sale"
+  | "loan_per_sale"
+  | "np_per_sale"
+  // Cash & Survival
+  | "net_profit"
+  | "profit_margin"
+  | "next7_due"
+  | "net_after_upcoming_due"
+  // Additional
+  | "mtd_bills_paid"
+  | "mtd_cogs_paid"
+  | "net_after_ads";
+
+export interface FormulaLine {
+  label: string;
+  /** Key into the metrics object, or a literal value */
+  valueKey: string;
+  /** "+" for additive, "-" for subtractive, "=" for result */
+  sign: "+" | "-" | "=" | "info";
+}
+
+export type DataTableType =
+  | "ad_expenses"
+  | "sales_list"
+  | "bills_paid"
+  | "cogs_paid"
+  | "next7_bills"
+  | "next7_cogs"
+  | "shopify_capital_loans";
+
+export interface MetricSpec {
+  title: string;
+  subtitle?: string;
+  formula: FormulaLine[];
+  dataTables?: DataTableType[];
+  mixesDepositsAndSales?: boolean;
+}
+
+export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
+  // ── Revenue Engine ──
+  mtd_revenue: {
+    title: "Revenue",
+    formula: [
+      { label: "Bank Deposits (Revenue)", valueKey: "depositRevenue", sign: "=" },
+      { label: "Sales Sheet Total", valueKey: "rangeRevenue", sign: "info" },
+    ],
+    dataTables: ["sales_list"],
+  },
+
+  // ── Ad Performance ──
+  yesterday_ad_spend: {
+    title: "Yesterday Ad Spend",
+    formula: [
+      { label: "Yesterday Ad Spend", valueKey: "yesterdayAdSpend", sign: "=" },
+    ],
+    dataTables: ["ad_expenses"],
+  },
+  mtd_ad_spend: {
+    title: "Ad Spend",
+    formula: [
+      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "=" },
+    ],
+    dataTables: ["ad_expenses"],
+  },
+  mtd_roas: {
+    title: "ROAS Breakdown",
+    formula: [
+      { label: "Revenue (bank deposits)", valueKey: "depositRevenue", sign: "+" },
+      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "-" },
+      { label: "ROAS", valueKey: "_roas", sign: "=" },
+    ],
+    dataTables: ["ad_expenses", "sales_list"],
+  },
+  ad_spend_pct: {
+    title: "Ad Spend % of Revenue",
+    formula: [
+      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "info" },
+      { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
+      { label: "Ad Spend %", valueKey: "_adSpendPct", sign: "=" },
+    ],
+  },
+
+  // ── Cost Structure ──
+  mtd_cogs: {
+    title: "COGS (Adjusted)",
+    formula: [
+      { label: "Cash COGS (paid)", valueKey: "cogsTotal", sign: "+" },
+      { label: "Accrued Mfg Remaining", valueKey: "accruedMfgRemaining", sign: "+" },
+      { label: "Adjusted COGS", valueKey: "adjustedCogsTotal", sign: "=" },
+    ],
+    dataTables: ["cogs_paid"],
+  },
+  mtd_cogs_paid: {
+    title: "COGS Paid",
+    formula: [
+      { label: "COGS Paid", valueKey: "cogsTotal", sign: "=" },
+    ],
+    dataTables: ["cogs_paid"],
+  },
+  cogs_pct: {
+    title: "COGS % of Revenue",
+    formula: [
+      { label: "Adjusted COGS", valueKey: "adjustedCogsTotal", sign: "info" },
+      { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
+      { label: "COGS %", valueKey: "_cogsPct", sign: "=" },
+    ],
+  },
+  mtd_overhead: {
+    title: "Overhead",
+    formula: [
+      { label: "Overhead", valueKey: "overheadTotal", sign: "=" },
+    ],
+    dataTables: ["bills_paid"],
+  },
+  mtd_bills_paid: {
+    title: "Bills Paid",
+    formula: [
+      { label: "Bills Paid", valueKey: "overheadTotal", sign: "=" },
+    ],
+    dataTables: ["bills_paid"],
+  },
+  overhead_pct: {
+    title: "Overhead % of Revenue",
+    formula: [
+      { label: "Overhead", valueKey: "overheadTotal", sign: "info" },
+      { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
+      { label: "Overhead %", valueKey: "_overheadPct", sign: "=" },
+    ],
+  },
+  total_operating_cost: {
+    title: "Total Operating Cost",
+    formula: [
+      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "+" },
+      { label: "COGS (adjusted)", valueKey: "adjustedCogsTotal", sign: "+" },
+      { label: "Overhead", valueKey: "overheadTotal", sign: "+" },
+      { label: "Shopify Capital (in range)", valueKey: "shopifyCapitalPaidInRange", sign: "+" },
+      { label: "Total Operating Cost", valueKey: "adjustedTotalOperatingCost", sign: "=" },
+    ],
+  },
+
+  // ── Shopify Capital ──
+  shopify_capital_remaining: {
+    title: "Shopify Capital Remaining",
+    formula: [
+      { label: "Total Payback Cap", valueKey: "_paybackCap", sign: "info" },
+      { label: "Paid To Date", valueKey: "shopifyCapitalPaid", sign: "-" },
+      { label: "Remaining Balance", valueKey: "shopifyCapitalRemaining", sign: "=" },
+    ],
+    dataTables: ["shopify_capital_loans"],
+  },
+  shopify_capital_paid: {
+    title: "Shopify Capital Paid (All Time)",
+    formula: [
+      { label: "Paid To Date", valueKey: "shopifyCapitalPaid", sign: "=" },
+    ],
+    dataTables: ["shopify_capital_loans"],
+  },
+  shopify_capital_in_range: {
+    title: "Shopify Capital Paid (Period)",
+    formula: [
+      { label: "Paid In Range", valueKey: "shopifyCapitalPaidInRange", sign: "=" },
+    ],
+    dataTables: ["shopify_capital_loans"],
+  },
+
+  // ── Unit Economics ──
+  marketing_cpo: {
+    title: "Marketing Cost per Sale",
+    formula: [
+      { label: "Total Marketing Cost", valueKey: "fullyLoadedMarketingCost", sign: "info" },
+      { label: "Total Sales", valueKey: "_totalSales", sign: "info" },
+      { label: "Cost per Sale", valueKey: "fullyLoadedCPO", sign: "=" },
+    ],
+    mixesDepositsAndSales: true,
+  },
+  revenue_per_sale: {
+    title: "Revenue per Sale",
+    formula: [
+      { label: "Revenue (bank deposits)", valueKey: "depositRevenue", sign: "info" },
+      { label: "Total Sales", valueKey: "_totalSales", sign: "info" },
+      { label: "Revenue per Sale", valueKey: "revenuePerSale", sign: "=" },
+    ],
+    mixesDepositsAndSales: true,
+  },
+  gp_per_sale: {
+    title: "Gross Profit per Sale",
+    formula: [
+      { label: "Revenue per Sale", valueKey: "revenuePerSale", sign: "+" },
+      { label: "COGS per Sale", valueKey: "_cogsPerSale", sign: "-" },
+      { label: "Gross Profit per Sale", valueKey: "contributionMarginPerSale", sign: "=" },
+    ],
+    mixesDepositsAndSales: true,
+  },
+  loan_per_sale: {
+    title: "Loan Cost per Affected Sale",
+    formula: [
+      { label: "Shopify Capital Paid (in range)", valueKey: "shopifyCapitalPaidInRange", sign: "info" },
+      { label: "Qualifying Shopify Sales", valueKey: "_loanQualifyingSalesCount", sign: "info" },
+      { label: "Loan Cost per Affected Sale", valueKey: "loanPaybackPerSale", sign: "=" },
+    ],
+  },
+  np_per_sale: {
+    title: "Net Profit per Sale",
+    formula: [
+      { label: "Revenue per Sale", valueKey: "revenuePerSale", sign: "+" },
+      { label: "COGS per Sale", valueKey: "_cogsPerSale", sign: "-" },
+      { label: "Marketing per Sale", valueKey: "_marketingPerSale", sign: "-" },
+      { label: "Loan per Sale (avg)", valueKey: "_loanPerSaleAvg", sign: "-" },
+      { label: "Net Profit per Sale", valueKey: "profitPerSale", sign: "=" },
+    ],
+    mixesDepositsAndSales: true,
+  },
+
+  // ── Cash & Survival ──
+  net_profit: {
+    title: "Net Profit Proxy",
+    formula: [
+      { label: "Revenue (bank deposits)", valueKey: "depositRevenue", sign: "+" },
+      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "-" },
+      { label: "COGS (adjusted)", valueKey: "adjustedCogsTotal", sign: "-" },
+      { label: "Overhead", valueKey: "overheadTotal", sign: "-" },
+      { label: "Shopify Capital (in range)", valueKey: "shopifyCapitalPaidInRange", sign: "-" },
+      { label: "Net Profit", valueKey: "netProfitProxy", sign: "=" },
+    ],
+  },
+  profit_margin: {
+    title: "Net Profit Margin %",
+    formula: [
+      { label: "Net Profit", valueKey: "netProfitProxy", sign: "info" },
+      { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
+      { label: "Profit Margin %", valueKey: "_profitMarginPct", sign: "=" },
+    ],
+  },
+  next7_due: {
+    title: "Next 7 Days Due",
+    formula: [
+      { label: "Bills Due", valueKey: "next7BillsDue", sign: "+" },
+      { label: "COGS Due", valueKey: "next7CogsDue", sign: "+" },
+      { label: "Total Due", valueKey: "_next7TotalDue", sign: "=" },
+    ],
+    dataTables: ["next7_bills", "next7_cogs"],
+  },
+  net_after_upcoming_due: {
+    title: "Net After Upcoming Due",
+    formula: [
+      { label: "Net Profit", valueKey: "netProfitProxy", sign: "+" },
+      { label: "Next 7 Days Due", valueKey: "_next7TotalDue", sign: "-" },
+      { label: "Net After Upcoming Due", valueKey: "_netAfterUpcomingDue", sign: "=" },
+    ],
+  },
+  net_after_ads: {
+    title: "Net After Ads",
+    formula: [
+      { label: "Revenue (bank deposits)", valueKey: "depositRevenue", sign: "+" },
+      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "-" },
+      { label: "Net After Ads", valueKey: "_netAfterAds", sign: "=" },
+    ],
+    dataTables: ["ad_expenses", "sales_list"],
+  },
+};

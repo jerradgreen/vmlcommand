@@ -259,7 +259,6 @@ export function useDashboardMetrics(range: DateRange) {
         repeatDirectRevenue,
         unmatchedCount: unmatchedSales.length,
         yesterdayAdSpend,
-        // New primary fields from financial_transactions via RPC
         cogsTotal,
         adsSpendTotal,
         overheadTotal,
@@ -270,10 +269,8 @@ export function useDashboardMetrics(range: DateRange) {
         netProfitProxy,
         profitMarginPct,
         salesCoveragePct,
-        // Legacy due items
         next7BillsDue,
         next7CogsDue,
-        // Unit Economics
         fullyLoadedMarketingCost,
         fullyLoadedCPO,
         revenuePerSale,
@@ -287,7 +284,6 @@ export function useDashboardMetrics(range: DateRange) {
         loanPaybackPerSale,
         loanQualifyingSalesCountInRange,
         shopifySalesCountInRange,
-        // Accrual COGS overlay
         accruedMfgRemaining,
         estimatedMfgTotal,
         allocatedMfgTotal,
@@ -299,6 +295,9 @@ export function useDashboardMetrics(range: DateRange) {
         adjustedNetProfit,
         adjustedCogsPct,
         adjustedProfitMarginPct,
+        // Pass-through date bounds for drilldowns (exact same values used in all queries)
+        rangeFrom,
+        rangeTo,
       };
     },
   });
