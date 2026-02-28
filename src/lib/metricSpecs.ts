@@ -259,10 +259,8 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
   np_per_sale: {
     title: "Net Profit per Sale",
     formula: [
-      { label: "Revenue per Sale", valueKey: "revenuePerSale", sign: "+" },
-      { label: "COGS per Sale", valueKey: "_cogsPerSale", sign: "-" },
-      { label: "Marketing per Sale", valueKey: "_marketingPerSale", sign: "-" },
-      { label: "Loan per Sale (avg)", valueKey: "_loanPerSaleAvg", sign: "-" },
+      { label: "Adjusted Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
+      { label: "÷ Sales Count", valueKey: "_totalSales", sign: "info" },
       { label: "Net Profit per Sale", valueKey: "profitPerSale", sign: "=" },
     ],
     mixesDepositsAndSales: true,
