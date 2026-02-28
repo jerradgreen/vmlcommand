@@ -1,19 +1,31 @@
 
 
-## Answers to Your Two Questions
+## Plan: Fix Net Profit per Sale reconciliation
 
-### 1) Adjusted (Accrual) View removal — Already done ✅
+### 1. `src/hooks/useDashboardMetrics.ts` (lines 228-230)
+Replace piecemeal calculation with:
+```ts
+const profitPerSale = rangeSalesCount > 0 ? adjustedNetProfit / rangeSalesCount : 0;
+```
+Remove `loanPaybackPerSaleAvg` (line 229).
 
-The separate "Adjusted (Accrual) View" section was already removed in a prior edit. The current `Dashboard.tsx` (lines 295-303) shows a single "Cost Structure (Leak Detection)" section that already uses:
-- `adjustedCogsTotal` with "Cash $X + Accrued $Y" subtitle
-- `adjustedCogsPct` for COGS %
-- `adjustedTotalOperatingCost` for Total Operating Cost
+### 2. `src/lib/metricSpecs.ts` (lines 259-269)
+Replace `np_per_sale` formula with:
+```ts
+np_per_sale: {
+  title: "Net Profit per Sale",
+  formula: [
+    { label: "Adjusted Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
+    { label: "÷ Sales Count", valueKey: "_totalSales", sign: "info" },
+    { label: "Net Profit per Sale", valueKey: "profitPerSale", sign: "=" },
+  ],
+  mixesDepositsAndSales: true,
+},
+```
 
-No further work needed here.
+### 3. `src/pages/Dashboard.tsx` (line 285)
+Change subtitle from `"Revenue − COGS − marketing − loan (avg)"` to `"Adjusted Net Profit ÷ Sales Count"`.
 
-### 2) Projections / Scenario Sandbox — Not in scope
-
-There is no Projections or Scenario Sandbox workstream anywhere in the current codebase or plan. It is **not** part of the current implementation scope (multi-loan Shopify Capital + standardized drilldowns).
-
-If you want it, it would need a separate phase/plan. That workstream would involve building a what-if simulator where you adjust inputs (ad spend, close rate, AOV, closer cost/commission) and see projected revenue, profit, and margins. Happy to plan that once the current work is shipped.
+### 4. `src/components/MetricDrilldownDialog.tsx`
+Remove `_loanPerSaleAvg` from `resolveValue` if present, ensure `_totalSales` resolves to `totalSales`.
 
