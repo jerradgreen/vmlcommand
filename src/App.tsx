@@ -12,7 +12,7 @@ import Attribution from "./pages/Attribution";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
-import Reconciliation from "./pages/Reconciliation";
+
 import CogsReconciliation from "./pages/CogsReconciliation";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
@@ -36,7 +36,7 @@ const App = () => (
             <Route path="/attribution" element={<Attribution />} />
             <Route path="/import" element={<Import />} />
             <Route path="/transactions" element={<Transactions />} />
-            <Route path="/reconciliation" element={<Reconciliation />} />
+            
             <Route path="/cogs-reconciliation" element={<CogsReconciliation />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
