@@ -190,13 +190,14 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
     ],
   },
   total_operating_cost: {
-    title: "Total Operating Cost",
+    title: "Total Operating Cost (Monthly Run-Rate)",
     formula: [
-      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "+" },
-      { label: "COGS (adjusted)", valueKey: "adjustedCogsTotal", sign: "+" },
-      { label: "Overhead", valueKey: "overheadTotal", sign: "+" },
-      { label: "Shopify Capital (in range)", valueKey: "shopifyCapitalPaidInRange", sign: "+" },
-      { label: "Total Operating Cost", valueKey: "adjustedTotalOperatingCost", sign: "=" },
+      { label: "COGS (run-rate)", valueKey: "cogsMonthlyRunRate", sign: "+" },
+      { label: "Ad Spend (run-rate)", valueKey: "adsMonthlyRunRate", sign: "+" },
+      { label: "Overhead (run-rate)", valueKey: "overheadMonthlyRunRate", sign: "+" },
+      { label: "Loan Repay (run-rate)", valueKey: "loanMonthlyRunRate", sign: "+" },
+      { label: "Monthly Run-Rate", valueKey: "totalOpCostMonthlyRunRate", sign: "=" },
+      { label: "Actual Total Spent", valueKey: "adjustedTotalOperatingCost", sign: "info" },
     ],
   },
 
