@@ -20,6 +20,7 @@ interface Props {
   dateTo: string;
   rangeLabel: string;
   depositRevenue?: number;
+  adsSpendTotal?: number;
 }
 
 function useExpenses(dateFrom: string, dateTo: string, enabled: boolean) {
@@ -55,7 +56,7 @@ function useSalesInRange(dateFrom: string, dateTo: string, enabled: boolean) {
   });
 }
 
-export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom, dateTo, rangeLabel, depositRevenue }: Props) {
+export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom, dateTo, rangeLabel, depositRevenue, adsSpendTotal }: Props) {
   const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
 
   const showExpenses = ["yesterday_ad_spend", "mtd_ad_spend", "mtd_roas", "net_after_ads"].includes(type);
@@ -157,6 +158,7 @@ export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom
 
         {!isLoading && (type === "mtd_roas" || type === "net_after_ads") && (() => {
           const summaryRevenue = depositRevenue ?? totalSalesRev;
+          const summaryAdSpend = adsSpendTotal ?? totalExpenses;
           return (
             <div className="mt-4 border-t pt-3 space-y-1 text-sm">
               <div className="flex justify-between">
@@ -170,19 +172,25 @@ export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom
                 </div>
               )}
               <div className="flex justify-between">
-                <span>{rangeLabel} Ad Spend</span>
-                <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
+                <span>{rangeLabel} Ad Spend (bank transactions)</span>
+                <span className="font-semibold">{formatCurrency(summaryAdSpend)}</span>
               </div>
+              {totalExpenses !== summaryAdSpend && (
+                <div className="flex justify-between text-muted-foreground text-xs">
+                  <span>Expenses table total</span>
+                  <span>{formatCurrency(totalExpenses)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-1 font-bold">
                 {type === "mtd_roas" ? (
                   <>
                     <span>ROAS</span>
-                    <span>{totalExpenses > 0 ? `${(summaryRevenue / totalExpenses).toFixed(2)}x` : "—"}</span>
+                    <span>{summaryAdSpend > 0 ? `${(summaryRevenue / summaryAdSpend).toFixed(2)}x` : "—"}</span>
                   </>
                 ) : (
                   <>
                     <span>Net After Ads</span>
-                    <span>{formatCurrency(summaryRevenue - totalExpenses)}</span>
+                    <span>{formatCurrency(summaryRevenue - summaryAdSpend)}</span>
                   </>
                 )}
               </div>
