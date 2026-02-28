@@ -7,11 +7,14 @@ import { format } from "date-fns";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  rangeFrom: string;
+  rangeTo: string;
+  rangeLabel: string;
 }
 
-export default function LeadToSaleDetailDialog({ open, onOpenChange }: Props) {
+export default function LeadToSaleDetailDialog({ open, onOpenChange, rangeFrom, rangeTo, rangeLabel }: Props) {
   const { data, isLoading } = useQuery({
-    queryKey: ["lead-to-sale-detail"],
+    queryKey: ["lead-to-sale-detail", rangeFrom, rangeTo],
     enabled: open,
     queryFn: async () => {
       const { data: sales } = await supabase
@@ -19,6 +22,8 @@ export default function LeadToSaleDetailDialog({ open, onOpenChange }: Props) {
         .select("id, date, lead_id, revenue, product_name, order_id")
         .eq("sale_type", "new_lead")
         .not("lead_id", "is", null)
+        .gte("date", rangeFrom)
+        .lte("date", rangeTo)
         .order("date", { ascending: false });
 
       if (!sales || sales.length === 0) return [];
@@ -58,15 +63,15 @@ export default function LeadToSaleDetailDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Avg Days Lead → Sale</DialogTitle>
+          <DialogTitle>Avg Days Lead → Sale — {rangeLabel}</DialogTitle>
           <DialogDescription>
-            Only new_lead sales with a matched lead. Average: {avg.toFixed(1)} days ({rows.length} sales)
+            Only new_lead sales with a matched lead ({rangeLabel}). Average: {avg.toFixed(1)} days ({rows.length} sales)
           </DialogDescription>
         </DialogHeader>
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No matched lead-to-sale pairs found.</p>
+          <p className="text-sm text-muted-foreground py-4">No matched lead-to-sale pairs found in this range.</p>
         ) : (
           <Table>
             <TableHeader>
