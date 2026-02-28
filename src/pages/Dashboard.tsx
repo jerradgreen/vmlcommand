@@ -173,8 +173,8 @@ export default function Dashboard() {
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
   const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
-  const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
-  const netAfterUpcomingDue = m.netProfitProxy - next7TotalDue;
+      const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
+    const netAfterUpcomingDue = m.adjustedNetProfit - next7TotalDue;
 
   return (
     <div className="space-y-6">
@@ -293,13 +293,13 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCardLarge
           title="Net Profit"
-          value={formatCurrency(m.netProfitProxy)}
+          value={formatCurrency(m.adjustedNetProfit)}
           icon={Calculator}
-          subtitle="Revenue − Ads − COGS − Overhead − Loan"
-          positive={m.netProfitProxy >= 0}
+          subtitle="Revenue − Ads − Adj COGS − Overhead − Loan"
+          positive={m.adjustedNetProfit >= 0}
           onClick={() => openDrilldown("net_profit")}
         />
-        <MetricCard title="Net Profit Margin %" value={formatPercent(m.profitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => openDrilldown("profit_margin")} />
+        <MetricCard title="Net Profit Margin %" value={formatPercent(m.adjustedProfitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => openDrilldown("profit_margin")} />
         <MetricCard title="Next 7 Days Due" value={formatCurrency(next7TotalDue)} icon={CalendarIcon} subtitle="Bills + COGS due" onClick={() => setNext7DueOpen(true)} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">

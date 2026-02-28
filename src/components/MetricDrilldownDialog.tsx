@@ -34,11 +34,11 @@ function resolveValue(key: string, m: Record<string, any>): number {
     case "_overheadPct":
       return m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
     case "_profitMarginPct":
-      return m.depositRevenue > 0 ? m.netProfitProxy / m.depositRevenue : 0;
+      return m.depositRevenue > 0 ? (m.adjustedNetProfit ?? m.netProfitProxy ?? 0) / m.depositRevenue : 0;
     case "_next7TotalDue":
       return (m.next7BillsDue || 0) + (m.next7CogsDue || 0);
     case "_netAfterUpcomingDue":
-      return (m.netProfitProxy || 0) - ((m.next7BillsDue || 0) + (m.next7CogsDue || 0));
+      return (m.adjustedNetProfit ?? m.netProfitProxy ?? 0) - ((m.next7BillsDue || 0) + (m.next7CogsDue || 0));
     case "_netAfterAds":
       return (m.depositRevenue || 0) - (m.adsSpendTotal || 0);
     case "_totalSales":
