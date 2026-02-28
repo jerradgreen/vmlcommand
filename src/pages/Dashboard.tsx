@@ -175,7 +175,7 @@ export default function Dashboard() {
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
-  const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadMonthlyRunRate / m.depositRevenue : 0;
+  const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
       const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
     const netAfterUpcomingDue = m.adjustedNetProfit - next7TotalDue;
 
@@ -250,7 +250,7 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.adjustedCogsTotal)} icon={Factory} subtitle={`Cash ${formatCurrency(m.cogsTotal)} + Accrued ${formatCurrency(m.accruedMfgRemaining)}`} onClick={() => openDrilldown("mtd_cogs")} />
         <MetricCard title="COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" onClick={() => openDrilldown("cogs_pct")} />
-        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadMonthlyRunRate)} icon={Building2} subtitle={`${formatCurrency(m.overheadMonthlyRunRate)}/mo run-rate · Actual: ${formatCurrency(m.overheadTotal)}`} onClick={() => openDrilldown("mtd_overhead")} />
+        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle={m.overheadOneTimeTotal > 0 ? `Run-rate: ${formatCurrency(m.overheadMonthlyRunRate)}/mo · One-time: ${formatCurrency(m.overheadOneTimeTotal)}` : "Overhead"} onClick={() => openDrilldown("mtd_overhead")} />
         <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => openDrilldown("overhead_pct")} />
         <MetricCard title="Total Operating Cost" value={formatCurrency(m.adjustedTotalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => openDrilldown("total_operating_cost")} />
       </div>
