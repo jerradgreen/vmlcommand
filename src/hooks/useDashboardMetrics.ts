@@ -92,6 +92,7 @@ export function useDashboardMetrics(range: DateRange) {
         depositRevenueRes,
         personalDrawRes,
         shopifyCapitalRes,
+        salesCountsRes,
       ] = await Promise.all([
         leadsCountQuery,
         salesQuery,
@@ -117,6 +118,8 @@ export function useDashboardMetrics(range: DateRange) {
         supabase.rpc("get_personal_draw_rollup", { p_from: rangeFrom, p_to: rangeTo }),
         // Shopify Capital summary
         supabase.rpc("get_shopify_capital_summary", { p_from: rangeFrom, p_to: rangeTo }),
+        // Sales counts by segment
+        supabase.rpc("get_sales_counts", { p_from: rangeFrom, p_to: rangeTo }),
       ]);
 
       const sales = salesRes.data ?? [];
@@ -177,10 +180,15 @@ export function useDashboardMetrics(range: DateRange) {
       if (overheadTotal === 0 && legacyOverhead > 0) overheadTotal = legacyOverhead;
 
       // ── Shopify Capital ──
-      const capitalData = shopifyCapitalRes.data as { paid_to_date: number; remaining_balance: number; paid_in_range: number } | null;
+      const capitalData = shopifyCapitalRes.data as { paid_to_date: number; remaining_balance: number; paid_in_range: number; loan_qualifying_sales_count_in_range: number } | null;
       const shopifyCapitalPaid = Number(capitalData?.paid_to_date ?? 0);
       const shopifyCapitalRemaining = Number(capitalData?.remaining_balance ?? 0);
       const shopifyCapitalPaidInRange = Number(capitalData?.paid_in_range ?? 0);
+      const loanQualifyingSalesCountInRange = Number(capitalData?.loan_qualifying_sales_count_in_range ?? 0);
+
+      // Sales counts by segment
+      const salesCountsData = salesCountsRes.data as { all_sales_count: number; shopify_sales_count: number; loan_qualifying_sales_count: number } | null;
+      const shopifySalesCountInRange = Number(salesCountsData?.shopify_sales_count ?? 0);
 
       const totalOperatingCost = cogsTotal + adsSpendTotal + overheadTotal + shopifyCapitalPaidInRange;
       const rangeRevenue = (rangeSalesRevRes.data ?? []).reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
@@ -208,8 +216,11 @@ export function useDashboardMetrics(range: DateRange) {
       const cogsPerSale = rangeSalesCount > 0 ? cogsTotal / rangeSalesCount : 0;
       const contributionMarginPerSale = revenuePerSale - cogsPerSale;
       const marketingPerSale = rangeSalesCount > 0 ? fullyLoadedMarketingCost / rangeSalesCount : 0;
-      const loanPaybackPerSale = rangeSalesCount > 0 ? shopifyCapitalPaidInRange / rangeSalesCount : 0;
-      const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale - loanPaybackPerSale;
+      // Loan payback per sale uses ONLY loan-qualifying sales as denominator
+      const loanPaybackPerSale = loanQualifyingSalesCountInRange > 0 ? shopifyCapitalPaidInRange / loanQualifyingSalesCountInRange : 0;
+      // Net profit per sale uses overall averages for global costs, loan spread across all sales as avg
+      const loanPaybackPerSaleAvg = rangeSalesCount > 0 ? shopifyCapitalPaidInRange / rangeSalesCount : 0;
+      const profitPerSale = revenuePerSale - cogsPerSale - marketingPerSale - loanPaybackPerSaleAvg;
       const marketingPctOfRevenue = depositRevenue > 0 ? fullyLoadedMarketingCost / depositRevenue : 0;
 
       // ── Personal Draw ──
@@ -253,6 +264,8 @@ export function useDashboardMetrics(range: DateRange) {
         shopifyCapitalRemaining,
         shopifyCapitalPaidInRange,
         loanPaybackPerSale,
+        loanQualifyingSalesCountInRange,
+        shopifySalesCountInRange,
       };
     },
   });

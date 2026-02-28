@@ -668,6 +668,10 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: number
       }
+      get_sales_counts: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       get_shopify_capital_summary: {
         Args: { p_from: string; p_to: string }
         Returns: Json
