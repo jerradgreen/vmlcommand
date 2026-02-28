@@ -251,13 +251,13 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
       { label: "COGS (adjusted)", valueKey: "adjustedCogsTotal", sign: "-" },
       { label: "Overhead", valueKey: "overheadTotal", sign: "-" },
       { label: "Shopify Capital (in range)", valueKey: "shopifyCapitalPaidInRange", sign: "-" },
-      { label: "Net Profit", valueKey: "netProfitProxy", sign: "=" },
+      { label: "Net Profit", valueKey: "adjustedNetProfit", sign: "=" },
     ],
   },
   profit_margin: {
     title: "Net Profit Margin %",
     formula: [
-      { label: "Net Profit", valueKey: "netProfitProxy", sign: "info" },
+      { label: "Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
       { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
       { label: "Profit Margin %", valueKey: "_profitMarginPct", sign: "=" },
     ],
@@ -274,7 +274,7 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
   net_after_upcoming_due: {
     title: "Net After Upcoming Due",
     formula: [
-      { label: "Net Profit", valueKey: "netProfitProxy", sign: "+" },
+      { label: "Net Profit", valueKey: "adjustedNetProfit", sign: "+" },
       { label: "Next 7 Days Due", valueKey: "_next7TotalDue", sign: "-" },
       { label: "Net After Upcoming Due", valueKey: "_netAfterUpcomingDue", sign: "=" },
     ],
