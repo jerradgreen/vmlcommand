@@ -34,7 +34,7 @@ function resolveValue(key: string, m: Record<string, any>): number {
     case "_cogsPct":
       return m.depositRevenue > 0 ? m.adjustedCogsTotal / m.depositRevenue : 0;
     case "_overheadPct":
-      return m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
+      return m.depositRevenue > 0 ? m.overheadMonthlyRunRate / m.depositRevenue : 0;
     case "_profitMarginPct":
       return m.depositRevenue > 0 ? (m.adjustedNetProfit ?? m.netProfitProxy ?? 0) / m.depositRevenue : 0;
     case "_closeRatePct":

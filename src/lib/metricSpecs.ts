@@ -182,9 +182,9 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
     dataTables: ["bills_paid"],
   },
   overhead_pct: {
-    title: "Overhead % of Revenue",
+    title: "Overhead % of Revenue (Run-Rate)",
     formula: [
-      { label: "Overhead", valueKey: "overheadTotal", sign: "info" },
+      { label: "Monthly Run-Rate", valueKey: "overheadMonthlyRunRate", sign: "info" },
       { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
       { label: "Overhead %", valueKey: "_overheadPct", sign: "=" },
     ],
