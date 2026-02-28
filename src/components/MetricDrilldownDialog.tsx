@@ -35,6 +35,8 @@ function resolveValue(key: string, m: Record<string, any>): number {
       return m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
     case "_profitMarginPct":
       return m.depositRevenue > 0 ? (m.adjustedNetProfit ?? m.netProfitProxy ?? 0) / m.depositRevenue : 0;
+    case "_closeRatePct":
+      return m.totalLeads > 0 ? (m.newLeadSalesCount || 0) / m.totalLeads : 0;
     case "_next7TotalDue":
       return (m.next7BillsDue || 0) + (m.next7CogsDue || 0);
     case "_netAfterUpcomingDue":
@@ -60,8 +62,8 @@ function resolveValue(key: string, m: Record<string, any>): number {
 
 function formatValue(key: string, val: number): string {
   if (key === "_roas") return val > 0 ? `${val.toFixed(2)}x` : "—";
-  if (key.endsWith("Pct") || key.startsWith("_") && key.includes("Pct")) return formatPercent(val);
-  if (key === "_totalSales" || key === "_loanQualifyingSalesCount") return formatNumber(val);
+  if (key.endsWith("Pct") || (key.startsWith("_") && key.includes("Pct")) || key === "closeRate") return formatPercent(val);
+  if (["_totalSales", "_loanQualifyingSalesCount", "totalSales", "totalLeads", "newLeadSalesCount", "repeatDirectSalesCount", "unmatchedCount"].includes(key)) return formatNumber(val);
   return formatCurrency(val);
 }
 
@@ -83,8 +85,33 @@ function useDataTable(type: DataTableType | null, rangeFrom: string, rangeTo: st
           return data ?? [];
         }
         case "sales_list": {
-          const { data } = await supabase.from("sales").select("order_id, product_name, revenue, date, sale_type")
+          const { data } = await supabase.from("sales").select("id, order_id, product_name, revenue, date, sale_type")
             .gte("date", rangeFrom).lte("date", rangeTo).order("date", { ascending: false });
+          return data ?? [];
+        }
+        case "sales_new_lead": {
+          const { data } = await supabase.from("sales").select("id, order_id, product_name, revenue, date, sale_type")
+            .eq("sale_type", "new_lead")
+            .gte("date", rangeFrom).lte("date", rangeTo).order("date", { ascending: false });
+          return data ?? [];
+        }
+        case "sales_repeat_direct": {
+          const { data } = await supabase.from("sales").select("id, order_id, product_name, revenue, date, sale_type")
+            .eq("sale_type", "repeat_direct")
+            .gte("date", rangeFrom).lte("date", rangeTo).order("date", { ascending: false });
+          return data ?? [];
+        }
+        case "sales_unmatched": {
+          const { data } = await supabase.from("sales").select("id, order_id, product_name, revenue, date, sale_type")
+            .eq("sale_type", "unknown")
+            .is("lead_id", null)
+            .gte("date", rangeFrom).lte("date", rangeTo).order("date", { ascending: false });
+          return data ?? [];
+        }
+        case "leads_list": {
+          const { data } = await supabase.from("leads").select("id, lead_id, name, email, status, submitted_at")
+            .gte("submitted_at", `${rangeFrom}T00:00:00.000Z`).lte("submitted_at", `${rangeTo}T23:59:59.999Z`)
+            .order("submitted_at", { ascending: false });
           return data ?? [];
         }
         case "bills_paid": {
@@ -150,6 +177,9 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
       );
 
     case "sales_list":
+    case "sales_new_lead":
+    case "sales_repeat_direct":
+    case "sales_unmatched":
       return (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">Sales — {formatCurrency(total)}</h3>
@@ -160,12 +190,36 @@ function DataTableView({ type, data }: { type: DataTableType; data: any[] }) {
             </TableRow></TableHeader>
             <TableBody>
               {data.map((s: any) => (
-                <TableRow key={s.order_id}>
+                <TableRow key={s.id ?? `${s.order_id}-${s.date}`}>
                   <TableCell>{s.date}</TableCell>
                   <TableCell className="font-mono text-xs">{s.order_id}</TableCell>
                   <TableCell>{s.product_name ?? "—"}</TableCell>
                   <TableCell>{s.sale_type}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(s.revenue) || 0)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+
+    case "leads_list":
+      return (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">Leads — {formatNumber(data.length)}</h3>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Submitted</TableHead><TableHead>Lead ID</TableHead><TableHead>Name</TableHead>
+              <TableHead>Email</TableHead><TableHead>Status</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {data.map((l: any) => (
+                <TableRow key={l.id}>
+                  <TableCell>{l.submitted_at ? format(new Date(l.submitted_at), "MMM d, yyyy") : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{l.lead_id ?? "—"}</TableCell>
+                  <TableCell>{l.name ?? "—"}</TableCell>
+                  <TableCell>{l.email ?? "—"}</TableCell>
+                  <TableCell>{l.status ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
