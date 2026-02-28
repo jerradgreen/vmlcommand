@@ -184,6 +184,7 @@ export default function Dashboard() {
     revenuePerSale: 0, contributionMarginPerSale: 0,
     profitPerSale: 0, marketingPctOfRevenue: 0,
     personalDrawTotal: 0,
+    shopifyCapitalPaid: 0, shopifyCapitalRemaining: 0, shopifyCapitalPaidInRange: 0, loanPaybackPerSale: 0,
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -293,12 +294,20 @@ export default function Dashboard() {
         <MetricCard title="COGS % of Revenue" value={formatPercent(cogsPctOfRevenue)} icon={Percent} subtitle="COGS ÷ Revenue" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
         <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle="Overhead" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
         <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-        <MetricCard title="Total Operating Cost" value={formatCurrency(m.totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
+        <MetricCard title="Total Operating Cost" value={formatCurrency(m.totalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
+      </div>
+
+      {/* ═══ Shopify Capital ═══ */}
+      <SectionHeader title="Shopify Capital" subtitle="13% of Shopify revenue from #VML18412 forward (auto-stops at $0)" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard title="Shopify Capital Remaining" value={formatCurrency(m.shopifyCapitalRemaining)} icon={Landmark} subtitle="Balance left to repay" />
+        <MetricCard title="Shopify Capital Paid To Date" value={formatCurrency(m.shopifyCapitalPaid)} icon={DollarSign} subtitle="Total paid all-time" />
+        <MetricCard title="Shopify Capital Paid (This Period)" value={formatCurrency(m.shopifyCapitalPaidInRange)} icon={CalendarIcon} subtitle={`Paid in ${rangeLabel}`} />
       </div>
 
       {/* ═══ SECTION 4 — Unit Economics ═══ */}
       <SectionHeader title="Unit Economics" subtitle="What does one job actually make?" />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Marketing Cost Per Sale</CardTitle>
@@ -312,11 +321,12 @@ export default function Dashboard() {
         </Card>
         <MetricCard title="Revenue Per Sale" value={formatCurrency(m.revenuePerSale)} icon={DollarSign} subtitle="Revenue ÷ sales" />
         <MetricCard title="Gross Profit Per Sale" value={formatCurrency(m.contributionMarginPerSale)} icon={TrendingUp} subtitle="Revenue − product cost" />
+        <MetricCard title="Loan Payback / Sale" value={formatCurrency(m.loanPaybackPerSale)} icon={Landmark} subtitle="Capital paid ÷ sales" />
         <MetricCardLarge
           title="Net Profit Per Sale"
           value={formatCurrency(m.profitPerSale)}
           icon={Wallet}
-          subtitle="After COGS + marketing"
+          subtitle="After COGS + marketing + loan"
           positive={m.profitPerSale >= 0}
         />
       </div>
@@ -328,7 +338,7 @@ export default function Dashboard() {
           title="Net Profit"
           value={formatCurrency(m.netProfitProxy)}
           icon={Calculator}
-          subtitle="Revenue − Ads − COGS − Overhead"
+          subtitle="Revenue − Ads − COGS − Overhead − Loan"
           positive={m.netProfitProxy >= 0}
           onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })}
         />
