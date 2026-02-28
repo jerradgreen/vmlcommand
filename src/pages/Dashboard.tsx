@@ -166,6 +166,7 @@ export default function Dashboard() {
     mfgUnpaidCount: 0, mfgPartialCount: 0, mfgPaidCount: 0,
     adjustedCogsTotal: 0, adjustedTotalOperatingCost: 0,
     adjustedNetProfit: 0, adjustedCogsPct: 0, adjustedProfitMarginPct: 0,
+    cogsMonthlyRunRate: 0, adsMonthlyRunRate: 0, loanMonthlyRunRate: 0, accruedMfgMonthlyRunRate: 0, totalOpCostMonthlyRunRate: 0,
     rangeFrom: "2025-01-01", rangeTo: format(new Date(), "yyyy-MM-dd"),
   };
 
@@ -252,7 +253,7 @@ export default function Dashboard() {
         <MetricCard title="COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" onClick={() => openDrilldown("cogs_pct")} />
         <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle={m.overheadOneTimeTotal > 0 ? `Run-rate: ${formatCurrency(m.overheadMonthlyRunRate)}/mo · One-time: ${formatCurrency(m.overheadOneTimeTotal)}` : "Overhead"} onClick={() => openDrilldown("mtd_overhead")} />
         <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => openDrilldown("overhead_pct")} />
-        <MetricCard title="Total Operating Cost" value={formatCurrency(m.adjustedTotalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => openDrilldown("total_operating_cost")} />
+        <MetricCard title="Total Operating Cost" value={formatCurrency(m.totalOpCostMonthlyRunRate)} icon={Calculator} subtitle={`${formatCurrency(m.totalOpCostMonthlyRunRate)}/mo run-rate · Actual: ${formatCurrency(m.adjustedTotalOperatingCost)}`} onClick={() => openDrilldown("total_operating_cost")} />
       </div>
 
       {/* ═══ Shopify Capital ═══ */}

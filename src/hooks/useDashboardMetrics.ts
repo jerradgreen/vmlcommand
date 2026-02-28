@@ -252,6 +252,7 @@ export function useDashboardMetrics(range: DateRange) {
       const rangeMonths = Math.max(1, rangeDays / 30.44); // avg days per month
       const overheadMonthlyRunRate = (overheadRecurringTotal / rangeMonths) + (overheadOneTimeTotal / 12);
 
+
       // ── Accrual COGS Overlay ──
       const accrualData = accrualRollupRes.data as {
         estimated_mfg_total: number; allocated_mfg_total: number;
@@ -270,6 +271,13 @@ export function useDashboardMetrics(range: DateRange) {
       const adjustedCogsPct = depositRevenue > 0 ? adjustedCogsTotal / depositRevenue : 0;
       const adjustedProfitMarginPct = depositRevenue > 0 ? adjustedNetProfit / depositRevenue : 0;
       const profitPerSale = rangeSalesCount > 0 ? adjustedNetProfit / rangeSalesCount : 0;
+
+      // Monthly run-rates for all cost components
+      const cogsMonthlyRunRate = adjustedCogsTotal / rangeMonths;
+      const adsMonthlyRunRate = adsSpendTotal / rangeMonths;
+      const loanMonthlyRunRate = shopifyCapitalPaidInRange / rangeMonths;
+      const accruedMfgMonthlyRunRate = accruedMfgRemaining / rangeMonths;
+      const totalOpCostMonthlyRunRate = cogsMonthlyRunRate + adsMonthlyRunRate + overheadMonthlyRunRate + loanMonthlyRunRate;
 
       return {
         earliestDate,
@@ -324,6 +332,11 @@ export function useDashboardMetrics(range: DateRange) {
         adjustedNetProfit,
         adjustedCogsPct,
         adjustedProfitMarginPct,
+        cogsMonthlyRunRate,
+        adsMonthlyRunRate,
+        loanMonthlyRunRate,
+        accruedMfgMonthlyRunRate,
+        totalOpCostMonthlyRunRate,
         // Pass-through date bounds for drilldowns (exact same values used in all queries)
         rangeFrom,
         rangeTo,
