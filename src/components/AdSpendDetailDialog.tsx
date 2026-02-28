@@ -19,6 +19,7 @@ interface Props {
   dateFrom: string;
   dateTo: string;
   rangeLabel: string;
+  depositRevenue?: number;
 }
 
 function useExpenses(dateFrom: string, dateTo: string, enabled: boolean) {
@@ -54,7 +55,7 @@ function useSalesInRange(dateFrom: string, dateTo: string, enabled: boolean) {
   });
 }
 
-export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom, dateTo, rangeLabel }: Props) {
+export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom, dateTo, rangeLabel, depositRevenue }: Props) {
   const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
 
   const showExpenses = ["yesterday_ad_spend", "mtd_ad_spend", "mtd_roas", "net_after_ads"].includes(type);
@@ -154,31 +155,40 @@ export default function AdSpendDetailDialog({ open, onOpenChange, type, dateFrom
           </div>
         )}
 
-        {!isLoading && (type === "mtd_roas" || type === "net_after_ads") && (
-          <div className="mt-4 border-t pt-3 space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span>{rangeLabel} Revenue</span>
-              <span className="font-semibold">{formatCurrency(totalSalesRev)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>{rangeLabel} Ad Spend</span>
-              <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
-            </div>
-            <div className="flex justify-between border-t pt-1 font-bold">
-              {type === "mtd_roas" ? (
-                <>
-                  <span>ROAS</span>
-                  <span>{totalExpenses > 0 ? `${(totalSalesRev / totalExpenses).toFixed(2)}x` : "—"}</span>
-                </>
-              ) : (
-                <>
-                  <span>Net After Ads</span>
-                  <span>{formatCurrency(totalSalesRev - totalExpenses)}</span>
-                </>
+        {!isLoading && (type === "mtd_roas" || type === "net_after_ads") && (() => {
+          const summaryRevenue = depositRevenue ?? totalSalesRev;
+          return (
+            <div className="mt-4 border-t pt-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>{rangeLabel} Revenue (bank deposits)</span>
+                <span className="font-semibold">{formatCurrency(summaryRevenue)}</span>
+              </div>
+              {totalSalesRev !== summaryRevenue && (
+                <div className="flex justify-between text-muted-foreground text-xs">
+                  <span>Sales sheet total</span>
+                  <span>{formatCurrency(totalSalesRev)}</span>
+                </div>
               )}
+              <div className="flex justify-between">
+                <span>{rangeLabel} Ad Spend</span>
+                <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-bold">
+                {type === "mtd_roas" ? (
+                  <>
+                    <span>ROAS</span>
+                    <span>{totalExpenses > 0 ? `${(summaryRevenue / totalExpenses).toFixed(2)}x` : "—"}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Net After Ads</span>
+                    <span>{formatCurrency(summaryRevenue - totalExpenses)}</span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );

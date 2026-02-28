@@ -394,7 +394,7 @@ export default function Dashboard() {
       )}
 
       {/* ═══ Detail Dialogs ═══ */}
-      <AdSpendDetailDialog open={adDetail.open} onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))} type={adDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
+      <AdSpendDetailDialog open={adDetail.open} onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))} type={adDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} depositRevenue={m.depositRevenue} />
       <BillsDetailDialog open={billsDetail.open} onOpenChange={(open) => setBillsDetail((prev) => ({ ...prev, open }))} type={billsDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
       <CogsDetailDialog open={cogsDetail.open} onOpenChange={(open) => setCogsDetail((prev) => ({ ...prev, open }))} type={cogsDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
       <ProfitDetailDialog
