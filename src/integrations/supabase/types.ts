@@ -598,29 +598,32 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          is_active: boolean | null
           name: string | null
           payback_cap: number
           repayment_rate: number
+          start_date: string | null
           start_order_number_int: number
+          status: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          is_active?: boolean | null
           name?: string | null
           payback_cap: number
           repayment_rate: number
+          start_date?: string | null
           start_order_number_int: number
+          status?: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          is_active?: boolean | null
           name?: string | null
           payback_cap?: number
           repayment_rate?: number
+          start_date?: string | null
           start_order_number_int?: number
+          status?: string
         }
         Relationships: []
       }

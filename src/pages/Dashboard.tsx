@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AdSpendDetailDialog, { AdSpendDetailType } from "@/components/AdSpendDetailDialog";
-import BillsDetailDialog, { BillsDetailType } from "@/components/BillsDetailDialog";
-import CogsDetailDialog, { CogsDetailType } from "@/components/CogsDetailDialog";
-import ProfitDetailDialog, { ProfitDetailType } from "@/components/ProfitDetailDialog";
+import MetricDrilldownDialog from "@/components/MetricDrilldownDialog";
+import { MetricSpecId } from "@/lib/metricSpecs";
 import LeadToSaleDetailDialog from "@/components/LeadToSaleDetailDialog";
 import Next7DueDetailDialog from "@/components/Next7DueDetailDialog";
+import ShopifyCapitalManager from "@/components/ShopifyCapitalManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,17 +25,10 @@ import { cn } from "@/lib/utils";
 
 /* ── Metric Card ── */
 function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
-  title: string;
-  value: string;
-  icon: React.ElementType;
-  subtitle?: string;
-  onClick?: () => void;
+  title: string; value: string; icon: React.ElementType; subtitle?: string; onClick?: () => void;
 }) {
   return (
-    <Card
-      className={cn("hover:shadow-md transition-shadow", onClick && "cursor-pointer")}
-      onClick={onClick}
-    >
+    <Card className={cn("hover:shadow-md transition-shadow", onClick && "cursor-pointer")} onClick={onClick}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -49,14 +41,9 @@ function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
   );
 }
 
-/* ── Emphasized Metric Card (Net Profit Proxy) ── */
+/* ── Emphasized Metric Card ── */
 function MetricCardLarge({ title, value, icon: Icon, subtitle, onClick, positive }: {
-  title: string;
-  value: string;
-  icon: React.ElementType;
-  subtitle?: string;
-  onClick?: () => void;
-  positive: boolean;
+  title: string; value: string; icon: React.ElementType; subtitle?: string; onClick?: () => void; positive: boolean;
 }) {
   return (
     <Card
@@ -98,16 +85,11 @@ const chartConfig = {
 };
 
 function TrendChart({ data, dataKey, label, formatFn }: {
-  data: { date: string; [key: string]: any }[];
-  dataKey: string;
-  label: string;
-  formatFn?: (v: number) => string;
+  data: { date: string; [key: string]: any }[]; dataKey: string; label: string; formatFn?: (v: number) => string;
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{label} Trend</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="text-base">{label} Trend</CardTitle></CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[200px] w-full">
           <LineChart data={data}>
@@ -122,18 +104,10 @@ function TrendChart({ data, dataKey, label, formatFn }: {
   );
 }
 
-/* ── Preset labels ── */
 const presetLabels: Record<DatePreset, string> = {
-  all: "All Time",
-  today: "Today",
-  yesterday: "Yesterday",
-  "7d": "Last 7 Days",
-  "30d": "Last 30 Days",
-  mtd: "Month to Date",
-  ytd: "Year to Date",
-  last_year: "Last Year",
-  "12m": "Last 12 Months",
-  custom: "Custom Range",
+  all: "All Time", today: "Today", yesterday: "Yesterday", "7d": "Last 7 Days",
+  "30d": "Last 30 Days", mtd: "Month to Date", ytd: "Year to Date",
+  last_year: "Last Year", "12m": "Last 12 Months", custom: "Custom Range",
 };
 
 /* ══════════════════ DASHBOARD ══════════════════ */
@@ -141,10 +115,7 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>({ preset: "ytd" });
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
-  const [adDetail, setAdDetail] = useState<{ open: boolean; type: AdSpendDetailType }>({ open: false, type: "yesterday_ad_spend" });
-  const [billsDetail, setBillsDetail] = useState<{ open: boolean; type: BillsDetailType }>({ open: false, type: "mtd_bills_paid" });
-  const [cogsDetail, setCogsDetail] = useState<{ open: boolean; type: CogsDetailType }>({ open: false, type: "mtd_cogs_paid" });
-  const [profitDetail, setProfitDetail] = useState<{ open: boolean; type: ProfitDetailType }>({ open: false, type: "profit_proxy" });
+  const [drilldown, setDrilldown] = useState<{ open: boolean; specId: MetricSpecId | null }>({ open: false, specId: null });
   const [leadToSaleOpen, setLeadToSaleOpen] = useState(false);
   const [next7DueOpen, setNext7DueOpen] = useState(false);
   const navigate = useNavigate();
@@ -165,6 +136,8 @@ export default function Dashboard() {
   const applyCustomRange = () => {
     setDateRange({ preset: "custom", from: customFrom, to: customTo });
   };
+
+  const openDrilldown = (specId: MetricSpecId) => setDrilldown({ open: true, specId });
 
   if (metricsLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading metrics…</div>;
@@ -190,6 +163,7 @@ export default function Dashboard() {
     mfgUnpaidCount: 0, mfgPartialCount: 0, mfgPaidCount: 0,
     adjustedCogsTotal: 0, adjustedTotalOperatingCost: 0,
     adjustedNetProfit: 0, adjustedCogsPct: 0, adjustedProfitMarginPct: 0,
+    rangeFrom: "2025-01-01", rangeTo: format(new Date(), "yyyy-MM-dd"),
   };
 
   const subtitle = dateRange.preset === "all" && m.earliestDate
@@ -197,32 +171,10 @@ export default function Dashboard() {
     : `${presetLabels[dateRange.preset]} performance overview`;
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
-
-  // Derived metrics — using new RPC-backed fields
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
-  const cogsPctOfRevenue = m.depositRevenue > 0 ? m.cogsTotal / m.depositRevenue : 0;
   const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
   const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
   const netAfterUpcomingDue = m.netProfitProxy - next7TotalDue;
-
-  // Date bounds for detail dialogs
-  const rangeDateFrom = (() => {
-    if (dateRange.preset === "custom" && dateRange.from) return format(dateRange.from, "yyyy-MM-dd");
-    const now = new Date();
-    switch (dateRange.preset) {
-      case "today": return format(now, "yyyy-MM-dd");
-      case "yesterday": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1), "yyyy-MM-dd");
-      case "7d": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6), "yyyy-MM-dd");
-      case "30d": return format(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29), "yyyy-MM-dd");
-      case "mtd": return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
-      case "ytd": return format(new Date(now.getFullYear(), 0, 1), "yyyy-MM-dd");
-      default: return "2000-01-01";
-    }
-  })();
-  const rangeDateTo = (() => {
-    if (dateRange.preset === "custom" && dateRange.to) return format(dateRange.to, "yyyy-MM-dd");
-    return format(new Date(), "yyyy-MM-dd");
-  })();
 
   return (
     <div className="space-y-6">
@@ -234,9 +186,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <Select value={dateRange.preset} onValueChange={handlePresetChange}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(presetLabels).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -277,62 +227,64 @@ export default function Dashboard() {
       {/* ═══ SECTION 1 — Revenue Engine ═══ */}
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.depositRevenue)} icon={DollarSign} subtitle={`${formatPercent(m.salesCoveragePct)} matched to sales records`} onClick={() => navigate("/sales")} />
+        <MetricCard title={`${rangeLabel} Revenue`} value={formatCurrency(m.depositRevenue)} icon={DollarSign} subtitle={`${formatPercent(m.salesCoveragePct)} matched to sales records`} onClick={() => openDrilldown("mtd_revenue")} />
         <MetricCard title={`${rangeLabel} Sales`} value={formatNumber(m.totalSales)} icon={ShoppingCart} onClick={() => navigate("/sales")} />
-        <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => navigate("/sales")} />
+        <MetricCard title="Avg Order Value" value={formatCurrency(m.avgOrderValue)} icon={BarChart3} subtitle="Revenue ÷ Sales" onClick={() => openDrilldown("revenue_per_sale")} />
         <MetricCard title="Avg Days Lead → Sale" value={m.avgDaysLeadToSale != null ? `${m.avgDaysLeadToSale.toFixed(1)}d` : "—"} icon={Clock} subtitle="new_lead sales only" onClick={() => setLeadToSaleOpen(true)} />
         <MetricCard title="Confirmed Close Rate" value={formatPercent(m.closeRate)} icon={TrendingUp} subtitle="New lead sales / Leads" onClick={() => navigate("/sales")} />
       </div>
 
-      {/* ═══ SECTION 2 — Ad Performance (Scale Engine) ═══ */}
+      {/* ═══ SECTION 2 — Ad Performance ═══ */}
       <SectionHeader title="Ad Performance" subtitle="Can I scale safely?" />
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.adsSpendTotal)} icon={DollarSign} subtitle={rangeLabel} onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
-        <MetricCard title={`${rangeLabel} ROAS`} value={m.rangeRoas > 0 ? `${m.rangeRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => setAdDetail({ open: true, type: "mtd_roas" })} />
-        <MetricCard title="Ad Spend % of Revenue" value={formatPercent(adSpendPctOfRevenue)} icon={Percent} subtitle="Ad Spend ÷ Revenue" onClick={() => setAdDetail({ open: true, type: "mtd_ad_spend" })} />
+        <MetricCard title={`${rangeLabel} Ad Spend`} value={formatCurrency(m.adsSpendTotal)} icon={DollarSign} subtitle={rangeLabel} onClick={() => openDrilldown("mtd_ad_spend")} />
+        <MetricCard title={`${rangeLabel} ROAS`} value={m.rangeRoas > 0 ? `${m.rangeRoas.toFixed(2)}x` : "—"} icon={TrendingUp} subtitle="Revenue ÷ Ad Spend" onClick={() => openDrilldown("mtd_roas")} />
+        <MetricCard title="Ad Spend % of Revenue" value={formatPercent(adSpendPctOfRevenue)} icon={Percent} subtitle="Ad Spend ÷ Revenue" onClick={() => openDrilldown("ad_spend_pct")} />
       </div>
 
-      {/* ═══ SECTION 3 — Cost Structure (Leak Detection) ═══ */}
+      {/* ═══ SECTION 3 — Cost Structure ═══ */}
       <SectionHeader title="Cost Structure (Leak Detection)" subtitle="Where is money drifting?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.adjustedCogsTotal)} icon={Factory} subtitle={`Cash ${formatCurrency(m.cogsTotal)} + Accrued ${formatCurrency(m.accruedMfgRemaining)}`} onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
-        <MetricCard title="COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" onClick={() => setCogsDetail({ open: true, type: "mtd_cogs_paid" })} />
-        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle="Overhead" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-        <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => setBillsDetail({ open: true, type: "mtd_bills_paid" })} />
-        <MetricCard title="Total Operating Cost" value={formatCurrency(m.adjustedTotalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => setProfitDetail({ open: true, type: "total_operating_cost" })} />
+        <MetricCard title={`${rangeLabel} COGS`} value={formatCurrency(m.adjustedCogsTotal)} icon={Factory} subtitle={`Cash ${formatCurrency(m.cogsTotal)} + Accrued ${formatCurrency(m.accruedMfgRemaining)}`} onClick={() => openDrilldown("mtd_cogs")} />
+        <MetricCard title="COGS % of Revenue" value={formatPercent(m.adjustedCogsPct)} icon={Percent} subtitle="Adjusted COGS ÷ Revenue" onClick={() => openDrilldown("cogs_pct")} />
+        <MetricCard title={`${rangeLabel} Overhead`} value={formatCurrency(m.overheadTotal)} icon={Building2} subtitle="Overhead" onClick={() => openDrilldown("mtd_overhead")} />
+        <MetricCard title="Overhead % of Revenue" value={formatPercent(overheadPctOfRevenue)} icon={Percent} subtitle="Overhead ÷ Revenue" onClick={() => openDrilldown("overhead_pct")} />
+        <MetricCard title="Total Operating Cost" value={formatCurrency(m.adjustedTotalOperatingCost)} icon={Calculator} subtitle="Ads + COGS + Overhead + Loan" onClick={() => openDrilldown("total_operating_cost")} />
       </div>
 
       {/* ═══ Shopify Capital ═══ */}
-      <SectionHeader title="Shopify Capital" subtitle="13% of Shopify revenue from #VML18412 forward (auto-stops at $0)" />
+      <SectionHeader title="Shopify Capital" subtitle="Loan repayment tracking (auto-stops at $0 remaining)" />
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard title="Shopify Capital Remaining" value={formatCurrency(m.shopifyCapitalRemaining)} icon={Landmark} subtitle="Balance left to repay" />
-        <MetricCard title="Shopify Capital Paid To Date" value={formatCurrency(m.shopifyCapitalPaid)} icon={DollarSign} subtitle="Total paid all-time" />
-        <MetricCard title="Shopify Capital Paid (This Period)" value={formatCurrency(m.shopifyCapitalPaidInRange)} icon={CalendarIcon} subtitle={`Paid in ${rangeLabel}`} />
+        <MetricCard title="Shopify Capital Remaining" value={formatCurrency(m.shopifyCapitalRemaining)} icon={Landmark} subtitle="Balance left to repay" onClick={() => openDrilldown("shopify_capital_remaining")} />
+        <MetricCard title="Shopify Capital Paid To Date" value={formatCurrency(m.shopifyCapitalPaid)} icon={DollarSign} subtitle="Total paid all-time" onClick={() => openDrilldown("shopify_capital_paid")} />
+        <MetricCard title="Shopify Capital Paid (This Period)" value={formatCurrency(m.shopifyCapitalPaidInRange)} icon={CalendarIcon} subtitle={`Paid in ${rangeLabel}`} onClick={() => openDrilldown("shopify_capital_in_range")} />
       </div>
+      <ShopifyCapitalManager />
 
       {/* ═══ SECTION 4 — Unit Economics ═══ */}
       <SectionHeader title="Unit Economics" subtitle="What does one job actually make?" />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openDrilldown("marketing_cpo")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Avg Marketing Cost per Sale</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(m.fullyLoadedCPO)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total marketing ÷ all sales (Shopify + manual)</p>
+            <p className="text-xs text-muted-foreground mt-1">Total marketing ÷ all sales</p>
             <p className="text-xs text-muted-foreground">{formatPercent(m.marketingPctOfRevenue)} of revenue</p>
           </CardContent>
         </Card>
-        <MetricCard title="Revenue Per Sale" value={formatCurrency(m.revenuePerSale)} icon={DollarSign} subtitle="Revenue ÷ all sales" />
-        <MetricCard title="Gross Profit per Sale" value={formatCurrency(m.contributionMarginPerSale)} icon={TrendingUp} subtitle="Revenue per sale − COGS per sale (before marketing)" />
-        <MetricCard title="Shopify Capital Cost per Affected Sale" value={formatCurrency(m.loanPaybackPerSale)} icon={Landmark} subtitle={`Only Shopify orders #VML18412+ (${m.loanQualifyingSalesCountInRange} qualifying sales)`} />
+        <MetricCard title="Revenue Per Sale" value={formatCurrency(m.revenuePerSale)} icon={DollarSign} subtitle="Revenue ÷ all sales" onClick={() => openDrilldown("revenue_per_sale")} />
+        <MetricCard title="Gross Profit per Sale" value={formatCurrency(m.contributionMarginPerSale)} icon={TrendingUp} subtitle="Revenue per sale − COGS per sale" onClick={() => openDrilldown("gp_per_sale")} />
+        <MetricCard title="Loan Cost per Affected Sale" value={formatCurrency(m.loanPaybackPerSale)} icon={Landmark} subtitle={`${m.loanQualifyingSalesCountInRange} qualifying sales`} onClick={() => openDrilldown("loan_per_sale")} />
         <MetricCardLarge
           title="Net Profit per Sale"
           value={formatCurrency(m.profitPerSale)}
           icon={Wallet}
-          subtitle="Revenue per sale − COGS − marketing − loan (avg across all sales)"
+          subtitle="Revenue − COGS − marketing − loan (avg)"
           positive={m.profitPerSale >= 0}
+          onClick={() => openDrilldown("np_per_sale")}
         />
       </div>
 
@@ -345,13 +297,13 @@ export default function Dashboard() {
           icon={Calculator}
           subtitle="Revenue − Ads − COGS − Overhead − Loan"
           positive={m.netProfitProxy >= 0}
-          onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })}
+          onClick={() => openDrilldown("net_profit")}
         />
-        <MetricCard title="Net Profit Margin %" value={formatPercent(m.profitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => setProfitDetail({ open: true, type: "profit_proxy" })} />
+        <MetricCard title="Net Profit Margin %" value={formatPercent(m.profitMarginPct)} icon={Percent} subtitle="Net Profit ÷ Revenue" onClick={() => openDrilldown("profit_margin")} />
         <MetricCard title="Next 7 Days Due" value={formatCurrency(next7TotalDue)} icon={CalendarIcon} subtitle="Bills + COGS due" onClick={() => setNext7DueOpen(true)} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <MetricCard title="Net After Upcoming Due" value={formatCurrency(netAfterUpcomingDue)} icon={Calculator} subtitle="Net Profit − Next 7 Days Due" onClick={() => setProfitDetail({ open: true, type: "net_after_upcoming_due" })} />
+        <MetricCard title="Net After Upcoming Due" value={formatCurrency(netAfterUpcomingDue)} icon={Calculator} subtitle="Net Profit − Next 7 Days Due" onClick={() => openDrilldown("net_after_upcoming_due")} />
         <MetricCard title="Owner Pay (Personal Spend)" value={formatCurrency(m.personalDrawTotal)} icon={Wallet} subtitle="Personal transactions in this range" />
       </div>
 
@@ -362,13 +314,7 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-3">
             <MetricCard title="Cash in Bank" value={formatCurrency(cashMetrics.cashInBank)} icon={Landmark} subtitle="Current balance" />
             <MetricCard title="Credit Cards Owed" value={formatCurrency(cashMetrics.cardsOwedDisplay)} icon={CreditCard} subtitle="Total owed (current)" />
-            <MetricCardLarge
-              title="Net Cash Position"
-              value={formatCurrency(cashMetrics.netCashPosition)}
-              icon={Wallet}
-              subtitle="Cash − Credit Card Debt"
-              positive={cashMetrics.netCashPosition >= 0}
-            />
+            <MetricCardLarge title="Net Cash Position" value={formatCurrency(cashMetrics.netCashPosition)} icon={Wallet} subtitle="Cash − Credit Card Debt" positive={cashMetrics.netCashPosition >= 0} />
           </div>
           <SectionHeader title="Transaction Flows" subtitle={`${rangeLabel} inflows and outflows`} />
           <div className="grid gap-4 md:grid-cols-2">
@@ -383,7 +329,7 @@ export default function Dashboard() {
         <MetricCard title="Total Leads" value={formatNumber(m.totalLeads)} icon={Users} onClick={() => navigate("/leads")} />
         <MetricCard title="New Lead Revenue" value={formatCurrency(m.newLeadRevenue)} icon={DollarSign} subtitle="sale_type = new_lead" onClick={() => navigate("/sales")} />
         <MetricCard title="Repeat/Direct Revenue" value={formatCurrency(m.repeatDirectRevenue)} icon={RefreshCw} subtitle="sale_type = repeat_direct" onClick={() => navigate("/sales")} />
-        <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => setAdDetail({ open: true, type: "yesterday_ad_spend" })} />
+        <MetricCard title="Yesterday Ad Spend" value={formatCurrency(m.yesterdayAdSpend)} icon={DollarSign} subtitle="All platforms" onClick={() => openDrilldown("yesterday_ad_spend")} />
         <MetricCard title="Unmatched Sales" value={formatNumber(m.unmatchedCount)} icon={AlertCircle} subtitle="Click to review" onClick={() => navigate("/attribution")} />
       </div>
 
@@ -397,19 +343,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ═══ Detail Dialogs ═══ */}
-      <AdSpendDetailDialog open={adDetail.open} onOpenChange={(open) => setAdDetail((prev) => ({ ...prev, open }))} type={adDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} depositRevenue={m.depositRevenue} adsSpendTotal={m.adsSpendTotal} />
-      <BillsDetailDialog open={billsDetail.open} onOpenChange={(open) => setBillsDetail((prev) => ({ ...prev, open }))} type={billsDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
-      <CogsDetailDialog open={cogsDetail.open} onOpenChange={(open) => setCogsDetail((prev) => ({ ...prev, open }))} type={cogsDetail.type} dateFrom={rangeDateFrom} dateTo={rangeDateTo} rangeLabel={rangeLabel} />
-      <ProfitDetailDialog
-        open={profitDetail.open}
-        onOpenChange={(open) => setProfitDetail((prev) => ({ ...prev, open }))}
-        type={profitDetail.type}
-        rangeRevenue={m.depositRevenue}
-        adsSpendTotal={m.adsSpendTotal}
-        overheadTotal={m.overheadTotal}
-        cogsTotal={m.cogsTotal}
-        next7TotalDue={next7TotalDue}
+      {/* ═══ Unified Drilldown Dialog ═══ */}
+      <MetricDrilldownDialog
+        open={drilldown.open}
+        onOpenChange={(open) => setDrilldown((prev) => ({ ...prev, open }))}
+        specId={drilldown.specId}
+        metrics={m}
+        rangeFrom={m.rangeFrom}
+        rangeTo={m.rangeTo}
         rangeLabel={rangeLabel}
       />
       <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} />
