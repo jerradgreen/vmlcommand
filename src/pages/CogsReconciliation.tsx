@@ -55,7 +55,7 @@ function useMfgTransactions() {
         .from("financial_transactions")
         .select("id, txn_date, description, vendor, amount, txn_subcategory")
         .eq("txn_category", "cogs")
-        .in("txn_subcategory", ["manufacturing", "domestic_supplier", "overseas_supplier"])
+        .in("txn_subcategory", ["domestic_manufacturing", "international_manufacturing"])
         .order("txn_date", { ascending: false });
       if (error) throw error;
 
