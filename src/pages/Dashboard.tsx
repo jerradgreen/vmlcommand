@@ -175,7 +175,7 @@ export default function Dashboard() {
 
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
-  const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
+  const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadMonthlyRunRate / m.depositRevenue : 0;
       const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
     const netAfterUpcomingDue = m.adjustedNetProfit - next7TotalDue;
 
