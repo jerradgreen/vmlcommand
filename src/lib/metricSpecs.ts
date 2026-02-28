@@ -263,32 +263,34 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
     ],
   },
   np_per_sale: {
-    title: "Net Profit per Sale",
+    title: "Net Profit per Sale (Run-Rate)",
     formula: [
-      { label: "Adjusted Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
+      { label: "Net Profit (run-rate)", valueKey: "netProfitMonthlyRunRate", sign: "info" },
+      { label: "× Months in Range", valueKey: "info", sign: "info" },
       { label: "÷ Sales Count", valueKey: "_totalSales", sign: "info" },
-      { label: "Net Profit per Sale", valueKey: "profitPerSale", sign: "=" },
+      { label: "Net Profit per Sale", valueKey: "netProfitPerSaleRunRate", sign: "=" },
     ],
     mixesDepositsAndSales: true,
   },
 
   // ── Cash & Survival ──
   net_profit: {
-    title: "Net Profit Proxy",
+    title: "Net Profit (Monthly Run-Rate)",
     formula: [
-      { label: "Revenue (bank deposits)", valueKey: "depositRevenue", sign: "+" },
-      { label: "Ad Spend", valueKey: "adsSpendTotal", sign: "-" },
-      { label: "COGS (adjusted)", valueKey: "adjustedCogsTotal", sign: "-" },
-      { label: "Overhead", valueKey: "overheadTotal", sign: "-" },
-      { label: "Shopify Capital (in range)", valueKey: "shopifyCapitalPaidInRange", sign: "-" },
-      { label: "Net Profit", valueKey: "adjustedNetProfit", sign: "=" },
+      { label: "Revenue (run-rate)", valueKey: "revenueMonthlyRunRate", sign: "+" },
+      { label: "COGS (run-rate)", valueKey: "cogsMonthlyRunRate", sign: "-" },
+      { label: "Ad Spend (run-rate)", valueKey: "adsMonthlyRunRate", sign: "-" },
+      { label: "Overhead (run-rate)", valueKey: "overheadMonthlyRunRate", sign: "-" },
+      { label: "Loan Repay (run-rate)", valueKey: "loanMonthlyRunRate", sign: "-" },
+      { label: "Net Profit (run-rate)", valueKey: "netProfitMonthlyRunRate", sign: "=" },
+      { label: "Actual Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
     ],
   },
   profit_margin: {
     title: "Net Profit Margin %",
     formula: [
-      { label: "Net Profit", valueKey: "adjustedNetProfit", sign: "info" },
-      { label: "Revenue", valueKey: "depositRevenue", sign: "info" },
+      { label: "Net Profit (run-rate)", valueKey: "netProfitMonthlyRunRate", sign: "info" },
+      { label: "Revenue (run-rate)", valueKey: "revenueMonthlyRunRate", sign: "info" },
       { label: "Profit Margin %", valueKey: "_profitMarginPct", sign: "=" },
     ],
   },
@@ -304,7 +306,7 @@ export const metricSpecs: Record<MetricSpecId, MetricSpec> = {
   net_after_upcoming_due: {
     title: "Net After Upcoming Due",
     formula: [
-      { label: "Net Profit", valueKey: "adjustedNetProfit", sign: "+" },
+      { label: "Net Profit (run-rate)", valueKey: "netProfitMonthlyRunRate", sign: "+" },
       { label: "Next 7 Days Due", valueKey: "_next7TotalDue", sign: "-" },
       { label: "Net After Upcoming Due", valueKey: "_netAfterUpcomingDue", sign: "=" },
     ],

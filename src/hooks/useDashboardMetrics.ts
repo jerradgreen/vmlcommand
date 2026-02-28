@@ -278,6 +278,11 @@ export function useDashboardMetrics(range: DateRange) {
       const loanMonthlyRunRate = shopifyCapitalPaidInRange / rangeMonths;
       const accruedMfgMonthlyRunRate = accruedMfgRemaining / rangeMonths;
       const totalOpCostMonthlyRunRate = cogsMonthlyRunRate + adsMonthlyRunRate + overheadMonthlyRunRate + loanMonthlyRunRate;
+      // Run-rate net profit: monthly revenue minus monthly run-rate costs
+      const revenueMonthlyRunRate = depositRevenue / rangeMonths;
+      const netProfitMonthlyRunRate = revenueMonthlyRunRate - totalOpCostMonthlyRunRate;
+      const netProfitPerSaleRunRate = rangeSalesCount > 0 ? netProfitMonthlyRunRate * rangeMonths / rangeSalesCount : 0;
+      const profitMarginPctRunRate = revenueMonthlyRunRate > 0 ? netProfitMonthlyRunRate / revenueMonthlyRunRate : 0;
 
       return {
         earliestDate,
@@ -337,6 +342,10 @@ export function useDashboardMetrics(range: DateRange) {
         loanMonthlyRunRate,
         accruedMfgMonthlyRunRate,
         totalOpCostMonthlyRunRate,
+        revenueMonthlyRunRate,
+        netProfitMonthlyRunRate,
+        netProfitPerSaleRunRate,
+        profitMarginPctRunRate,
         // Pass-through date bounds for drilldowns (exact same values used in all queries)
         rangeFrom,
         rangeTo,
