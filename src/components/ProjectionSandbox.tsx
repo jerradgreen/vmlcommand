@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import {
-  TrendingUp, DollarSign, ShoppingCart, Percent, Calculator, Landmark,
+  TrendingUp, DollarSign, ShoppingCart, Percent, Calculator,
   Users, Phone, Wallet, BarChart3, Target,
 } from "lucide-react";
 
@@ -18,8 +18,6 @@ export interface ProjectionDefaults {
   adSpendPerMonth: number;
   cogsPct: number;
   overheadPerMonth: number;
-  remittancePct: number;
-  hasActiveLoan: boolean;
 }
 
 function CurrencyInput({ value, onChange, id }: { value: number; onChange: (v: number) => void; id: string }) {
@@ -72,13 +70,12 @@ function OutputCard({ title, value, icon: Icon, colorClass }: {
 
 export default function ProjectionSandbox({ defaults }: { defaults: ProjectionDefaults }) {
   /* ── Inputs ── */
-  const [leadsPerMonth, setLeadsPerMonth] = useState(defaults.leadsPerMonth);
+  const [leadsPerMonth, setLeadsPerMonth] = useState(Math.round(defaults.leadsPerMonth));
   const [closeRate, setCloseRate] = useState(defaults.closeRatePct);
   const [aov, setAov] = useState(defaults.aov);
   const [adSpend, setAdSpend] = useState(defaults.adSpendPerMonth);
   const [cogsPct, setCogsPct] = useState(defaults.cogsPct);
   const [overhead, setOverhead] = useState(defaults.overheadPerMonth);
-  const [remittancePct, setRemittancePct] = useState(defaults.remittancePct);
   const [useCloser, setUseCloser] = useState(false);
   const [costPerCall, setCostPerCall] = useState(0);
   const [commissionPct, setCommissionPct] = useState(0);
@@ -88,34 +85,25 @@ export default function ProjectionSandbox({ defaults }: { defaults: ProjectionDe
     const sales = leadsPerMonth * closeRate;
     const revenue = sales * aov;
     const cogs = revenue * cogsPct;
-    const loanRemittance = defaults.hasActiveLoan ? revenue * remittancePct : 0;
     const commission = useCloser ? revenue * commissionPct : 0;
     const callCost = useCloser ? leadsPerMonth * costPerCall : 0;
     const closerCost = commission + callCost;
 
-    const netProfit = revenue - cogs - adSpend - overhead - loanRemittance - closerCost;
+    const netProfit = revenue - cogs - adSpend - overhead - closerCost;
     const netMargin = revenue > 0 ? netProfit / revenue : 0;
     const profitPerSale = sales > 0 ? netProfit / sales : 0;
 
-    // Break-even close rate: solve for cr where net = 0
-    // net = (leads * cr * aov) - (leads * cr * aov * cogsPct) - adSpend - overhead - (leads * cr * aov * remPct) - closerCosts
-    // closerCosts when closer enabled = (leads * cr * aov * commPct) + (leads * costPerCall)
-    // Without closer: net = leads*cr*aov*(1 - cogsPct - remPct) - adSpend - overhead = 0
-    // cr = (adSpend + overhead) / (leads * aov * (1 - cogsPct - remPct))
-    // With closer: net = leads*cr*aov*(1 - cogsPct - remPct - commPct) - leads*costPerCall - adSpend - overhead = 0
-    // cr = (adSpend + overhead + leads*costPerCall) / (leads * aov * (1 - cogsPct - remPct - commPct))
-    const effectiveRemPct = defaults.hasActiveLoan ? remittancePct : 0;
     let breakEvenCr: number | null = null;
     if (useCloser) {
-      const denom = leadsPerMonth * aov * (1 - cogsPct - effectiveRemPct - commissionPct);
+      const denom = leadsPerMonth * aov * (1 - cogsPct - commissionPct);
       if (denom > 0) breakEvenCr = (adSpend + overhead + leadsPerMonth * costPerCall) / denom;
     } else {
-      const denom = leadsPerMonth * aov * (1 - cogsPct - effectiveRemPct);
+      const denom = leadsPerMonth * aov * (1 - cogsPct);
       if (denom > 0) breakEvenCr = (adSpend + overhead) / denom;
     }
 
-    return { sales, revenue, cogs, loanRemittance, closerCost, netProfit, netMargin, profitPerSale, breakEvenCr };
-  }, [leadsPerMonth, closeRate, aov, adSpend, cogsPct, overhead, remittancePct, useCloser, costPerCall, commissionPct, defaults.hasActiveLoan]);
+    return { sales, revenue, cogs, closerCost, netProfit, netMargin, profitPerSale, breakEvenCr };
+  }, [leadsPerMonth, closeRate, aov, adSpend, cogsPct, overhead, useCloser, costPerCall, commissionPct]);
 
   const profitColor = calc.netProfit < 0
     ? "text-destructive"
@@ -144,7 +132,7 @@ export default function ProjectionSandbox({ defaults }: { defaults: ProjectionDe
             {/* Leads */}
             <div className="space-y-2">
               <Label htmlFor="proj-leads" className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Leads Per Month</Label>
-              <Input id="proj-leads" type="number" className="font-mono" value={leadsPerMonth} onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) setLeadsPerMonth(n); }} />
+              <Input id="proj-leads" type="number" step="1" className="font-mono" value={leadsPerMonth} onChange={(e) => { const n = parseInt(e.target.value, 10); if (!isNaN(n)) setLeadsPerMonth(n); }} />
             </div>
 
             {/* Close Rate */}
@@ -177,13 +165,6 @@ export default function ProjectionSandbox({ defaults }: { defaults: ProjectionDe
               <CurrencyInput id="proj-oh" value={overhead} onChange={setOverhead} />
             </div>
 
-            {/* Shopify Capital Remittance */}
-            {defaults.hasActiveLoan && (
-              <div className="space-y-2">
-                <Label htmlFor="proj-rem" className="flex items-center gap-2"><Landmark className="h-3.5 w-3.5" /> Shopify Capital Remittance %</Label>
-                <PctInput id="proj-rem" value={remittancePct} onChange={setRemittancePct} />
-              </div>
-            )}
           </div>
 
           {/* Closer Toggle */}
@@ -217,9 +198,6 @@ export default function ProjectionSandbox({ defaults }: { defaults: ProjectionDe
         <OutputCard title="Net Profit (Annual)" value={formatCurrency(calc.netProfit * 12)} icon={Wallet} colorClass={profitColor} />
         <OutputCard title="Net Margin %" value={formatPercent(calc.netMargin)} icon={Percent} colorClass={marginColor} />
         <OutputCard title="Profit Per Sale" value={formatCurrency(calc.profitPerSale)} icon={TrendingUp} colorClass={profitColor} />
-        {defaults.hasActiveLoan && (
-          <OutputCard title="Loan Remittance (Monthly)" value={formatCurrency(calc.loanRemittance)} icon={Landmark} />
-        )}
         {useCloser && (
           <OutputCard title="Closer Cost (Monthly)" value={formatCurrency(calc.closerCost)} icon={Phone} />
         )}
