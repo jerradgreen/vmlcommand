@@ -340,10 +340,6 @@ export default function Dashboard() {
         adSpendPerMonth: m.adsMonthlyRunRate,
         cogsPct: m.adjustedCogsPct,
         overheadPerMonth: m.overheadMonthlyRunRate,
-        remittancePct: m.shopifySalesCountInRange > 0 && m.shopifyCapitalPaidInRange > 0
-          ? m.shopifyCapitalPaidInRange / (m.depositRevenue || 1)
-          : 0,
-        hasActiveLoan: m.shopifyCapitalRemaining > 0,
       }} />
 
       {/* ═══ Additional info cards ═══ */}
