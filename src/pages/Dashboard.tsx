@@ -4,6 +4,7 @@ import { MetricSpecId } from "@/lib/metricSpecs";
 import LeadToSaleDetailDialog from "@/components/LeadToSaleDetailDialog";
 import Next7DueDetailDialog from "@/components/Next7DueDetailDialog";
 import ShopifyCapitalManager from "@/components/ShopifyCapitalManager";
+import ProjectionSandbox from "@/components/ProjectionSandbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -328,6 +329,22 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      {/* ═══ Projections / Scenario Sandbox ═══ */}
+      <ProjectionSandbox defaults={{
+        leadsPerMonth: m.revenueMonthlyRunRate > 0 && m.depositRevenue > 0
+          ? m.totalLeads / (m.depositRevenue / m.revenueMonthlyRunRate)
+          : m.totalLeads,
+        closeRatePct: m.closeRate,
+        aov: m.avgOrderValue,
+        adSpendPerMonth: m.adsMonthlyRunRate,
+        cogsPct: m.adjustedCogsPct,
+        overheadPerMonth: m.overheadMonthlyRunRate,
+        remittancePct: m.shopifySalesCountInRange > 0 && m.shopifyCapitalPaidInRange > 0
+          ? m.shopifyCapitalPaidInRange / (m.depositRevenue || 1)
+          : 0,
+        hasActiveLoan: m.shopifyCapitalRemaining > 0,
+      }} />
 
       {/* ═══ Additional info cards ═══ */}
       <div className="grid gap-4 md:grid-cols-3">
