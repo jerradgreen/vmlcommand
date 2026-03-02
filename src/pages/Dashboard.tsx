@@ -5,6 +5,7 @@ import LeadToSaleDetailDialog from "@/components/LeadToSaleDetailDialog";
 import Next7DueDetailDialog from "@/components/Next7DueDetailDialog";
 import ShopifyCapitalManager from "@/components/ShopifyCapitalManager";
 import ProjectionSandbox from "@/components/ProjectionSandbox";
+import FinancialChat from "@/components/FinancialChat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -373,6 +374,9 @@ export default function Dashboard() {
       />
       <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} rangeFrom={m.rangeFrom} rangeTo={m.rangeTo} rangeLabel={rangeLabel} />
       <Next7DueDetailDialog open={next7DueOpen} onOpenChange={setNext7DueOpen} />
+
+      {/* ═══ Financial AI Chat ═══ */}
+      <FinancialChat />
     </div>
   );
 }
