@@ -75,6 +75,49 @@ Deno.serve(async (req) => {
       status: "ok",
     });
 
+    // Fire-and-forget SMS alert via TextMagic
+    try {
+      const tmUser = Deno.env.get("TEXTMAGIC_USERNAME");
+      const tmKey = Deno.env.get("TEXTMAGIC_API_KEY");
+      const tmFrom = Deno.env.get("TEXTMAGIC_FROM");
+      const alertPhone = Deno.env.get("ALERT_PHONE");
+
+      if (tmUser && tmKey && tmFrom && alertPhone) {
+        const smsText = [
+          "🔔 NEW LEAD",
+          `Name: ${body.name || "—"}`,
+          `Phone: ${body.phone || "—"}`,
+          `Wants: "${body.phrase || "—"}"`,
+          `Style: ${body.sign_style || "—"}`,
+          `Size: ${body.size_text || "—"}`,
+          `Budget: ${body.budget_text || "—"}`,
+          `Form: ${row.cognito_form}`,
+        ].join("\n");
+
+        const smsRes = await fetch("https://rest.textmagic.com/api/v2/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-TM-Username": tmUser,
+            "X-TM-Key": tmKey,
+          },
+          body: new URLSearchParams({
+            text: smsText,
+            phones: alertPhone.replace(/^\+/, ""),
+            from: tmFrom.replace(/^\+/, ""),
+          }).toString(),
+        });
+
+        if (!smsRes.ok) {
+          console.error("TextMagic SMS failed:", smsRes.status, await smsRes.text());
+        } else {
+          console.log("SMS alert sent for lead", external_id);
+        }
+      }
+    } catch (smsErr) {
+      console.error("SMS alert error (non-blocking):", smsErr);
+    }
+
     return new Response(
       JSON.stringify({ ok: true, external_id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
