@@ -1,30 +1,18 @@
 
 
-## Add Web Search to Financial AI Chat
+## Financial AI Tax Consultant — Completed
 
-### What Changes
-Add a `search_web` tool to the `financial-chat` edge function using the Perplexity API, and expand the system prompt with tax consultant capabilities. The AI will be able to:
-1. Query your database for actual numbers (existing `run_sql` tool)
-2. Search the web for current tax rates, IRS rules, deadlines, and regulations (new `search_web` tool)
-3. Combine both to give data-backed, current tax and financial advice
+### What Changed
+Expanded the `financial-chat` edge function's system prompt with comprehensive tax consultant capabilities. No external APIs needed — uses the existing Lovable AI model's knowledge.
 
-### Implementation Steps
+### Added Tax Knowledge
+- Business deductions (COGS, advertising, home office, vehicle, equipment, contractors, etc.)
+- Estimated quarterly tax guidance (dates, SE tax rates, safe harbor rules)
+- Entity structure advice (Sole Prop vs LLC vs S-Corp election)
+- Sales tax nexus considerations for neon sign sales
+- Year-end tax planning strategies (SEP-IRA, Solo 401k, expense acceleration)
+- Key tax forms reference (Schedule C, SE, 1099-NEC, 1040-ES, etc.)
+- Mandatory CPA disclaimer on all tax advice
 
-1. **Connect Perplexity** -- link the Perplexity connector so the API key is available as an environment variable in edge functions.
-
-2. **Update `supabase/functions/financial-chat/index.ts`**:
-   - Expand the system prompt with a tax consultant persona (deductions, estimated taxes, entity structures, sales tax, year-end planning, self-employment tax)
-   - Add a second tool `search_web` alongside `run_sql` -- calls Perplexity's `sonar` model to search for current tax/financial information
-   - Include instructions for the AI to use `search_web` when questions involve current rates, deadlines, or recent law changes
-   - Add disclaimer instructions: always recommend consulting a licensed CPA for final decisions
-   - Handle the new tool call in the tool-calling loop
-
-3. **Redeploy the `financial-chat` edge function**
-
-### Technical Detail
-- Perplexity API called via `https://api.perplexity.ai/chat/completions` with the `sonar` model
-- The `search_web` tool takes a `query` string parameter
-- Results include citations which the AI can reference in its answers
-- No frontend changes needed -- the chat component already handles streaming responses
-- No database changes needed
-
+### No Extra Cost
+Skipped Perplexity integration — relies on AI model's built-in knowledge instead of real-time web search.
