@@ -1,82 +1,30 @@
 
 
-## AI Financial Chat for Dashboard
+## Add Web Search to Financial AI Chat
 
-### What We're Building
-A chat widget on the Dashboard page where you can ask natural-language questions about your financial data — transactions, revenue, costs, projections, vendor totals, etc. The AI will query your database and return answers, just like the questions you've been asking me.
-
-### Architecture
-
-```text
-┌─────────────────────────────────┐
-│  Dashboard Page                 │
-│  ┌───────────────────────────┐  │
-│  │ Existing metric cards...  │  │
-│  └───────────────────────────┘  │
-│  ┌───────────────────────────┐  │
-│  │ 💬 Financial AI Chat      │  │
-│  │  Collapsible card/panel   │  │
-│  │  Message history          │  │
-│  │  Input box + send button  │  │
-│  └───────────────────────────┘  │
-└─────────────────────────────────┘
-         │
-         ▼  (streamed SSE)
-┌─────────────────────────────────┐
-│  Edge Function: financial-chat  │
-│  1. Receives user question      │
-│  2. Builds system prompt with   │
-│     - DB schema context         │
-│     - Available tables/columns  │
-│     - SQL tool for querying     │
-│  3. Calls Lovable AI gateway    │
-│     (google/gemini-3-flash)     │
-│  4. Uses tool-calling to run    │
-│     read-only SQL queries       │
-│  5. Streams final answer back   │
-└─────────────────────────────────┘
-```
+### What Changes
+Add a `search_web` tool to the `financial-chat` edge function using the Perplexity API, and expand the system prompt with tax consultant capabilities. The AI will be able to:
+1. Query your database for actual numbers (existing `run_sql` tool)
+2. Search the web for current tax rates, IRS rules, deadlines, and regulations (new `search_web` tool)
+3. Combine both to give data-backed, current tax and financial advice
 
 ### Implementation Steps
 
-1. **Create edge function `supabase/functions/financial-chat/index.ts`**
-   - System prompt describing the full database schema (financial_transactions, sales, leads, bills, cogs_payments, etc.) with column names and category taxonomies
-   - Tool-calling with a `run_sql` tool that executes read-only SELECT queries against the database using the service role key
-   - Safety: only allow SELECT statements, reject anything with INSERT/UPDATE/DELETE/DROP
-   - Streams the AI response back via SSE
-   - Uses Lovable AI gateway with `google/gemini-3-flash-preview`
+1. **Connect Perplexity** -- link the Perplexity connector so the API key is available as an environment variable in edge functions.
 
-2. **Create `src/components/FinancialChat.tsx`**
-   - Collapsible card at the bottom of the dashboard
-   - Message list with user/assistant bubbles, markdown rendering
-   - Input field with send button
-   - Token-by-token streaming display
-   - Conversation history maintained in local state (sent with each request for context)
+2. **Update `supabase/functions/financial-chat/index.ts`**:
+   - Expand the system prompt with a tax consultant persona (deductions, estimated taxes, entity structures, sales tax, year-end planning, self-employment tax)
+   - Add a second tool `search_web` alongside `run_sql` -- calls Perplexity's `sonar` model to search for current tax/financial information
+   - Include instructions for the AI to use `search_web` when questions involve current rates, deadlines, or recent law changes
+   - Add disclaimer instructions: always recommend consulting a licensed CPA for final decisions
+   - Handle the new tool call in the tool-calling loop
 
-3. **Update `src/pages/Dashboard.tsx`**
-   - Add the `FinancialChat` component at the bottom of the dashboard
+3. **Redeploy the `financial-chat` edge function**
 
-4. **Update `supabase/config.toml`**
-   - Add `[functions.financial-chat]` with `verify_jwt = false`
-
-### Technical Details
-
-**System prompt** will include:
-- Complete schema of `financial_transactions` (columns, category taxonomy like `cogs`, `advertising_media`, `domestic_manufacturing`, etc.)
-- Schema of `sales`, `leads`, `bills`, `cogs_payments`, `shopify_capital_loans`
-- Instructions on how amounts work (negative = outflow, positive = inflow for transactions)
-- The `txn_type`, `txn_category`, `txn_subcategory` taxonomy so the AI knows how to filter
-- Date formatting conventions
-- Instructions to use `ABS(amount)` for cost totals, format as currency, etc.
-
-**SQL tool-calling flow:**
-- AI receives the question, decides what SQL to run
-- Edge function executes the SQL (read-only, validated) using Supabase service role
-- Results are passed back to the AI to formulate a natural-language answer
-- Final answer is streamed to the client
-
-**Safety guardrails:**
-- SQL validation: regex check that query starts with SELECT (no mutations)
-- Row limit enforcement (LIMIT 1000 appended if not present)
-- Service role used server-side only, never exposed to client
+### Technical Detail
+- Perplexity API called via `https://api.perplexity.ai/chat/completions` with the `sonar` model
+- The `search_web` tool takes a `query` string parameter
+- Results include citations which the AI can reference in its answers
+- No frontend changes needed -- the chat component already handles streaming responses
+- No database changes needed
 
