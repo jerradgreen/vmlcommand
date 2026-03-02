@@ -273,10 +273,13 @@ export function useDashboardMetrics(range: DateRange) {
       const profitPerSale = rangeSalesCount > 0 ? adjustedNetProfit / rangeSalesCount : 0;
 
       // Monthly run-rates for all cost components
-      const cogsMonthlyRunRate = adjustedCogsTotal / rangeMonths;
+      // Cash COGS is a recurring flow → divide by months in range
+      // Accrued MFG remaining is a backlog liability → amortize over 12 months (like one-time overhead)
+      const cashCogsMonthlyRunRate = cogsTotal / rangeMonths;
+      const accruedMfgMonthlyRunRate = accruedMfgRemaining / 12;
+      const cogsMonthlyRunRate = cashCogsMonthlyRunRate + accruedMfgMonthlyRunRate;
       const adsMonthlyRunRate = adsSpendTotal / rangeMonths;
       const loanMonthlyRunRate = shopifyCapitalPaidInRange / rangeMonths;
-      const accruedMfgMonthlyRunRate = accruedMfgRemaining / rangeMonths;
       const totalOpCostMonthlyRunRate = cogsMonthlyRunRate + adsMonthlyRunRate + overheadMonthlyRunRate + loanMonthlyRunRate;
       // Run-rate net profit: monthly revenue minus monthly run-rate costs
       const revenueMonthlyRunRate = depositRevenue / rangeMonths;
