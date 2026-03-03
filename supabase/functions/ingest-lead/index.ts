@@ -86,11 +86,12 @@ Deno.serve(async (req) => {
         const smsText = [
           "🔔 NEW LEAD",
           `Name: ${body.name || "—"}`,
+          `Email: ${body.email || "—"}`,
           `Phone: ${body.phone || "—"}`,
-          `Wants: "${body.phrase || "—"}"`,
-          `Style: ${body.sign_style || "—"}`,
-          `Size: ${body.size_text || "—"}`,
-          `Budget: ${body.budget_text || "—"}`,
+          `Wants: "${row.phrase || "—"}"`,
+          `Style: ${row.sign_style || "—"}`,
+          `Size: ${row.size_text || "—"}`,
+          `Budget: ${row.budget_text || "—"}`,
           `Form: ${row.cognito_form}`,
         ].join("\n");
 
