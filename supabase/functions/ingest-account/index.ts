@@ -74,8 +74,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  const raw_payload = body.raw_payload != null ? body.raw_payload : body;
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -110,7 +108,6 @@ Deno.serve(async (req) => {
       account_type,
       balance: normalized_balance,
       last_update,
-      raw_payload,
       updated_at: new Date().toISOString(),
     };
 
