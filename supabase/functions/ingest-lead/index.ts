@@ -83,40 +83,82 @@ Deno.serve(async (req) => {
       const alertPhone = Deno.env.get("ALERT_PHONE");
 
       if (tmUser && tmKey && tmFrom && alertPhone) {
-        const asText = (v: unknown) => {
+        const asText = (v: unknown): string => {
           if (typeof v === "string") return v.trim();
           if (typeof v === "number" || typeof v === "boolean") return String(v);
+          if (Array.isArray(v)) return v.map(asText).filter(Boolean).join(", ");
           return "";
         };
 
-        const styleText = asText(row.sign_style) || asText(body.sign_style) || asText(body.sign_type) || "—";
-        const sizeText = asText(row.size_text) || asText(body.size_text) || asText(body.main_text_size) || "—";
-        const budgetText = asText(row.budget_text) || asText(body.budget_text) || asText(body.budget) || "—";
+        const normalizeKey = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        type FlatEntry = { key: string; rootKey: string; normKey: string; value: string };
+        const flattenPayload = (input: unknown, prefix = "", root = ""): FlatEntry[] => {
+          if (input === null || input === undefined) return [];
+
+          if (typeof input === "string" || typeof input === "number" || typeof input === "boolean" || Array.isArray(input)) {
+            const value = asText(input);
+            if (!value) return [];
+            const key = prefix || "value";
+            return [{ key, rootKey: root || key, normKey: normalizeKey(key), value }];
+          }
+
+          if (typeof input === "object") {
+            return Object.entries(input as Record<string, unknown>).flatMap(([k, v]) => {
+              const keyPath = prefix ? `${prefix}.${k}` : k;
+              const rootKey = root || k;
+              return flattenPayload(v, keyPath, rootKey);
+            });
+          }
+
+          return [];
+        };
+
+        const flatEntries = flattenPayload(body);
+
+        const pickByAliases = (aliases: string[]) => {
+          const aliasNorms = aliases.map(normalizeKey);
+          const hit = flatEntries.find((entry) =>
+            aliasNorms.some((alias) => entry.normKey === alias || entry.normKey.endsWith(alias))
+          );
+          return hit?.value || "";
+        };
+
+        const styleText =
+          asText(row.sign_style) ||
+          pickByAliases(["sign_style", "sign_type", "style", "product_type", "product"]) ||
+          "—";
+
+        const sizeText =
+          asText(row.size_text) ||
+          pickByAliases(["size_text", "main_text_size", "size", "dimensions"]) ||
+          "—";
+
+        const budgetText =
+          asText(row.budget_text) ||
+          pickByAliases(["budget_text", "budget", "budget_range", "price_range"]) ||
+          "—";
 
         const explicitWants =
           asText(row.phrase) ||
-          asText(body.phrase) ||
-          asText(body.main_text) ||
-          asText(body.text) ||
-          asText(body.message) ||
-          asText(body.custom_text);
+          pickByAliases(["phrase", "main_text", "text", "message", "custom_text", "inquiry", "details"]) ||
+          "";
 
         const excludedKeys = new Set([
-          "name", "email", "phone", "external_id", "cognito_form", "submitted_at",
-          "phrase", "main_text", "text", "message", "custom_text",
-          "sign_style", "sign_type", "size_text", "main_text_size", "budget_text", "budget",
-          "status", "entry_number"
+          "name", "email", "phone", "externalid", "cognitoform", "submittedat",
+          "phrase", "maintext", "text", "message", "customtext",
+          "signstyle", "signtype", "sizetext", "maintextsize", "budgettext", "budget",
+          "status", "entrynumber"
         ]);
 
-        const allDetails = Object.entries(body)
-          .map(([key, value]) => ({ key, value: asText(value) }))
-          .filter(({ value }) => value)
-          .map(({ key, value }) => `${key}: ${value}`);
+        const allDetails = flatEntries
+          .map(({ key, value }) => `${key}: ${value}`)
+          .slice(0, 20);
 
-        const extraDetails = Object.entries(body)
-          .map(([key, value]) => ({ key, value: asText(value) }))
-          .filter(({ key, value }) => value && !excludedKeys.has(key.toLowerCase()))
-          .map(({ key, value }) => `${key}: ${value}`);
+        const extraDetails = flatEntries
+          .filter(({ rootKey }) => !excludedKeys.has(normalizeKey(rootKey)))
+          .map(({ key, value }) => `${key}: ${value}`)
+          .slice(0, 8);
 
         const wantsSegments = [
           explicitWants,
@@ -126,11 +168,15 @@ Deno.serve(async (req) => {
           ...extraDetails,
         ].filter(Boolean);
 
-        const wantsText = wantsSegments.length > 0
+        const clip = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
+
+        const wantsTextRaw = wantsSegments.length > 0
           ? wantsSegments.join(" | ")
           : `No inquiry details received in webhook payload | Received: ${allDetails.join(" | ") || "(empty payload)"}`;
 
-        const smsText = [
+        const wantsText = clip(wantsTextRaw, 230);
+
+        let smsText = [
           "🔔 NEW LEAD",
           `Name: ${body.name || "—"}`,
           `Email: ${body.email || "—"}`,
@@ -141,6 +187,17 @@ Deno.serve(async (req) => {
           `Budget: ${budgetText}`,
           `Form: ${row.cognito_form}`,
         ].join("\n");
+
+        if (smsText.length > 390) {
+          smsText = [
+            "🔔 NEW LEAD",
+            `Name: ${body.name || "—"}`,
+            `Email: ${body.email || "—"}`,
+            `Phone: ${body.phone || "—"}`,
+            `Wants: "${clip(wantsText, 130)}"`,
+            `Form: ${row.cognito_form}`,
+          ].join("\n");
+        }
 
         const smsRes = await fetch("https://rest.textmagic.com/api/v2/messages", {
           method: "POST",
