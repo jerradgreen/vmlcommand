@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
           body: new URLSearchParams({
             text: smsText,
             phones: alertPhone.replace(/^\+/, ""),
-            from: tmFrom.replace(/^\+/, ""),
+            sendingPhone: tmFrom.replace(/^\+/, ""),
           }).toString(),
         });
 
