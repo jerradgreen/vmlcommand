@@ -108,6 +108,11 @@ Deno.serve(async (req) => {
           "status", "entry_number"
         ]);
 
+        const allDetails = Object.entries(body)
+          .map(([key, value]) => ({ key, value: asText(value) }))
+          .filter(({ value }) => value)
+          .map(({ key, value }) => `${key}: ${value}`);
+
         const extraDetails = Object.entries(body)
           .map(([key, value]) => ({ key, value: asText(value) }))
           .filter(({ key, value }) => value && !excludedKeys.has(key.toLowerCase()))
@@ -123,7 +128,7 @@ Deno.serve(async (req) => {
 
         const wantsText = wantsSegments.length > 0
           ? wantsSegments.join(" | ")
-          : "No inquiry details received in webhook payload";
+          : `No inquiry details received in webhook payload | Received: ${allDetails.join(" | ") || "(empty payload)"}`;
 
         const smsText = [
           "🔔 NEW LEAD",
