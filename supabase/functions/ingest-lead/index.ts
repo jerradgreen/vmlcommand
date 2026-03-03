@@ -44,21 +44,77 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const parseJsonLike = (value: unknown): unknown => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      const looksJson =
+        (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+        (trimmed.startsWith("[") && trimmed.endsWith("]"));
+      if (!looksJson) return value;
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return value;
+      }
+    };
+
+    const toObject = (value: unknown): Record<string, unknown> | null => {
+      const parsed = parseJsonLike(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      return null;
+    };
+
+    const bodyObj = toObject(body) ?? body;
+    const envelopeKeys = [
+      "payload",
+      "data",
+      "entry",
+      "submission",
+      "fields",
+      "form_response",
+      "body",
+      "record",
+    ];
+
+    const envelopeObjects = envelopeKeys
+      .map((k) => toObject((bodyObj as Record<string, unknown>)[k]))
+      .filter((v): v is Record<string, unknown> => Boolean(v));
+
+    const pickValue = (...keys: string[]): unknown => {
+      const sources: Record<string, unknown>[] = [bodyObj as Record<string, unknown>, ...envelopeObjects];
+      for (const source of sources) {
+        for (const key of keys) {
+          const val = source[key];
+          if (val !== undefined && val !== null && !(typeof val === "string" && val.trim() === "")) {
+            return val;
+          }
+        }
+      }
+      return null;
+    };
+
+    console.log("ingest-lead payload keys", {
+      topLevel: Object.keys(bodyObj as Record<string, unknown>),
+      envelopeKeys: envelopeObjects.map((obj) => Object.keys(obj)),
+    });
+
     const row: Record<string, unknown> = {
       source_system: "cognito",
       external_id,
       lead_id: `CF-webhook-${external_id}`,
-      cognito_form: (typeof body.cognito_form === "string" && body.cognito_form) || "webhook",
-      cognito_entry_number: external_id,
-      name: body.name ?? null,
-      email: body.email ?? null,
-      phone: body.phone ?? null,
-      phrase: body.phrase ?? body.main_text ?? null,
-      sign_style: body.sign_style ?? body.sign_type ?? null,
-      size_text: body.size_text ?? body.main_text_size ?? null,
-      budget_text: body.budget_text ?? body.budget ?? null,
-      notes: body.notes ?? body.additional_notes ?? null,
-      submitted_at: body.submitted_at ?? new Date().toISOString(),
+      cognito_form: (typeof pickValue("cognito_form", "form", "form_name") === "string" && pickValue("cognito_form", "form", "form_name")) || "webhook",
+      cognito_entry_number: String(pickValue("entry_number", "cognito_entry_number", "external_id") ?? external_id),
+      name: pickValue("name", "full_name", "contact_name") ?? null,
+      email: pickValue("email", "email_address") ?? null,
+      phone: pickValue("phone", "phone_number", "mobile") ?? null,
+      phrase: pickValue("phrase", "main_text", "text", "message", "custom_text", "inquiry", "details") ?? null,
+      sign_style: pickValue("sign_style", "sign_type", "style", "product_type", "product") ?? null,
+      size_text: pickValue("size_text", "main_text_size", "size", "dimensions") ?? null,
+      budget_text: pickValue("budget_text", "budget", "budget_range", "price_range") ?? null,
+      notes: pickValue("notes", "additional_notes", "comments") ?? null,
+      submitted_at: pickValue("submitted_at", "date_submitted", "timestamp") ?? new Date().toISOString(),
       raw_payload: body,
       ingested_at: new Date().toISOString(),
     };
@@ -121,7 +177,10 @@ Deno.serve(async (req) => {
           return [];
         };
 
-        const flatEntries = flattenPayload(body);
+        const flatEntries = flattenPayload({
+          ...(bodyObj as Record<string, unknown>),
+          _envelopes: envelopeObjects,
+        });
 
         const pickByAliases = (aliases: string[]) => {
           const aliasNorms = aliases.map(normalizeKey);
@@ -201,9 +260,9 @@ Deno.serve(async (req) => {
 
         let smsText = [
           "🔔 NEW LEAD",
-          `Name: ${body.name || "—"}`,
-          `Email: ${body.email || "—"}`,
-          `Phone: ${body.phone || "—"}`,
+          `Name: ${asText(row.name) || "—"}`,
+          `Email: ${asText(row.email) || "—"}`,
+          `Phone: ${asText(row.phone) || "—"}`,
           `Wants: "${wantsText}"`,
           `Style: ${styleText}`,
           `Size: ${sizeText}`,
@@ -214,9 +273,9 @@ Deno.serve(async (req) => {
         if (smsText.length > 390) {
           smsText = [
             "🔔 NEW LEAD",
-            `Name: ${body.name || "—"}`,
-            `Email: ${body.email || "—"}`,
-            `Phone: ${body.phone || "—"}`,
+            `Name: ${asText(row.name) || "—"}`,
+            `Email: ${asText(row.email) || "—"}`,
+            `Phone: ${asText(row.phone) || "—"}`,
             `Wants: "${clip(wantsText, 130)}"`,
             `Form: ${row.cognito_form}`,
           ].join("\n");
