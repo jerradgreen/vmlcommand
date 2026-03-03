@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     const source_system =
       typeof body.source_system === "string" ? body.source_system : "fintable";
 
-    // 1) Override lookup (this is how we fix your checking that can go negative)
+    // Override lookup
     const { data: override, error: overrideErr } = await supabase
       .from("account_type_overrides")
       .select("forced_account_type")
@@ -95,26 +95,20 @@ Deno.serve(async (req) => {
 
     if (overrideErr) throw overrideErr;
 
-    // 2) Determine account_type
-    // If no override exists, fallback is a best-guess only.
     const account_type =
       override?.forced_account_type ??
       (raw_balance < 0 ? "credit_card" : "bank");
 
-    // 3) Normalize balance for storage
-    // - bank: keep signed (can be negative)
-    // - credit_card: store positive debt
     const normalized_balance =
       account_type === "credit_card" ? Math.abs(raw_balance) : raw_balance;
 
     const row = {
       source_system,
       external_account_id,
-      account_name: typeof body.account_name === "string" ? body.account_name : null,
+      account_name: typeof body.account_name === "string" ? body.account_name : "",
       institution: typeof body.institution === "string" ? body.institution : null,
-      account_type, // 'bank' | 'credit_card'
+      account_type,
       balance: normalized_balance,
-      currency: typeof body.currency === "string" ? body.currency : null,
       last_update,
       raw_payload,
       updated_at: new Date().toISOString(),
@@ -127,12 +121,7 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     return new Response(
-      JSON.stringify({
-        ok: true,
-        external_account_id,
-        account_type,
-        balance: normalized_balance,
-      }),
+      JSON.stringify({ ok: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: unknown) {
