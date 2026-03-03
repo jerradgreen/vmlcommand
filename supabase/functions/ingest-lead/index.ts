@@ -83,15 +83,34 @@ Deno.serve(async (req) => {
       const alertPhone = Deno.env.get("ALERT_PHONE");
 
       if (tmUser && tmKey && tmFrom && alertPhone) {
+        const asText = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+        const styleText = asText(row.sign_style) || asText(body.sign_style) || asText(body.sign_type) || "—";
+        const sizeText = asText(row.size_text) || asText(body.size_text) || asText(body.main_text_size) || "—";
+        const budgetText = asText(row.budget_text) || asText(body.budget_text) || asText(body.budget) || "—";
+
+        const wantsParts = [
+          asText(row.phrase) || asText(body.phrase) || asText(body.main_text),
+          asText(body.text),
+          asText(body.message),
+          asText(body.custom_text),
+          asText(body.notes) || asText(body.additional_notes),
+        ].filter(Boolean);
+
+        const wantsText = wantsParts.length > 0
+          ? wantsParts.join(" | ")
+          : [styleText !== "—" ? `Style: ${styleText}` : "", sizeText !== "—" ? `Size: ${sizeText}` : "", budgetText !== "—" ? `Budget: ${budgetText}` : ""]
+              .filter(Boolean)
+              .join(" | ") || "—";
+
         const smsText = [
           "🔔 NEW LEAD",
           `Name: ${body.name || "—"}`,
           `Email: ${body.email || "—"}`,
           `Phone: ${body.phone || "—"}`,
-          `Wants: "${row.phrase || "—"}"`,
-          `Style: ${row.sign_style || "—"}`,
-          `Size: ${row.size_text || "—"}`,
-          `Budget: ${row.budget_text || "—"}`,
+          `Wants: "${wantsText}"`,
+          `Style: ${styleText}`,
+          `Size: ${sizeText}`,
+          `Budget: ${budgetText}`,
           `Form: ${row.cognito_form}`,
         ].join("\n");
 
