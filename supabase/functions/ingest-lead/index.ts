@@ -86,7 +86,6 @@ Deno.serve(async (req) => {
         const asText = (v: unknown): string => {
           if (typeof v === "string") return v.trim();
           if (typeof v === "number" || typeof v === "boolean") return String(v);
-          if (Array.isArray(v)) return v.map(asText).filter(Boolean).join(", ");
           return "";
         };
 
@@ -96,7 +95,15 @@ Deno.serve(async (req) => {
         const flattenPayload = (input: unknown, prefix = "", root = ""): FlatEntry[] => {
           if (input === null || input === undefined) return [];
 
-          if (typeof input === "string" || typeof input === "number" || typeof input === "boolean" || Array.isArray(input)) {
+          if (Array.isArray(input)) {
+            return input.flatMap((item, idx) => {
+              const keyPath = prefix ? `${prefix}[${idx}]` : `[${idx}]`;
+              const rootKey = root || prefix || `item_${idx}`;
+              return flattenPayload(item, keyPath, rootKey);
+            });
+          }
+
+          if (typeof input === "string" || typeof input === "number" || typeof input === "boolean") {
             const value = asText(input);
             if (!value) return [];
             const key = prefix || "value";
@@ -119,7 +126,19 @@ Deno.serve(async (req) => {
         const pickByAliases = (aliases: string[]) => {
           const aliasNorms = aliases.map(normalizeKey);
           const hit = flatEntries.find((entry) =>
-            aliasNorms.some((alias) => entry.normKey === alias || entry.normKey.endsWith(alias))
+            aliasNorms.some((alias) =>
+              entry.normKey === alias ||
+              entry.normKey.endsWith(alias) ||
+              entry.normKey.includes(alias)
+            )
+          );
+          return hit?.value || "";
+        };
+
+        const pickByHeuristic = (patterns: string[]) => {
+          const patternNorms = patterns.map(normalizeKey);
+          const hit = flatEntries.find((entry) =>
+            patternNorms.some((pattern) => entry.normKey.includes(pattern))
           );
           return hit?.value || "";
         };
@@ -127,21 +146,25 @@ Deno.serve(async (req) => {
         const styleText =
           asText(row.sign_style) ||
           pickByAliases(["sign_style", "sign_type", "style", "product_type", "product"]) ||
+          pickByHeuristic(["style", "font", "mount", "finish", "material", "type"]) ||
           "—";
 
         const sizeText =
           asText(row.size_text) ||
           pickByAliases(["size_text", "main_text_size", "size", "dimensions"]) ||
+          pickByHeuristic(["size", "dimension", "width", "height", "inch", "feet", "ft"]) ||
           "—";
 
         const budgetText =
           asText(row.budget_text) ||
           pickByAliases(["budget_text", "budget", "budget_range", "price_range"]) ||
+          pickByHeuristic(["budget", "price", "cost", "range", "spend"]) ||
           "—";
 
         const explicitWants =
           asText(row.phrase) ||
           pickByAliases(["phrase", "main_text", "text", "message", "custom_text", "inquiry", "details"]) ||
+          pickByHeuristic(["whatshoulditsay", "wording", "copy", "message", "phrase", "text", "line1", "lineone"]) ||
           "";
 
         const excludedKeys = new Set([
@@ -156,17 +179,17 @@ Deno.serve(async (req) => {
           .slice(0, 20);
 
         const extraDetails = flatEntries
-          .filter(({ rootKey }) => !excludedKeys.has(normalizeKey(rootKey)))
+          .filter(({ rootKey, normKey }) => !excludedKeys.has(normalizeKey(rootKey)) && !excludedKeys.has(normKey))
           .map(({ key, value }) => `${key}: ${value}`)
           .slice(0, 8);
 
-        const wantsSegments = [
+        const wantsSegments = Array.from(new Set([
           explicitWants,
           styleText !== "—" ? `Style: ${styleText}` : "",
           sizeText !== "—" ? `Size: ${sizeText}` : "",
           budgetText !== "—" ? `Budget: ${budgetText}` : "",
           ...extraDetails,
-        ].filter(Boolean);
+        ].filter(Boolean)));
 
         const clip = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
 
