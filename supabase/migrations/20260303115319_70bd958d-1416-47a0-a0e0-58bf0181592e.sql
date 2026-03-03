@@ -1,0 +1,1 @@
+ALTER TABLE public.account_balances ADD COLUMN IF NOT EXISTS last_update timestamp with time zone;

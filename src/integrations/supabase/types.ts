@@ -22,6 +22,7 @@ export type Database = {
           external_account_id: string
           id: string
           institution: string | null
+          last_update: string | null
           source_system: string
           updated_at: string
         }
@@ -32,6 +33,7 @@ export type Database = {
           external_account_id: string
           id?: string
           institution?: string | null
+          last_update?: string | null
           source_system?: string
           updated_at?: string
         }
@@ -42,6 +44,7 @@ export type Database = {
           external_account_id?: string
           id?: string
           institution?: string | null
+          last_update?: string | null
           source_system?: string
           updated_at?: string
         }
