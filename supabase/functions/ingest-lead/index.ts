@@ -83,24 +83,47 @@ Deno.serve(async (req) => {
       const alertPhone = Deno.env.get("ALERT_PHONE");
 
       if (tmUser && tmKey && tmFrom && alertPhone) {
-        const asText = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+        const asText = (v: unknown) => {
+          if (typeof v === "string") return v.trim();
+          if (typeof v === "number" || typeof v === "boolean") return String(v);
+          return "";
+        };
+
         const styleText = asText(row.sign_style) || asText(body.sign_style) || asText(body.sign_type) || "—";
         const sizeText = asText(row.size_text) || asText(body.size_text) || asText(body.main_text_size) || "—";
         const budgetText = asText(row.budget_text) || asText(body.budget_text) || asText(body.budget) || "—";
 
-        const wantsParts = [
-          asText(row.phrase) || asText(body.phrase) || asText(body.main_text),
-          asText(body.text),
-          asText(body.message),
-          asText(body.custom_text),
-          asText(body.notes) || asText(body.additional_notes),
+        const explicitWants =
+          asText(row.phrase) ||
+          asText(body.phrase) ||
+          asText(body.main_text) ||
+          asText(body.text) ||
+          asText(body.message) ||
+          asText(body.custom_text);
+
+        const excludedKeys = new Set([
+          "name", "email", "phone", "external_id", "cognito_form", "submitted_at",
+          "phrase", "main_text", "text", "message", "custom_text",
+          "sign_style", "sign_type", "size_text", "main_text_size", "budget_text", "budget",
+          "status", "entry_number"
+        ]);
+
+        const extraDetails = Object.entries(body)
+          .map(([key, value]) => ({ key, value: asText(value) }))
+          .filter(({ key, value }) => value && !excludedKeys.has(key.toLowerCase()))
+          .map(({ key, value }) => `${key}: ${value}`);
+
+        const wantsSegments = [
+          explicitWants,
+          styleText !== "—" ? `Style: ${styleText}` : "",
+          sizeText !== "—" ? `Size: ${sizeText}` : "",
+          budgetText !== "—" ? `Budget: ${budgetText}` : "",
+          ...extraDetails,
         ].filter(Boolean);
 
-        const wantsText = wantsParts.length > 0
-          ? wantsParts.join(" | ")
-          : [styleText !== "—" ? `Style: ${styleText}` : "", sizeText !== "—" ? `Size: ${sizeText}` : "", budgetText !== "—" ? `Budget: ${budgetText}` : ""]
-              .filter(Boolean)
-              .join(" | ") || "—";
+        const wantsText = wantsSegments.length > 0
+          ? wantsSegments.join(" | ")
+          : "No inquiry details received in webhook payload";
 
         const smsText = [
           "🔔 NEW LEAD",
