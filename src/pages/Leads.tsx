@@ -33,12 +33,21 @@ export default function Leads() {
   const { data: leads, isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("submitted_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const allRows: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .order("submitted_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        allRows.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allRows;
     },
   });
 
