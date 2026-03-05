@@ -188,9 +188,27 @@ export default function CogsReconciliation() {
       const { error } = await supabase.from("cogs_allocations").insert(rows);
       if (error) throw error;
 
-      // Mark all allocated sales as "paid"
+      // Recompute status for each allocated sale based on total allocations vs estimated COGS
       for (const a of allocations.filter((x) => x.amount > 0)) {
-        await supabase.from("sales").update({ manufacturing_status: "paid" }).eq("id", a.sale_id);
+        const { data: allAllocs } = await supabase
+          .from("cogs_allocations")
+          .select("allocated_amount")
+          .eq("sale_id", a.sale_id);
+        const totalAlloc = (allAllocs ?? []).reduce((s, r) => s + Number(r.allocated_amount), 0);
+
+        const { data: saleData } = await supabase
+          .from("sales")
+          .select("revenue, estimated_cogs_pct")
+          .eq("id", a.sale_id)
+          .single();
+
+        if (saleData) {
+          const estimated = Number(saleData.revenue ?? 0) * Number(saleData.estimated_cogs_pct);
+          let status = "unpaid";
+          if (totalAlloc > 0 && totalAlloc < estimated) status = "partial";
+          if (totalAlloc >= estimated) status = "paid";
+          await supabase.from("sales").update({ manufacturing_status: status }).eq("id", a.sale_id);
+        }
       }
     },
     onSuccess: () => {
@@ -407,6 +425,7 @@ export default function CogsReconciliation() {
                       <TableHead>Product</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right">Est Mfg</TableHead>
+                      <TableHead className="text-right">Allocated</TableHead>
                       {allocationMode === "manual" && <TableHead className="text-right">Amount</TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -427,6 +446,18 @@ export default function CogsReconciliation() {
                           <TableCell className="text-xs max-w-[140px] truncate" title={s.product_name ?? ""}>{s.product_name ?? "—"}</TableCell>
                           <TableCell className="text-right text-xs">{formatCurrency(s.revenue)}</TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">{formatCurrency(s.revenue * s.estimated_cogs_pct)}</TableCell>
+                          <TableCell className="text-right text-xs">
+                            {s.allocated_mfg > 0 ? (
+                              <span className={cn(
+                                "font-medium",
+                                s.allocated_mfg >= s.revenue * s.estimated_cogs_pct ? "text-emerald-600" : "text-amber-600"
+                              )}>
+                                {formatCurrency(s.allocated_mfg)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           {allocationMode === "manual" && selectedSaleIds.has(s.id) && (
                             <TableCell className="text-right">
                               <Input
