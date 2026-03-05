@@ -1,28 +1,17 @@
 
 
-## Fix: Allow Multiple Payments to One Sale
+## Fix: "No allocations to save" Error in Manual Mode
 
-### The Problem
-The current code has a bug that prevents your exact scenario. When you allocate the first $3,305 FosterWeld payment to #VML18408, the code immediately marks that sale as **"paid"** (line 192-193) regardless of the amount. The sale then disappears from the "Unpaid only" list, so you can't allocate the second $3,316.24 payment to it.
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-### The Fix
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-**Step 1: Smart status calculation after allocation**
-Instead of blindly marking every allocated sale as "paid", compute the correct status based on total allocations vs. estimated manufacturing cost:
-- **unpaid**: no allocations yet
-- **partial**: some allocations but total < estimated COGS (revenue x estimated_cogs_pct)
-- **paid**: total allocations >= estimated COGS
+### Fix
 
-This way, after allocating $3,305 to #VML18408 (estimated mfg = $6,500 at 50%), the sale stays as "partial" and remains visible for the second allocation.
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**Step 2: Show allocation progress on the sales table**
-Add a small indicator showing how much has already been allocated to each sale, so you can see at a glance that #VML18408 already has $3,305 allocated and needs more.
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-### Your Workflow After the Fix
-1. Click the $3,305 FosterWeld payment on the left
-2. Check #VML18408 on the right, switch to Manual mode, enter `3305`, save
-3. Sale stays as "partial" in the list
-4. Click the $3,316.24 FosterWeld payment on the left
-5. Check #VML18408 again, enter `3316.24`, save
-6. Sale now has $6,621.24 allocated (exceeds $6,500 estimate) and flips to "paid"
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
