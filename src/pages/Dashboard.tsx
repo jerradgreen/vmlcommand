@@ -1,5 +1,6 @@
 import { useState } from "react";
 import MetricDrilldownDialog from "@/components/MetricDrilldownDialog";
+import TrendLeadDetailDialog from "@/components/TrendLeadDetailDialog";
 import { MetricSpecId } from "@/lib/metricSpecs";
 import LeadToSaleDetailDialog from "@/components/LeadToSaleDetailDialog";
 import Next7DueDetailDialog from "@/components/Next7DueDetailDialog";
@@ -85,19 +86,24 @@ const chartConfig = {
   adSpend: { label: "Ad Spend", color: "hsl(0, 72%, 50%)" },
 };
 
-function TrendChart({ data, dataKey, label, formatFn }: {
+function TrendChart({ data, dataKey, label, formatFn, onPointClick }: {
   data: { date: string; [key: string]: any }[]; dataKey: string; label: string; formatFn?: (v: number) => string;
+  onPointClick?: (date: string) => void;
 }) {
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{label} Trend</CardTitle></CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[200px] w-full">
-          <LineChart data={data}>
+          <LineChart data={data} onClick={(e) => {
+            if (onPointClick && e?.activePayload?.[0]?.payload?.date) {
+              onPointClick(e.activePayload[0].payload.date);
+            }
+          }} style={onPointClick ? { cursor: "pointer" } : undefined}>
             <XAxis dataKey="date" tickFormatter={(d) => format(new Date(d), "MMM d")} tick={{ fontSize: 11 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={formatFn} width={50} />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Line type="monotone" dataKey={dataKey} stroke={`var(--color-${dataKey})`} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey={dataKey} stroke={`var(--color-${dataKey})`} strokeWidth={2} dot={false} activeDot={onPointClick ? { r: 5, cursor: "pointer" } : undefined} />
           </LineChart>
         </ChartContainer>
       </CardContent>
@@ -119,6 +125,7 @@ export default function Dashboard() {
   const [drilldown, setDrilldown] = useState<{ open: boolean; specId: MetricSpecId | null }>({ open: false, specId: null });
   const [leadToSaleOpen, setLeadToSaleOpen] = useState(false);
   const [next7DueOpen, setNext7DueOpen] = useState(false);
+  const [trendLeadDate, setTrendLeadDate] = useState<string | null>(null);
   
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
@@ -357,7 +364,7 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
           <TrendChart data={trends} dataKey="adSpend" label="Ad Spend" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-          <TrendChart data={trends} dataKey="leads" label="Leads" />
+          <TrendChart data={trends} dataKey="leads" label="Leads" onPointClick={(d) => setTrendLeadDate(d)} />
           <TrendChart data={trends} dataKey="sales" label="Sales" />
         </div>
       )}
@@ -374,6 +381,7 @@ export default function Dashboard() {
       />
       <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} rangeFrom={m.rangeFrom} rangeTo={m.rangeTo} rangeLabel={rangeLabel} />
       <Next7DueDetailDialog open={next7DueOpen} onOpenChange={setNext7DueOpen} />
+      <TrendLeadDetailDialog open={!!trendLeadDate} onOpenChange={(open) => { if (!open) setTrendLeadDate(null); }} date={trendLeadDate} />
 
       {/* ═══ Financial AI Chat ═══ */}
       <FinancialChat />

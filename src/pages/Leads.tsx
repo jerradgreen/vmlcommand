@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Search, ArrowUpDown } from "lucide-react";
+import { Search, ArrowUpDown, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 type SortKey = "submitted_at" | "name" | "email" | "phrase" | "cognito_form" | "status";
 type SortDir = "asc" | "desc";
@@ -25,10 +27,12 @@ function SortableHead({ label, sortKey, current, dir, onSort }: {
 }
 
 export default function Leads() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [formFilter, setFormFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["leads"],
@@ -98,6 +102,21 @@ export default function Leads() {
     });
   }, [leads, search, formFilter, sortKey, sortDir, matchedLeadIds]);
 
+  const handleDelete = async (id: string) => {
+    setDeleting(id);
+    const { error } = await supabase.from("leads").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete lead");
+    } else {
+      toast.success("Lead deleted");
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["trend-data"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["matched-lead-ids"] });
+    }
+    setDeleting(null);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -136,12 +155,13 @@ export default function Leads() {
                 <SortableHead label="Phrase" sortKey="phrase" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Form" sortKey="cognito_form" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No leads found. Import data to get started.
                   </TableCell>
                 </TableRow>
@@ -163,6 +183,17 @@ export default function Leads() {
                       ) : (
                         <Badge variant="outline" className="text-xs">Unmatched</Badge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(lead.id)}
+                        disabled={deleting === lead.id}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
