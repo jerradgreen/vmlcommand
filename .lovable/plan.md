@@ -1,31 +1,28 @@
 
 
-## Fix Misclassified Transactions
+## Fix: Allow Multiple Payments to One Sale
 
-### What I Found
+### The Problem
+The current code has a bug that prevents your exact scenario. When you allocate the first $3,305 FosterWeld payment to #VML18408, the code immediately marks that sale as **"paid"** (line 192-193) regardless of the amount. The sale then disappears from the "Unpaid only" list, so you can't allocate the second $3,316.24 payment to it.
 
-Looking at the specific transactions you mentioned:
+### The Fix
 
-1. **Venmo $282.09** (id: `227e038f`) — currently classified as `shipping_cogs` / `freight_international`. This should be `contractor_payments` like the other Venmo/Alex Gilmore transactions.
+**Step 1: Smart status calculation after allocation**
+Instead of blindly marking every allocated sale as "paid", compute the correct status based on total allocations vs. estimated manufacturing cost:
+- **unpaid**: no allocations yet
+- **partial**: some allocations but total < estimated COGS (revenue x estimated_cogs_pct)
+- **paid**: total allocations >= estimated COGS
 
-2. **ADP Fees** — already correctly classified as `merchant_fees` / `adp`. No change needed there.
+This way, after allocating $3,305 to #VML18408 (estimated mfg = $6,500 at 50%), the sale stays as "partial" and remains visible for the second allocation.
 
-The COGS breakdown (YTD from 2025):
-- **cogs**: $221,225 (manufacturing — wire transfers, Foster Weld, Best Neon Sign)
-- **shipping_cogs**: $11,139 (includes the misclassified $282 Venmo)
-- **merchant_fees**: $537
+**Step 2: Show allocation progress on the sales table**
+Add a small indicator showing how much has already been allocated to each sale, so you can see at a glance that #VML18408 already has $3,305 allocated and needs more.
 
-### Plan
-
-**Step 1: Fix the Venmo transaction data**
-Update the Venmo transaction `227e038f` to:
-- `txn_category` → `contractor_payments`
-- `txn_subcategory` → `freelance_labor`
-- `vendor` → `Alex Gilmore`
-
-**Step 2: Update/create transaction rules to prevent recurrence**
-Check if the existing Venmo rule is too broad (matching all Venmo transactions as shipping). If so, update or add a more specific rule so future Venmo transactions default to `contractor_payments` instead of `shipping_cogs`.
-
-**Step 3: Investigate the 80% COGS concern**
-The $221K in COGS is the bulk. I'll query the deposit revenue to show you the actual COGS % breakdown so we can verify whether it's truly 80% or if there are additional misclassified transactions inflating it.
+### Your Workflow After the Fix
+1. Click the $3,305 FosterWeld payment on the left
+2. Check #VML18408 on the right, switch to Manual mode, enter `3305`, save
+3. Sale stays as "partial" in the list
+4. Click the $3,316.24 FosterWeld payment on the left
+5. Check #VML18408 again, enter `3316.24`, save
+6. Sale now has $6,621.24 allocated (exceeds $6,500 estimate) and flips to "paid"
 
