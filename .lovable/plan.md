@@ -1,26 +1,31 @@
 
 
-## Make Trend Charts Reactive to Data Changes
+## Fix Misclassified Transactions
 
-### Problem
-The trend charts use `useTrendData` which caches results via React Query. When you delete leads (or any data), the charts don't refresh until a full page reload.
+### What I Found
+
+Looking at the specific transactions you mentioned:
+
+1. **Venmo $282.09** (id: `227e038f`) — currently classified as `shipping_cogs` / `freight_international`. This should be `contractor_payments` like the other Venmo/Alex Gilmore transactions.
+
+2. **ADP Fees** — already correctly classified as `merchant_fees` / `adp`. No change needed there.
+
+The COGS breakdown (YTD from 2025):
+- **cogs**: $221,225 (manufacturing — wire transfers, Foster Weld, Best Neon Sign)
+- **shipping_cogs**: $11,139 (includes the misclassified $282 Venmo)
+- **merchant_fees**: $537
 
 ### Plan
 
-**Step 1: Add query invalidation after data mutations**
-- When leads are deleted (from the Leads page), invalidate the `trend-data` and `dashboard-metrics` query keys so the charts automatically recalculate.
-- Update the Leads page to call `queryClient.invalidateQueries({ queryKey: ["trend-data"] })` and `queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] })` after any deletion.
+**Step 1: Fix the Venmo transaction data**
+Update the Venmo transaction `227e038f` to:
+- `txn_category` → `contractor_payments`
+- `txn_subcategory` → `freelance_labor`
+- `vendor` → `Alex Gilmore`
 
-**Step 2: Make trend chart points clickable (leads chart)**
-- When a user clicks a data point on the Leads Trend chart, open a dialog showing the individual leads for that day.
-- This lets you inspect who the leads are and decide if any need removal.
-- The dialog will include a "Delete" button per lead, and after deletion the charts will auto-refresh.
+**Step 2: Update/create transaction rules to prevent recurrence**
+Check if the existing Venmo rule is too broad (matching all Venmo transactions as shipping). If so, update or add a more specific rule so future Venmo transactions default to `contractor_payments` instead of `shipping_cogs`.
 
-**Step 3: Delete the Greg Goldschmidt duplicate**
-- Run a migration to delete the duplicate entry (keep the earlier "Greg Goldschmidt" at 16:24, remove "Gregory Goldschmidt" at 16:33).
-
-### Technical Details
-- The `TrendChart` component will get an optional `onPointClick` callback
-- A new `TrendLeadDetailDialog` component will query leads for a specific date and allow deletion
-- React Query's `invalidateQueries` ensures all cached metrics and trends re-fetch after any mutation
+**Step 3: Investigate the 80% COGS concern**
+The $221K in COGS is the bulk. I'll query the deposit revenue to show you the actual COGS % breakdown so we can verify whether it's truly 80% or if there are additional misclassified transactions inflating it.
 
