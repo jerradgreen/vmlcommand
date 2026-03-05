@@ -332,7 +332,7 @@ export default function CogsReconciliation() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mfgTxns.map((t) => {
+                  {mfgTxns.filter((t) => Math.abs(t.amount) - t.allocated > 0.01).map((t) => {
                     const remaining = Math.abs(t.amount) - t.allocated;
                     return (
                       <TableRow
