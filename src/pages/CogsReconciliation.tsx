@@ -282,6 +282,11 @@ export default function CogsReconciliation() {
         sale_id: id,
         amount: Number(manualAmounts[id] ?? 0),
       }));
+      const hasNonZero = allocations.some((a) => a.amount > 0);
+      if (!hasNonZero) {
+        toast({ title: "No amounts entered", description: "Please enter an amount for at least one selected sale.", variant: "destructive" });
+        return;
+      }
     }
     saveAllocationMutation.mutate(allocations);
   };
@@ -482,7 +487,16 @@ export default function CogsReconciliation() {
               <div className="border-t p-3 space-y-3">
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium">Mode:</span>
-                  <Select value={allocationMode} onValueChange={(v) => setAllocationMode(v as "auto" | "manual")}>
+                  <Select value={allocationMode} onValueChange={(v) => {
+                    const mode = v as "auto" | "manual";
+                    setAllocationMode(mode);
+                    if (mode === "manual" && selectedSaleIds.size > 0 && txnRemainingUnallocated > 0) {
+                      const perSale = Math.round((txnRemainingUnallocated / selectedSaleIds.size) * 100) / 100;
+                      const prefilled: Record<string, string> = {};
+                      selectedSaleIds.forEach((id) => { prefilled[id] = String(perSale); });
+                      setManualAmounts(prefilled);
+                    }
+                  }}>
                     <SelectTrigger className="w-32 h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
