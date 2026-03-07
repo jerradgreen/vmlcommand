@@ -84,6 +84,3 @@ export function getCostGroupCategories(group: string): string[] {
 export function categoryLabel(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-export function categoryLabel(key: string): string {
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
