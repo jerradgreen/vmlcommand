@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getAllParentCategories, categoryLabel } from "@/lib/categoryTaxonomy";
+import { useState, useMemo } from "react";
+import { getAllParentCategories, categoryLabel, getCostGroupCategories } from "@/lib/categoryTaxonomy";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,13 +11,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Play, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Play, Plus, Pencil, Trash2, Search, ArrowUpDown, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import TransactionEditSheet from "@/components/TransactionEditSheet";
 import RuleFormDialog from "@/components/RuleFormDialog";
 import TransactionCsvImport from "@/components/TransactionCsvImport";
 import BulkLabelBar from "@/components/BulkLabelBar";
+import { formatCurrency } from "@/lib/format";
 
 const PAGE_SIZE = 50;
 
@@ -81,10 +82,20 @@ function TransactionsTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [costGroupFilter, setCostGroupFilter] = useState<string>("all");
   const [ruleFilter, setRuleFilter] = useState<string>("all");
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   const [editTxn, setEditTxn] = useState<TransactionRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [amountSort, setAmountSort] = useState<"none" | "asc" | "desc">("none");
+
+  // Resolve cost group to array of categories
+  const costGroupCats = useMemo(() => {
+    if (costGroupFilter === "all" || costGroupFilter === "uncategorized") return null;
+    return getCostGroupCategories(costGroupFilter);
+  }, [costGroupFilter]);
 
   // Fetch rules with transaction counts for the audit dropdown
   const { data: ruleOptions } = useQuery({
@@ -95,7 +106,6 @@ function TransactionsTab() {
         .select("id, match_value, match_type, is_active");
       if (rulesErr) throw rulesErr;
 
-      // Get counts per rule
       const { data: counts, error: countErr } = await supabase
         .from("financial_transactions")
         .select("rule_id_applied")
@@ -115,28 +125,34 @@ function TransactionsTab() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions", page, search, typeFilter, categoryFilter, ruleFilter, uncategorizedOnly],
+    queryKey: ["transactions", page, search, typeFilter, categoryFilter, costGroupFilter, ruleFilter, uncategorizedOnly, dateFrom, dateTo, amountSort],
     queryFn: async () => {
       let q = supabase
         .from("financial_transactions")
-        .select("id, txn_date, description, amount, account_name, txn_type, txn_category, txn_subcategory, vendor, is_locked, is_recurring, rule_id_applied, classified_at", { count: "exact" })
-        .order("txn_date", { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        .select("id, txn_date, description, amount, account_name, txn_type, txn_category, txn_subcategory, vendor, is_locked, is_recurring, rule_id_applied, classified_at", { count: "exact" });
 
-      if (search) {
-        q = q.ilike("description", `%${search}%`);
+      // Sorting
+      if (amountSort !== "none") {
+        q = q.order("amount", { ascending: amountSort === "asc" }).order("txn_date", { ascending: false });
+      } else {
+        q = q.order("txn_date", { ascending: false });
       }
-      if (typeFilter !== "all") {
-        q = q.eq("txn_type", typeFilter);
-      }
-      if (categoryFilter !== "all") {
-        q = q.eq("txn_category", categoryFilter);
-      }
-      if (ruleFilter !== "all") {
-        q = q.eq("rule_id_applied", ruleFilter);
-      }
-      if (uncategorizedOnly) {
-        q = q.is("txn_type", null);
+
+      q = q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (search) q = q.ilike("description", `%${search}%`);
+      if (typeFilter !== "all") q = q.eq("txn_type", typeFilter);
+      if (categoryFilter !== "all") q = q.eq("txn_category", categoryFilter);
+      if (ruleFilter !== "all") q = q.eq("rule_id_applied", ruleFilter);
+      if (uncategorizedOnly) q = q.is("txn_type", null);
+      if (dateFrom) q = q.gte("txn_date", dateFrom);
+      if (dateTo) q = q.lte("txn_date", dateTo);
+
+      // Cost group filter
+      if (costGroupFilter === "uncategorized") {
+        q = q.is("txn_category", null);
+      } else if (costGroupCats && costGroupCats.length > 0) {
+        q = q.in("txn_category", costGroupCats);
       }
 
       const { data: rows, count, error } = await q;
@@ -144,6 +160,13 @@ function TransactionsTab() {
       return { rows: (rows ?? []) as TransactionRow[], total: count ?? 0 };
     },
   });
+
+  // Compute sum of amounts on current page for the summary bar
+  const { filteredTotal } = useMemo(() => {
+    const rows = data?.rows ?? [];
+    const sum = rows.reduce((acc, r) => acc + r.amount, 0);
+    return { filteredTotal: sum };
+  }, [data?.rows]);
 
   const runRulesMutation = useMutation({
     mutationFn: async () => {
@@ -162,9 +185,18 @@ function TransactionsTab() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const toggleAmountSort = () => {
+    setAmountSort((prev) => {
+      if (prev === "none") return "desc";
+      if (prev === "desc") return "asc";
+      return "none";
+    });
+    setPage(0);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Filters Row 1 */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -175,6 +207,17 @@ function TransactionsTab() {
             className="pl-9"
           />
         </div>
+        <Select value={costGroupFilter} onValueChange={(v) => { setCostGroupFilter(v); setCategoryFilter("all"); setPage(0); }}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Cost Group" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Groups</SelectItem>
+            <SelectItem value="cogs">COGS</SelectItem>
+            <SelectItem value="ads">Ads</SelectItem>
+            <SelectItem value="overhead">Overhead</SelectItem>
+            <SelectItem value="transfers">Transfers</SelectItem>
+            <SelectItem value="uncategorized">Uncategorized</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
           <SelectTrigger className="w-[140px]"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
@@ -201,6 +244,30 @@ function TransactionsTab() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Filters Row 2 */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="date-from" className="text-sm text-muted-foreground whitespace-nowrap">From</Label>
+          <Input
+            id="date-from"
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+            className="w-[150px] h-9"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="date-to" className="text-sm text-muted-foreground whitespace-nowrap">To</Label>
+          <Input
+            id="date-to"
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+            className="w-[150px] h-9"
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Switch id="uncat" checked={uncategorizedOnly} onCheckedChange={(v) => { setUncategorizedOnly(v); setPage(0); }} />
           <Label htmlFor="uncat" className="text-sm whitespace-nowrap">Uncategorized only</Label>
@@ -210,6 +277,31 @@ function TransactionsTab() {
           <Play className="h-4 w-4 mr-1" />
           Run Rules
         </Button>
+      </div>
+
+      {/* Filter Summary Bar */}
+      <div className="flex items-center gap-4 rounded-md border border-border bg-muted/50 px-4 py-2 text-sm">
+        <span className="text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{total.toLocaleString()}</span> transactions
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-muted-foreground">
+          Page total: <span className="font-medium text-foreground">{formatCurrency(filteredTotal)}</span>
+        </span>
+        {costGroupFilter !== "all" && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <Badge variant="secondary" className="capitalize">{costGroupFilter}</Badge>
+          </>
+        )}
+        {(dateFrom || dateTo) && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground text-xs">
+              {dateFrom || "…"} → {dateTo || "…"}
+            </span>
+          </>
+        )}
       </div>
 
       {/* Bulk Label Bar */}
@@ -239,7 +331,14 @@ function TransactionsTab() {
             </TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <TableHead className="text-right">
+              <Button variant="ghost" size="sm" className="h-auto p-0 font-medium hover:bg-transparent" onClick={toggleAmountSort}>
+                Amount
+                <ArrowUpDown className={`ml-1 h-3.5 w-3.5 ${amountSort !== "none" ? "text-foreground" : "text-muted-foreground"}`} />
+                {amountSort === "desc" && <span className="text-xs ml-0.5">↓</span>}
+                {amountSort === "asc" && <span className="text-xs ml-0.5">↑</span>}
+              </Button>
+            </TableHead>
             <TableHead>Account</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Category</TableHead>
@@ -304,7 +403,6 @@ function TransactionsTab() {
     </div>
   );
 }
-
 /* ─── Rules Tab ─── */
 
 function RulesTab() {

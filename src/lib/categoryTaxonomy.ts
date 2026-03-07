@@ -68,6 +68,18 @@ export function getAllParentCategories(): string[] {
   return [...Object.keys(BUSINESS_CATEGORIES), ...Object.keys(PERSONAL_CATEGORIES)];
 }
 
+/** Cost group presets for audit filtering */
+export const COST_GROUPS: Record<string, readonly string[]> = {
+  cogs: COGS_PARENT_CATS,
+  ads: ADS_PARENT_CATS,
+  overhead: OVERHEAD_PARENT_CATS,
+  transfers: ["transfer"] as const,
+};
+
+export function getCostGroupCategories(group: string): string[] {
+  return [...(COST_GROUPS[group] ?? [])];
+}
+
 /** Human-readable label for a category key */
 export function categoryLabel(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
