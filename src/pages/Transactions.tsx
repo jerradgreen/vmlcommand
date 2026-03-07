@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getAllParentCategories, categoryLabel } from "@/lib/categoryTaxonomy";
+import { useState, useMemo } from "react";
+import { getAllParentCategories, categoryLabel, getCostGroupCategories } from "@/lib/categoryTaxonomy";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,13 +11,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Play, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Play, Plus, Pencil, Trash2, Search, ArrowUpDown, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import TransactionEditSheet from "@/components/TransactionEditSheet";
 import RuleFormDialog from "@/components/RuleFormDialog";
 import TransactionCsvImport from "@/components/TransactionCsvImport";
 import BulkLabelBar from "@/components/BulkLabelBar";
+import { formatCurrency } from "@/lib/format";
 
 const PAGE_SIZE = 50;
 
