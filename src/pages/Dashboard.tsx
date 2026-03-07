@@ -24,6 +24,7 @@ import {
 import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import ReportGenerator from "@/components/ReportGenerator";
 
 /* ── Metric Card ── */
 function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
