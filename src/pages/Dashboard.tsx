@@ -236,6 +236,7 @@ export default function Dashboard() {
               <Button size="sm" onClick={applyCustomRange}>Apply</Button>
             </div>
           )}
+          <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel={rangeLabel} />
         </div>
       </div>
 
