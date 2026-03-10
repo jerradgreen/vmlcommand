@@ -507,9 +507,9 @@ export default function CogsReconciliation() {
                     const mode = v as "auto" | "manual";
                     setAllocationMode(mode);
                     if (mode === "manual" && selectedSaleIds.size > 0 && txnRemainingUnallocated > 0) {
-                      const perSale = Math.round((txnRemainingUnallocated / selectedSaleIds.size) * 100) / 100;
+                      const autoSplit = computeAutoSplit();
                       const prefilled: Record<string, string> = {};
-                      selectedSaleIds.forEach((id) => { prefilled[id] = String(perSale); });
+                      autoSplit.forEach((a) => { prefilled[a.sale_id] = String(a.amount); });
                       setManualAmounts(prefilled);
                     }
                   }}>
