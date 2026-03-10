@@ -205,8 +205,8 @@ export default function CogsReconciliation() {
         if (saleData) {
           const estimated = Number(saleData.revenue ?? 0) * Number(saleData.estimated_cogs_pct);
           let status = "unpaid";
-          if (totalAlloc > 0 && totalAlloc < estimated) status = "partial";
-          if (totalAlloc >= estimated) status = "paid";
+          if (totalAlloc > 0 && totalAlloc < estimated * 0.7) status = "partial";
+          if (totalAlloc >= estimated * 0.7) status = "paid";
           await supabase.from("sales").update({ manufacturing_status: status }).eq("id", a.sale_id);
         }
       }
@@ -247,8 +247,8 @@ export default function CogsReconciliation() {
       if (saleData) {
         const estimated = Number(saleData.revenue ?? 0) * Number(saleData.estimated_cogs_pct);
         let status = "unpaid";
-        if (totalAlloc > 0 && totalAlloc < estimated) status = "partial";
-        if (totalAlloc >= estimated) status = "paid";
+        if (totalAlloc > 0 && totalAlloc < estimated * 0.7) status = "partial";
+        if (totalAlloc >= estimated * 0.7) status = "paid";
         await supabase.from("sales").update({ manufacturing_status: status }).eq("id", alloc.sale_id);
       }
     },
