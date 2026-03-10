@@ -528,7 +528,7 @@ export default function CogsReconciliation() {
 
                 {allocationMode === "auto" && (
                   <div className="text-xs text-muted-foreground">
-                    Will split {formatCurrency(txnRemainingUnallocated)} evenly across {selectedSaleIds.size} selected sale(s).
+                    Will split {formatCurrency(txnRemainingUnallocated)} proportionally by estimated mfg cost across {selectedSaleIds.size} selected sale(s).
                   </div>
                 )}
 
