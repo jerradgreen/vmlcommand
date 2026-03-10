@@ -262,15 +262,31 @@ export default function CogsReconciliation() {
   });
 
 
-  /* ── Auto-split computation ── */
+  /* ── Auto-split computation (proportional to estimated mfg cost) ── */
   const computeAutoSplit = useCallback(() => {
     if (!selectedTxn || selectedSaleIds.size === 0) return [];
     const selectedSales = sales.filter((s) => selectedSaleIds.has(s.id));
-    const count = selectedSales.length;
-    if (count === 0) return [];
+    if (selectedSales.length === 0) return [];
 
-    const perSale = Math.round((txnRemainingUnallocated / count) * 100) / 100;
-    return selectedSales.map((s) => ({ sale_id: s.id, amount: perSale }));
+    const totalEstimated = selectedSales.reduce((s, sale) => s + sale.revenue * sale.estimated_cogs_pct, 0);
+
+    if (totalEstimated <= 0) {
+      // Fallback: even split
+      const perSale = Math.round((txnRemainingUnallocated / selectedSales.length) * 100) / 100;
+      return selectedSales.map((s) => ({ sale_id: s.id, amount: perSale }));
+    }
+
+    // Proportional split based on each sale's estimated mfg cost
+    let allocated = 0;
+    const result = selectedSales.map((s, i) => {
+      const proportion = (s.revenue * s.estimated_cogs_pct) / totalEstimated;
+      const amt = i === selectedSales.length - 1
+        ? Math.round((txnRemainingUnallocated - allocated) * 100) / 100 // last one gets remainder to avoid rounding issues
+        : Math.round(txnRemainingUnallocated * proportion * 100) / 100;
+      allocated += amt;
+      return { sale_id: s.id, amount: amt };
+    });
+    return result;
   }, [selectedTxn, selectedSaleIds, sales, txnRemainingUnallocated]);
 
   const handleSave = () => {
