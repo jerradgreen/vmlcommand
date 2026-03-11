@@ -368,14 +368,11 @@ export default function Dashboard() {
       {!trendsLoading && trends && (
         <>
           <div className="grid gap-4 md:grid-cols-2">
-            <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+            <TrendChart data={trends} dataKey="cumulativeRevenue" label="Cumulative Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
             <TrendChart data={trends} dataKey="adSpend" label="Ad Spend" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
             <TrendChart data={trends} dataKey="leads" label="Leads" onPointClick={(d) => setTrendLeadDate(d)} />
-            <TrendChart data={trends} dataKey="sales" label="Sales" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
             <TrendChart data={trends.filter(d => d.closeRate != null)} dataKey="closeRate" label="Close Rate (30-day rolling)" formatFn={(v) => `${(v * 100).toFixed(0)}%`} />
-            <TrendChart data={trends.filter(d => d.daysToClose != null)} dataKey="daysToClose" label="Days to Close (7-day median, min 3 closes)" formatFn={(v) => `${v.toFixed(0)}d`} />
+            <TrendChart data={trends.filter(d => d.daysToClose != null)} dataKey="daysToClose" label="Avg Days to Close (running)" formatFn={(v) => `${v.toFixed(0)}d`} />
           </div>
         </>
       )}
