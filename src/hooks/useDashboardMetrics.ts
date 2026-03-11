@@ -460,7 +460,7 @@ export function useTrendData(range: DateRange) {
           if (submittedAt) {
             const saleDate = typeof s.date === "string" ? s.date : format(new Date(s.date), "yyyy-MM-dd");
             const diff = (new Date(saleDate).getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
-            if (diff >= 0 && diff <= 90) {
+            if (diff >= 0) {
               const existing = firstSalePerLead.get(s.lead_id);
               if (!existing || saleDate < existing.date) {
                 firstSalePerLead.set(s.lead_id, { date: saleDate, diff });
@@ -475,7 +475,6 @@ export function useTrendData(range: DateRange) {
           const d = typeof s.date === "string" ? s.date : format(new Date(s.date), "yyyy-MM-dd");
           if (extDayMap[d] && s.sale_type === "new_lead") {
             extDayMap[d].newLeadSales++;
-            // Only add days-to-close if this is the first sale for this lead
             if (s.lead_id) {
               const first = firstSalePerLead.get(s.lead_id);
               if (first && first.date === d) {
@@ -486,52 +485,51 @@ export function useTrendData(range: DateRange) {
         }
       });
 
-      // Helper: median of sorted array
-      const median = (arr: number[]) => {
-        if (arr.length === 0) return null;
-        const sorted = [...arr].sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-      };
-
-      // Build display dayMap with rolling windows
-      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; adSpend: number; closeRate: number | null; daysToClose: number | null }> = {};
+      // Build display dayMap with cumulative metrics
+      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; cumulativeRevenue: number; adSpend: number; closeRate: number | null; daysToClose: number | null }> = {};
       const allExtDates = Object.keys(extDayMap).sort();
+
+      // Cumulative days-to-close: running average matching KPI card logic
+      const allDaysToClose: number[] = [];
+      let cumulativeRevenue = 0;
 
       for (let i = 0; i <= days; i++) {
         const d = format(subDays(trendTo, days - i), "yyyy-MM-dd");
-        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0, adSpend: 0, closeRate: null, daysToClose: null };
+        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0, cumulativeRevenue: 0, adSpend: 0, closeRate: null, daysToClose: null };
 
         // Close Rate: 30-day rolling window
         const closeRateWindowStart = format(subDays(new Date(d), 29), "yyyy-MM-dd");
         let windowLeads = 0;
         let windowNewLeadSales = 0;
 
-        // Days to Close: 7-day rolling window (median, only when sample is meaningful)
-        const dtcWindowStart = format(subDays(new Date(d), 6), "yyyy-MM-dd");
-        const windowDaysToClose: number[] = [];
-
         for (const wd of allExtDates) {
           if (wd >= closeRateWindowStart && wd <= d && extDayMap[wd]) {
             windowLeads += extDayMap[wd].leads;
             windowNewLeadSales += extDayMap[wd].newLeadSales;
           }
-          if (wd >= dtcWindowStart && wd <= d && extDayMap[wd]) {
-            windowDaysToClose.push(...extDayMap[wd].daysToClose);
-          }
+        }
+
+        // Days to Close: cumulative running average (all closes up to this date)
+        if (extDayMap[d]) {
+          allDaysToClose.push(...extDayMap[d].daysToClose);
         }
 
         dayMap[d].closeRate = windowLeads > 0 ? windowNewLeadSales / windowLeads : null;
-        dayMap[d].daysToClose = windowDaysToClose.length >= 3 ? median(windowDaysToClose) : null;
+        dayMap[d].daysToClose = allDaysToClose.length > 0
+          ? allDaysToClose.reduce((a, b) => a + b, 0) / allDaysToClose.length
+          : null;
       }
 
-      // Populate standard metrics (only for display range)
+      // Populate standard metrics and cumulative revenue (only for display range)
       leads.forEach((l) => {
         if (l.submitted_at) {
           const d = format(new Date(l.submitted_at), "yyyy-MM-dd");
           if (dayMap[d]) dayMap[d].leads++;
         }
       });
+
+      // Sort sales by date for cumulative calculation
+      const sortedDisplayDates = Object.keys(dayMap).sort();
 
       sales.forEach((s) => {
         if (s.date) {
@@ -542,6 +540,13 @@ export function useTrendData(range: DateRange) {
           }
         }
       });
+
+      // Build cumulative revenue
+      let runningRevenue = 0;
+      for (const d of sortedDisplayDates) {
+        runningRevenue += dayMap[d].revenue;
+        dayMap[d].cumulativeRevenue = runningRevenue;
+      }
 
       expenses.forEach((e) => {
         if (e.date) {
