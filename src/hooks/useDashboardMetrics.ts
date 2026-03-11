@@ -468,7 +468,15 @@ export function useTrendData(range: DateRange) {
         }
       });
 
-      // Build display dayMap with rolling 30-day windows
+      // Helper: median of sorted array
+      const median = (arr: number[]) => {
+        if (arr.length === 0) return null;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      };
+
+      // Build display dayMap with rolling windows
       const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; adSpend: number; closeRate: number | null; daysToClose: number | null }> = {};
       const allExtDates = Object.keys(extDayMap).sort();
 
@@ -476,24 +484,27 @@ export function useTrendData(range: DateRange) {
         const d = format(subDays(trendTo, days - i), "yyyy-MM-dd");
         dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0, adSpend: 0, closeRate: null, daysToClose: null };
 
-        // Rolling 30-day window
-        const windowStart = format(subDays(new Date(d), 29), "yyyy-MM-dd");
+        // Close Rate: 30-day rolling window
+        const closeRateWindowStart = format(subDays(new Date(d), 29), "yyyy-MM-dd");
         let windowLeads = 0;
         let windowNewLeadSales = 0;
+
+        // Days to Close: 7-day rolling window (median)
+        const dtcWindowStart = format(subDays(new Date(d), 6), "yyyy-MM-dd");
         const windowDaysToClose: number[] = [];
 
         for (const wd of allExtDates) {
-          if (wd >= windowStart && wd <= d && extDayMap[wd]) {
+          if (wd >= closeRateWindowStart && wd <= d && extDayMap[wd]) {
             windowLeads += extDayMap[wd].leads;
             windowNewLeadSales += extDayMap[wd].newLeadSales;
+          }
+          if (wd >= dtcWindowStart && wd <= d && extDayMap[wd]) {
             windowDaysToClose.push(...extDayMap[wd].daysToClose);
           }
         }
 
         dayMap[d].closeRate = windowLeads > 0 ? windowNewLeadSales / windowLeads : null;
-        dayMap[d].daysToClose = windowDaysToClose.length > 0
-          ? windowDaysToClose.reduce((a, b) => a + b, 0) / windowDaysToClose.length
-          : null;
+        dayMap[d].daysToClose = median(windowDaysToClose);
       }
 
       // Populate standard metrics (only for display range)
