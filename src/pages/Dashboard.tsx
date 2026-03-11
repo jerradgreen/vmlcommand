@@ -85,6 +85,8 @@ const chartConfig = {
   leads: { label: "Leads", color: "hsl(142, 72%, 40%)" },
   sales: { label: "Sales", color: "hsl(38, 92%, 50%)" },
   adSpend: { label: "Ad Spend", color: "hsl(0, 72%, 50%)" },
+  closeRate: { label: "Close Rate", color: "hsl(262, 72%, 55%)" },
+  daysToClose: { label: "Days to Close", color: "hsl(190, 72%, 45%)" },
 };
 
 function TrendChart({ data, dataKey, label, formatFn, onPointClick }: {
