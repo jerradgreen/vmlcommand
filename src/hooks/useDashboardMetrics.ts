@@ -522,7 +522,7 @@ export function useTrendData(range: DateRange) {
         }
 
         dayMap[d].closeRate = windowLeads > 0 ? windowNewLeadSales / windowLeads : null;
-        dayMap[d].daysToClose = median(windowDaysToClose);
+        dayMap[d].daysToClose = windowDaysToClose.length >= 3 ? median(windowDaysToClose) : null;
       }
 
       // Populate standard metrics (only for display range)
