@@ -507,7 +507,7 @@ export function useTrendData(range: DateRange) {
         let windowLeads = 0;
         let windowNewLeadSales = 0;
 
-        // Days to Close: 7-day rolling window (median)
+        // Days to Close: 7-day rolling window (median, only when sample is meaningful)
         const dtcWindowStart = format(subDays(new Date(d), 6), "yyyy-MM-dd");
         const windowDaysToClose: number[] = [];
 
@@ -522,7 +522,7 @@ export function useTrendData(range: DateRange) {
         }
 
         dayMap[d].closeRate = windowLeads > 0 ? windowNewLeadSales / windowLeads : null;
-        dayMap[d].daysToClose = median(windowDaysToClose);
+        dayMap[d].daysToClose = windowDaysToClose.length >= 3 ? median(windowDaysToClose) : null;
       }
 
       // Populate standard metrics (only for display range)
