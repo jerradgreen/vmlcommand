@@ -374,7 +374,7 @@ export default function Dashboard() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <TrendChart data={trends.filter(d => d.closeRate != null)} dataKey="closeRate" label="Close Rate (30-day rolling)" formatFn={(v) => `${(v * 100).toFixed(0)}%`} />
-            <TrendChart data={trends.filter(d => d.daysToClose != null)} dataKey="daysToClose" label="Days to Close (30-day rolling)" formatFn={(v) => `${v.toFixed(0)}d`} />
+            <TrendChart data={trends.filter(d => d.daysToClose != null)} dataKey="daysToClose" label="Days to Close (7-day median)" formatFn={(v) => `${v.toFixed(0)}d`} />
           </div>
         </>
       )}
