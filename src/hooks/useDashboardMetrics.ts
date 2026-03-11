@@ -452,16 +452,34 @@ export function useTrendData(range: DateRange) {
         }
       });
 
+      // For days-to-close, only count the FIRST sale per lead (deduplicate)
+      const firstSalePerLead = new Map<string, { date: string; diff: number }>();
+      sales.forEach((s) => {
+        if (s.date && s.sale_type === "new_lead" && s.lead_id) {
+          const submittedAt = leadSubmitMap.get(s.lead_id);
+          if (submittedAt) {
+            const saleDate = typeof s.date === "string" ? s.date : format(new Date(s.date), "yyyy-MM-dd");
+            const diff = (new Date(saleDate).getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
+            if (diff >= 0 && diff <= 90) {
+              const existing = firstSalePerLead.get(s.lead_id);
+              if (!existing || saleDate < existing.date) {
+                firstSalePerLead.set(s.lead_id, { date: saleDate, diff });
+              }
+            }
+          }
+        }
+      });
+
       sales.forEach((s) => {
         if (s.date) {
           const d = typeof s.date === "string" ? s.date : format(new Date(s.date), "yyyy-MM-dd");
           if (extDayMap[d] && s.sale_type === "new_lead") {
             extDayMap[d].newLeadSales++;
+            // Only add days-to-close if this is the first sale for this lead
             if (s.lead_id) {
-              const submittedAt = leadSubmitMap.get(s.lead_id);
-              if (submittedAt) {
-                const diff = (new Date(s.date).getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
-                if (diff >= 0 && diff <= 90) extDayMap[d].daysToClose.push(diff);
+              const first = firstSalePerLead.get(s.lead_id);
+              if (first && first.date === d) {
+                extDayMap[d].daysToClose.push(first.diff);
               }
             }
           }
