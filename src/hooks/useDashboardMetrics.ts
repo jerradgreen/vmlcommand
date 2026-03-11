@@ -385,21 +385,24 @@ export function useTrendData(range: DateRange) {
         return allRows;
       };
 
+      // Extend lookback by 30 days for rolling window calculation
+      const extendedFrom = subDays(trendFrom, 30);
+
       const [leads, sales, expenses] = await Promise.all([
         fetchAll<{ submitted_at: string | null }>((fromRow, toRow) =>
           supabase
             .from("leads")
             .select("submitted_at")
-            .gte("submitted_at", trendFrom.toISOString())
+            .gte("submitted_at", extendedFrom.toISOString())
             .lte("submitted_at", trendTo.toISOString())
             .order("submitted_at")
             .range(fromRow, toRow)
         ),
-        fetchAll<{ date: string | null; revenue: number | null }>((fromRow, toRow) =>
+        fetchAll<{ date: string | null; revenue: number | null; sale_type: string; lead_id: string | null }>((fromRow, toRow) =>
           supabase
             .from("sales")
-            .select("date, revenue")
-            .gte("date", format(trendFrom, "yyyy-MM-dd"))
+            .select("date, revenue, sale_type, lead_id")
+            .gte("date", format(extendedFrom, "yyyy-MM-dd"))
             .lte("date", format(trendTo, "yyyy-MM-dd"))
             .order("date")
             .range(fromRow, toRow)
@@ -416,13 +419,84 @@ export function useTrendData(range: DateRange) {
         ),
       ]);
 
-
-      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; adSpend: number }> = {};
-      for (let i = 0; i <= days; i++) {
-        const d = format(subDays(trendTo, days - i), "yyyy-MM-dd");
-        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0, adSpend: 0 };
+      // Fetch lead submission dates for days-to-close calculation
+      const newLeadSalesWithLead = sales.filter(s => s.sale_type === "new_lead" && s.lead_id);
+      const leadIds = [...new Set(newLeadSalesWithLead.map(s => s.lead_id!))];
+      let leadSubmitMap = new Map<string, string>();
+      if (leadIds.length > 0) {
+        // Fetch in chunks of 200
+        for (let i = 0; i < leadIds.length; i += 200) {
+          const chunk = leadIds.slice(i, i + 200);
+          const { data: leadsData } = await supabase
+            .from("leads")
+            .select("id, submitted_at")
+            .in("id", chunk);
+          if (leadsData) {
+            leadsData.forEach(l => { if (l.submitted_at) leadSubmitMap.set(l.id, l.submitted_at); });
+          }
+        }
       }
 
+      // Build extended dayMap (includes 30-day lookback for rolling window)
+      const extendedDays = Math.ceil((trendTo.getTime() - extendedFrom.getTime()) / (1000 * 60 * 60 * 24));
+      const extDayMap: Record<string, { leads: number; newLeadSales: number; daysToClose: number[] }> = {};
+      for (let i = 0; i <= extendedDays; i++) {
+        const d = format(subDays(trendTo, extendedDays - i), "yyyy-MM-dd");
+        extDayMap[d] = { leads: 0, newLeadSales: 0, daysToClose: [] };
+      }
+
+      leads.forEach((l) => {
+        if (l.submitted_at) {
+          const d = format(new Date(l.submitted_at), "yyyy-MM-dd");
+          if (extDayMap[d]) extDayMap[d].leads++;
+        }
+      });
+
+      sales.forEach((s) => {
+        if (s.date) {
+          const d = typeof s.date === "string" ? s.date : format(new Date(s.date), "yyyy-MM-dd");
+          if (extDayMap[d] && s.sale_type === "new_lead") {
+            extDayMap[d].newLeadSales++;
+            if (s.lead_id) {
+              const submittedAt = leadSubmitMap.get(s.lead_id);
+              if (submittedAt) {
+                const diff = (new Date(s.date).getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
+                if (diff >= 0) extDayMap[d].daysToClose.push(diff);
+              }
+            }
+          }
+        }
+      });
+
+      // Build display dayMap with rolling 30-day windows
+      const dayMap: Record<string, { date: string; leads: number; sales: number; revenue: number; adSpend: number; closeRate: number | null; daysToClose: number | null }> = {};
+      const allExtDates = Object.keys(extDayMap).sort();
+
+      for (let i = 0; i <= days; i++) {
+        const d = format(subDays(trendTo, days - i), "yyyy-MM-dd");
+        dayMap[d] = { date: d, leads: 0, sales: 0, revenue: 0, adSpend: 0, closeRate: null, daysToClose: null };
+
+        // Rolling 30-day window
+        const windowStart = format(subDays(new Date(d), 29), "yyyy-MM-dd");
+        let windowLeads = 0;
+        let windowNewLeadSales = 0;
+        const windowDaysToClose: number[] = [];
+
+        for (const wd of allExtDates) {
+          if (wd >= windowStart && wd <= d && extDayMap[wd]) {
+            windowLeads += extDayMap[wd].leads;
+            windowNewLeadSales += extDayMap[wd].newLeadSales;
+            windowDaysToClose.push(...extDayMap[wd].daysToClose);
+          }
+        }
+
+        dayMap[d].closeRate = windowLeads > 0 ? windowNewLeadSales / windowLeads : null;
+        dayMap[d].daysToClose = windowDaysToClose.length > 0
+          ? windowDaysToClose.reduce((a, b) => a + b, 0) / windowDaysToClose.length
+          : null;
+      }
+
+      // Populate standard metrics (only for display range)
       leads.forEach((l) => {
         if (l.submitted_at) {
           const d = format(new Date(l.submitted_at), "yyyy-MM-dd");
