@@ -507,7 +507,7 @@ export function useTrendData(range: DateRange) {
         let windowLeads = 0;
         let windowNewLeadSales = 0;
 
-        // Days to Close: 7-day rolling window (median)
+        // Days to Close: 7-day rolling window (median, only when sample is meaningful)
         const dtcWindowStart = format(subDays(new Date(d), 6), "yyyy-MM-dd");
         const windowDaysToClose: number[] = [];
 
