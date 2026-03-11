@@ -85,6 +85,8 @@ const chartConfig = {
   leads: { label: "Leads", color: "hsl(142, 72%, 40%)" },
   sales: { label: "Sales", color: "hsl(38, 92%, 50%)" },
   adSpend: { label: "Ad Spend", color: "hsl(0, 72%, 50%)" },
+  closeRate: { label: "Close Rate", color: "hsl(262, 72%, 55%)" },
+  daysToClose: { label: "Days to Close", color: "hsl(190, 72%, 45%)" },
 };
 
 function TrendChart({ data, dataKey, label, formatFn, onPointClick }: {
@@ -363,12 +365,18 @@ export default function Dashboard() {
 
       {/* ═══ Trends ═══ */}
       {!trendsLoading && trends && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-          <TrendChart data={trends} dataKey="adSpend" label="Ad Spend" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-          <TrendChart data={trends} dataKey="leads" label="Leads" onPointClick={(d) => setTrendLeadDate(d)} />
-          <TrendChart data={trends} dataKey="sales" label="Sales" />
-        </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <TrendChart data={trends} dataKey="revenue" label="Revenue" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+            <TrendChart data={trends} dataKey="adSpend" label="Ad Spend" formatFn={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+            <TrendChart data={trends} dataKey="leads" label="Leads" onPointClick={(d) => setTrendLeadDate(d)} />
+            <TrendChart data={trends} dataKey="sales" label="Sales" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <TrendChart data={trends.filter(d => d.closeRate != null)} dataKey="closeRate" label="Close Rate (30-day rolling)" formatFn={(v) => `${(v * 100).toFixed(0)}%`} />
+            <TrendChart data={trends.filter(d => d.daysToClose != null)} dataKey="daysToClose" label="Days to Close (30-day rolling)" formatFn={(v) => `${v.toFixed(0)}d`} />
+          </div>
+        </>
       )}
 
       {/* ═══ Unified Drilldown Dialog ═══ */}
