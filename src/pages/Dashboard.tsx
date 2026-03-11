@@ -82,11 +82,12 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
 /* ── Charts ── */
 const chartConfig = {
   revenue: { label: "Revenue", color: "hsl(220, 70%, 50%)" },
+  cumulativeRevenue: { label: "Cumulative Revenue", color: "hsl(220, 70%, 50%)" },
   leads: { label: "Leads", color: "hsl(142, 72%, 40%)" },
   sales: { label: "Sales", color: "hsl(38, 92%, 50%)" },
   adSpend: { label: "Ad Spend", color: "hsl(0, 72%, 50%)" },
   closeRate: { label: "Close Rate", color: "hsl(262, 72%, 55%)" },
-  daysToClose: { label: "Days to Close", color: "hsl(190, 72%, 45%)" },
+  daysToClose: { label: "Avg Days to Close", color: "hsl(190, 72%, 45%)" },
 };
 
 function TrendChart({ data, dataKey, label, formatFn, onPointClick }: {
