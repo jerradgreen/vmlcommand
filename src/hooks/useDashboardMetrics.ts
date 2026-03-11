@@ -461,7 +461,7 @@ export function useTrendData(range: DateRange) {
               const submittedAt = leadSubmitMap.get(s.lead_id);
               if (submittedAt) {
                 const diff = (new Date(s.date).getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
-                if (diff >= 0) extDayMap[d].daysToClose.push(diff);
+                if (diff >= 0 && diff <= 90) extDayMap[d].daysToClose.push(diff);
               }
             }
           }
