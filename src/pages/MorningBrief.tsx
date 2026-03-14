@@ -1,43 +1,16 @@
-import { useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { useDashboardMetrics, useTrendData, DateRange, DatePreset } from "@/hooks/useDashboardMetrics";
+import { useDashboardMetrics, useTrendData, DateRange } from "@/hooks/useDashboardMetrics";
 import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
 import ReportGenerator from "@/components/ReportGenerator";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 
-const rangeLabels: Record<DatePreset, string> = {
-  all: "All Time", today: "Today", yesterday: "Yesterday", "7d": "Last 7 Days",
-  "30d": "Last 30 Days", mtd: "Month to Date", ytd: "Year to Date",
-  last_year: "Last Year", "12m": "Last 12 Months", custom: "Custom Range",
-};
+const dateRange: DateRange = { preset: "30d" };
 
 export default function MorningBrief() {
-  const [dateRange, setDateRange] = useState<DateRange>({ preset: "ytd" });
-  const [customFrom, setCustomFrom] = useState<Date | undefined>();
-  const [customTo, setCustomTo] = useState<Date | undefined>();
-
   const { data: metrics, isLoading } = useDashboardMetrics(dateRange);
   const { data: trends } = useTrendData(dateRange);
   const { data: cashMetrics } = useCashMetrics(dateRange);
-
-  const handlePresetChange = (value: string) => {
-    const preset = value as DatePreset;
-    if (preset === "custom") {
-      setDateRange({ preset: "custom", from: customFrom, to: customTo });
-    } else {
-      setDateRange({ preset });
-    }
-  };
-
-  const applyCustomRange = () => {
-    setDateRange({ preset: "custom", from: customFrom, to: customTo });
-  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading metrics…</div>;
@@ -74,48 +47,10 @@ export default function MorningBrief() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Morning Brief</h1>
-          <p className="text-muted-foreground text-sm">CEO decision dashboard — run-rate estimates</p>
+          <h1 className="text-2xl font-bold tracking-tight">Daily Operational Brief</h1>
+          <p className="text-muted-foreground text-sm">Live snapshot — rolling 30-day window</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={dateRange.preset} onValueChange={handlePresetChange}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(rangeLabels).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {dateRange.preset === "custom" && (
-            <div className="flex items-center gap-1">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {customFrom ? format(customFrom, "MMM d") : "From"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-              <span className="text-muted-foreground text-sm">–</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {customTo ? format(customTo, "MMM d") : "To"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={customTo} onSelect={setCustomTo} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-              <Button size="sm" onClick={applyCustomRange}>Apply</Button>
-            </div>
-            )}
-          <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel={rangeLabels[dateRange.preset] ?? "YTD"} />
-        </div>
+        <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel="Daily Brief" />
       </div>
 
       <CeoMorningBrief metrics={m} cashMetrics={cashMetrics ?? null} trends={trends ?? null} />
