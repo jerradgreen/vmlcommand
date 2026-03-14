@@ -8,10 +8,11 @@ import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 import {
   Target, Shield, TrendingUp, TrendingDown, Minus, DollarSign, Factory,
   ShoppingCart, Megaphone, PieChart, AlertTriangle, ArrowRight, Lock,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Zap, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 /* ── Types ── */
 interface Metrics {
@@ -85,6 +86,17 @@ function getStatus(value: number, greenThreshold: number, yellowThreshold: numbe
   return "red";
 }
 
+/* ── Section Header ── */
+function SectionHeader({ title, icon: Icon }: { title: string; icon: React.ElementType }) {
+  return (
+    <div className="flex items-center gap-2 pt-2">
+      <Icon className="h-4 w-4 text-primary" />
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">{title}</h3>
+      <Separator className="flex-1" />
+    </div>
+  );
+}
+
 /* ══════════════════ MAIN COMPONENT ══════════════════ */
 export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Props) {
   const [collapsed, setCollapsed] = useState(false);
@@ -144,30 +156,148 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
   /* ── Sales Engine ── */
   const closeRateStatus = getStatus(m.closeRate, 0.05, 0.03);
 
-  /* ── Today's Priorities ── */
-  const priorities = useMemo(() => {
-    const items: { label: string; detail: string; severity: number }[] = [];
+  /* ── Cash runway ── */
+  const monthlyOpCosts = m.totalOpCostMonthlyRunRate;
+  const cashCushionMonths = monthlyOpCosts > 0 ? cashInBank / monthlyOpCosts : 99;
 
-    if (m.closeRate < 0.03) items.push({ label: "Close rate critically low", detail: `${(m.closeRate * 100).toFixed(1)}% — below 3% threshold`, severity: 5 });
-    else if (m.closeRate < 0.05) items.push({ label: "Close rate needs attention", detail: `${(m.closeRate * 100).toFixed(1)}% — below 5% target`, severity: 3 });
+  /* ══════ Opportunity Alerts ══════ */
+  const opportunityAlerts = useMemo(() => {
+    const alerts: { title: string; explanation: string; impact: string; severity: number }[] = [];
 
-    if (m.adjustedCogsPct > 0.55) items.push({ label: "COGS exceeding 55% of revenue", detail: `${(m.adjustedCogsPct * 100).toFixed(1)}% — review manufacturing costs`, severity: 5 });
-    else if (m.adjustedCogsPct > 0.45) items.push({ label: "COGS trending high", detail: `${(m.adjustedCogsPct * 100).toFixed(1)}% — approaching 55% threshold`, severity: 2 });
+    // Close rate improvement opportunity
+    if (m.closeRate < 0.03 && m.totalLeads > 0) {
+      const targetRate = 0.033;
+      const additionalSales = Math.round((targetRate - m.closeRate) * m.totalLeads);
+      const additionalRevenue = additionalSales * m.avgOrderValue;
+      alerts.push({
+        title: "Conversion Improvement",
+        explanation: `Current close rate: ${(m.closeRate * 100).toFixed(1)}%. If conversion increases to ${(targetRate * 100).toFixed(1)}%:`,
+        impact: `Expected additional revenue: ~${formatCurrency(additionalRevenue)} (${additionalSales} more sales)`,
+        severity: 5,
+      });
+    }
 
-    if (m.rangeRoas > 0 && m.rangeRoas < 2) items.push({ label: "ROAS below 2x", detail: `${m.rangeRoas.toFixed(2)}x — ad spend efficiency is low`, severity: 4 });
-    else if (m.rangeRoas >= 2 && m.rangeRoas < 3) items.push({ label: "ROAS could improve", detail: `${m.rangeRoas.toFixed(2)}x — target 3x+`, severity: 2 });
+    // COGS reduction opportunity
+    if (m.adjustedCogsPct > 0.55 && m.depositRevenue > 0) {
+      const savings = (m.adjustedCogsPct - 0.45) * m.depositRevenue;
+      alerts.push({
+        title: "COGS Reduction",
+        explanation: `COGS at ${(m.adjustedCogsPct * 100).toFixed(1)}% of revenue — exceeds 55% threshold.`,
+        impact: `Reducing to 45% would save ~${formatCurrency(savings)}/mo in production costs`,
+        severity: 5,
+      });
+    }
 
-    if (ownerSurplus < 0) items.push({ label: "Owner draw shortfall", detail: `${formatCurrency(Math.abs(ownerSurplus))} below target — review costs or revenue`, severity: 4 });
+    // ROAS improvement
+    if (m.rangeRoas > 0 && m.rangeRoas < 2 && m.adsSpendTotal > 0) {
+      const wastedSpend = m.adsSpendTotal * (1 - m.rangeRoas / 2);
+      alerts.push({
+        title: "Ad Efficiency",
+        explanation: `ROAS at ${m.rangeRoas.toFixed(2)}x — below 2x breakeven threshold.`,
+        impact: `~${formatCurrency(Math.abs(wastedSpend))} in ad spend not generating adequate returns`,
+        severity: 4,
+      });
+    }
 
-    const monthlyOpCosts = m.totalOpCostMonthlyRunRate;
-    const cashCushionMonths = monthlyOpCosts > 0 ? cashInBank / monthlyOpCosts : 99;
-    if (cashCushionMonths < 1) items.push({ label: "Cash cushion below 1 month of operating costs", detail: `${cashCushionMonths.toFixed(1)} months of runway at current burn`, severity: 5 });
-    else if (cashCushionMonths < 2) items.push({ label: "Cash cushion is thin", detail: `${cashCushionMonths.toFixed(1)} months of runway`, severity: 2 });
+    // Cash runway risk
+    if (cashCushionMonths < 2) {
+      alerts.push({
+        title: "Cash Runway Risk",
+        explanation: `Only ${cashCushionMonths.toFixed(1)} months of operating costs in the bank at current burn rate.`,
+        impact: `Need to increase cash reserves or reduce monthly burn of ${formatCurrency(monthlyOpCosts)}`,
+        severity: 5,
+      });
+    }
 
-    if (mfgCoverage < 0.5) items.push({ label: "Manufacturing liability under-covered", detail: `${(mfgCoverage * 100).toFixed(0)}% coverage — deposits may not cover production`, severity: 3 });
+    // Unconverted lead harvest
+    if (pipelineLeads > m.totalSales * 2 && pipelineLeads > 10) {
+      const harvestRevenue = Math.round(pipelineLeads * 0.02) * m.avgOrderValue;
+      alerts.push({
+        title: "Unconverted Lead Harvest",
+        explanation: `${formatNumber(pipelineLeads)} leads remain unconverted — ${(pipelineLeads / Math.max(m.totalSales, 1)).toFixed(1)}x your sales count.`,
+        impact: `Even a 2% re-engagement conversion would yield ~${formatCurrency(harvestRevenue)} in revenue`,
+        severity: 3,
+      });
+    }
+
+    return alerts.sort((a, b) => b.severity - a.severity).slice(0, 4);
+  }, [m, cashCushionMonths, monthlyOpCosts, pipelineLeads]);
+
+  /* ══════ Action Engine (Today's Priorities) ══════ */
+  const actions = useMemo(() => {
+    const items: { title: string; reason: string; step: string; impact: string; severity: number }[] = [];
+
+    if (m.closeRate < 0.03) {
+      const additionalSales = Math.max(1, Math.round((0.033 - m.closeRate) * m.totalLeads));
+      items.push({
+        title: "Reactivate Stale Leads",
+        reason: `Close rate is ${(m.closeRate * 100).toFixed(1)}% — many leads remain unconverted.`,
+        step: "Send re-engagement campaign to leads older than 60 days.",
+        impact: `+${additionalSales} additional sales → +${formatCurrency(additionalSales * m.avgOrderValue)} revenue`,
+        severity: 5,
+      });
+    } else if (m.closeRate < 0.05) {
+      items.push({
+        title: "Improve Lead Follow-Up Speed",
+        reason: `Close rate at ${(m.closeRate * 100).toFixed(1)}% — below 5% target.`,
+        step: "Review lead response time; aim to follow up within 24 hours.",
+        impact: `Each 1% improvement → ~${formatCurrency(m.totalLeads * 0.01 * m.avgOrderValue)} additional revenue`,
+        severity: 3,
+      });
+    }
+
+    if (m.adjustedCogsPct > 0.55) {
+      items.push({
+        title: "Renegotiate Manufacturing Costs",
+        reason: `COGS at ${(m.adjustedCogsPct * 100).toFixed(1)}% — exceeding 55% of revenue.`,
+        step: "Request updated quotes from top 3 vendors; compare per-unit costs.",
+        impact: `Reducing to 50% would save ~${formatCurrency((m.adjustedCogsPct - 0.50) * m.depositRevenue)}/mo`,
+        severity: 5,
+      });
+    }
+
+    if (m.rangeRoas > 0 && m.rangeRoas < 2) {
+      items.push({
+        title: "Pause Low-Performing Ad Campaigns",
+        reason: `ROAS at ${m.rangeRoas.toFixed(2)}x — ad spend outpacing returns.`,
+        step: "Review campaign-level ROAS; pause campaigns below 1.5x.",
+        impact: `Reallocating ${formatCurrency(m.adsSpendTotal * 0.3)} to top performers could lift ROAS to 2.5x+`,
+        severity: 4,
+      });
+    }
+
+    if (ownerSurplus < 0) {
+      items.push({
+        title: "Address Owner Draw Shortfall",
+        reason: `${formatCurrency(Math.abs(ownerSurplus))} below target after projected costs.`,
+        step: "Review discretionary overhead; defer non-essential expenses this month.",
+        impact: `Closing the gap secures your ${formatCurrency(ownerTarget)}/mo target`,
+        severity: 4,
+      });
+    }
+
+    if (cashCushionMonths < 1) {
+      items.push({
+        title: "Emergency Cash Conservation",
+        reason: `Cash cushion at ${cashCushionMonths.toFixed(1)} months — critical.`,
+        step: "Accelerate accounts receivable collection; delay discretionary purchases.",
+        impact: `Each ${formatCurrency(monthlyOpCosts * 0.1)} saved extends runway by ~3 days`,
+        severity: 5,
+      });
+    }
+
+    if (mfgCoverage < 0.5) {
+      items.push({
+        title: "Collect Outstanding Deposits",
+        reason: `Manufacturing coverage at ${(mfgCoverage * 100).toFixed(0)}% — deposits may not cover production.`,
+        step: "Follow up on outstanding customer deposits before starting new production runs.",
+        impact: `Closing the gap reduces ${formatCurrency(mfgOwed)} in unfunded manufacturing liability`,
+        severity: 3,
+      });
+    }
 
     return items.sort((a, b) => b.severity - a.severity).slice(0, 3);
-  }, [m, ownerSurplus, cashInBank, mfgCoverage]);
+  }, [m, ownerSurplus, ownerTarget, cashCushionMonths, monthlyOpCosts, mfgCoverage, mfgOwed]);
 
   /* ── Trend Signals ── */
   const trendSignals = useMemo(() => {
@@ -205,9 +335,9 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            ☀️ CEO Morning Brief
+            ☀️ Daily Operational Brief
           </h2>
-          <p className="text-sm text-muted-foreground">Key decisions at a glance — all estimates use monthly run-rates unless noted</p>
+          <p className="text-sm text-muted-foreground">Key decisions at a glance — rolling 30-day window, all estimates use monthly run-rates</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -216,7 +346,13 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
 
       {!collapsed && (
         <div className="space-y-4">
-          {/* ═══ 1. Owner Target Simulator ═══ */}
+
+          {/* ══════════════════════════════════════════════════════
+              SECTION 1: BUSINESS HEALTH
+              ══════════════════════════════════════════════════════ */}
+          <SectionHeader title="Business Health" icon={Shield} />
+
+          {/* Owner Target Simulator */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
@@ -238,7 +374,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* ═══ 2. Owner Draw Safety ═══ */}
+          {/* Owner Draw Safety */}
           <Card className={cn("border-2", ownerSafetyStatus === "green" ? "border-emerald-500/30" : ownerSafetyStatus === "yellow" ? "border-amber-500/30" : "border-destructive/30")}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
@@ -273,7 +409,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* ═══ 3. Cash Forecast Timeline ═══ */}
+          {/* Cash Forecast Timeline */}
           <Card>
             <CardHeader className="pb-2">
               <div>
@@ -283,7 +419,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                   <PrecisionBadge label="Run-Rate Based" />
                 </CardTitle>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Projection based on current monthly run-rates — not a forecast of actual dated cash flows
+                  Projection based on last 30 days average daily net cash flow — not a guaranteed forecast
                 </p>
               </div>
             </CardHeader>
@@ -300,7 +436,78 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* ═══ 4. Revenue Pipeline Coverage ═══ */}
+          {/* Manufacturing Liability */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                <Factory className="h-4 w-4 mr-2" />
+                Manufacturing Liability
+                <PrecisionBadge label="Approximate — deposits reflect last 30 days; liability is cumulative" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Mfg Owed</p>
+                  <p className="text-lg font-bold">{formatCurrency(mfgOwed)}</p>
+                  <p className="text-[10px] text-muted-foreground">Cumulative unpaid</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Customer Deposits (30d)</p>
+                  <p className="text-lg font-bold">{formatCurrency(depositProxy)}</p>
+                  <p className="text-[10px] text-muted-foreground">Last 30 days, not order-specific</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Production Coverage</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold">{formatPercent(mfgCoverage)}</p>
+                    <StatusBadge status={mfgStatus} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Approximate ratio</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground border-t pt-2">
+                Coverage = 30d Deposits ÷ (30d Deposits + Total Unpaid Mfg Cost).
+                Mixes 30-day deposit window with cumulative liability — treat as directional, not exact.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Margin Watch */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                <PieChart className="h-4 w-4 mr-2" />
+                Margin Watch
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">COGS %</p>
+                  <div className="flex items-center gap-2">
+                    <p className={cn("text-lg font-bold", m.adjustedCogsPct > 0.55 && "text-destructive")}>{formatPercent(m.adjustedCogsPct)}</p>
+                    <StatusBadge status={cogsPctStatus} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ad Spend %</p>
+                  <p className="text-lg font-bold">{formatPercent(adsPctOfRev)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Overhead %</p>
+                  <p className="text-lg font-bold">{formatPercent(overheadPctOfRev)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ══════════════════════════════════════════════════════
+              SECTION 2: REVENUE ENGINE
+              ══════════════════════════════════════════════════════ */}
+          <SectionHeader title="Revenue Engine" icon={ShoppingCart} />
+
+          {/* Revenue Pipeline Coverage */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
@@ -334,7 +541,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                     </div>
                   </div>
                   <p className="text-[11px] text-muted-foreground border-t pt-2">
-                    Based on unconverted leads ({formatNumber(pipelineLeads)}) × historical close rate ({formatPercent(m.closeRate)}) × AOV ({formatCurrency(m.avgOrderValue)}).
+                    Based on unconverted leads ({formatNumber(pipelineLeads)}) × close rate ({formatPercent(m.closeRate)}) × AOV ({formatCurrency(m.avgOrderValue)}).
                     Revenue target derived from owner target ÷ profit margin run-rate.
                   </p>
                 </>
@@ -344,7 +551,73 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* ═══ 5. Next 3 Sales Impact ═══ */}
+          {/* Sales Engine Status */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Sales Engine Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Leads (30d)</p>
+                  <p className="text-lg font-bold">{formatNumber(m.totalLeads)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Sales (30d)</p>
+                  <p className="text-lg font-bold">{formatNumber(m.totalSales)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Close Rate</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold">{formatPercent(m.closeRate)}</p>
+                    <StatusBadge status={closeRateStatus} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Backlog (Unmatched)</p>
+                  <p className="text-lg font-bold">{formatNumber(pipelineLeads)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Marketing Engine Health */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                <Megaphone className="h-4 w-4 mr-2" />
+                Marketing Engine Health
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">ROAS</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold">{m.rangeRoas > 0 ? `${m.rangeRoas.toFixed(2)}x` : "—"}</p>
+                    <StatusBadge status={marketingStatus} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Cost per Sale</p>
+                  <p className="text-lg font-bold">{formatCurrency(m.fullyLoadedCPO)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ad Spend (30d)</p>
+                  <p className="text-lg font-bold">{formatCurrency(m.adsSpendTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Marketing % of Rev</p>
+                  <p className="text-lg font-bold">{formatPercent(m.marketingPctOfRevenue)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Next Sales Impact */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
@@ -368,42 +641,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* ═══ 6. Manufacturing Liability Tracker ═══ */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
-                <Factory className="h-4 w-4 mr-2" />
-                Manufacturing Liability
-                <PrecisionBadge label="Approximate" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Mfg Owed</p>
-                  <p className="text-lg font-bold">{formatCurrency(mfgOwed)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Customer Deposits (proxy)</p>
-                  <p className="text-lg font-bold">{formatCurrency(depositProxy)}</p>
-                  <p className="text-[10px] text-muted-foreground">Total deposits, not order-specific</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Production Coverage</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-bold">{formatPercent(mfgCoverage)}</p>
-                    <StatusBadge status={mfgStatus} />
-                  </div>
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground border-t pt-2">
-                Coverage = Total Deposits ÷ (Total Deposits + Unpaid Mfg Cost).
-                Uses total deposits as proxy — per-order deposit tracking not yet available.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* ═══ 7. Quote Engagement Monitor ═══ */}
+          {/* Quote Engagement Monitor (Coming Soon) */}
           <Card className="border-dashed border-2 border-muted-foreground/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground/60 flex items-center">
@@ -422,103 +660,38 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* ═══ 8. Sales Engine Status ═══ */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Sales Engine Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-4 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Leads</p>
-                  <p className="text-lg font-bold">{formatNumber(m.totalLeads)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Sales</p>
-                  <p className="text-lg font-bold">{formatNumber(m.totalSales)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Close Rate</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-bold">{formatPercent(m.closeRate)}</p>
-                    <StatusBadge status={closeRateStatus} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Backlog (Unmatched)</p>
-                  <p className="text-lg font-bold">{formatNumber(pipelineLeads)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* ══════════════════════════════════════════════════════
+              SECTION 3: WHAT TO DO TODAY
+              ══════════════════════════════════════════════════════ */}
+          <SectionHeader title="What To Do Today" icon={Zap} />
 
-          {/* ═══ 9. Marketing Engine Health ═══ */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
-                <Megaphone className="h-4 w-4 mr-2" />
-                Marketing Engine Health
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-4 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">ROAS</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-bold">{m.rangeRoas > 0 ? `${m.rangeRoas.toFixed(2)}x` : "—"}</p>
-                    <StatusBadge status={marketingStatus} />
-                  </div>
+          {/* Opportunity Alerts */}
+          {opportunityAlerts.length > 0 && (
+            <Card className="border-2 border-primary/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                  <Lightbulb className="h-4 w-4 mr-2 text-primary" />
+                  Opportunity Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {opportunityAlerts.map((alert, i) => (
+                    <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/10 space-y-1">
+                      <p className="text-sm font-semibold flex items-center gap-2">
+                        <span className="text-primary">Opportunity:</span> {alert.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{alert.explanation}</p>
+                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{alert.impact}</p>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Cost per Sale</p>
-                  <p className="text-lg font-bold">{formatCurrency(m.fullyLoadedCPO)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ad Spend</p>
-                  <p className="text-lg font-bold">{formatCurrency(m.adsSpendTotal)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Marketing % of Rev</p>
-                  <p className="text-lg font-bold">{formatPercent(m.marketingPctOfRevenue)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* ═══ 10. Margin Watch ═══ */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
-                <PieChart className="h-4 w-4 mr-2" />
-                Margin Watch
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">COGS %</p>
-                  <div className="flex items-center gap-2">
-                    <p className={cn("text-lg font-bold", m.adjustedCogsPct > 0.55 && "text-destructive")}>{formatPercent(m.adjustedCogsPct)}</p>
-                    <StatusBadge status={cogsPctStatus} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ad Spend %</p>
-                  <p className="text-lg font-bold">{formatPercent(adsPctOfRev)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Overhead %</p>
-                  <p className="text-lg font-bold">{formatPercent(overheadPctOfRev)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ═══ 11. Today's Priorities ═══ */}
-          {priorities.length > 0 && (
+          {/* Action Engine (Today's Priorities) */}
+          {actions.length > 0 && (
             <Card className="border-2 border-amber-500/30">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
@@ -527,13 +700,17 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {priorities.map((p, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-md bg-muted/50">
-                      <span className="text-xs font-bold text-muted-foreground mt-0.5">{i + 1}</span>
-                      <div>
-                        <p className="text-sm font-medium">{p.label}</p>
-                        <p className="text-xs text-muted-foreground">{p.detail}</p>
+                <div className="space-y-3">
+                  {actions.map((action, i) => (
+                    <div key={i} className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+                      <p className="text-sm font-semibold flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground bg-muted rounded-full w-5 h-5 flex items-center justify-center shrink-0">{i + 1}</span>
+                        {action.title}
+                      </p>
+                      <div className="pl-7 space-y-1">
+                        <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Reason:</span> {action.reason}</p>
+                        <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Suggested step:</span> {action.step}</p>
+                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400"><span className="text-foreground">Estimated impact:</span> {action.impact}</p>
                       </div>
                     </div>
                   ))}
@@ -542,13 +719,14 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </Card>
           )}
 
-          {/* ═══ 12. Trend Signals ═══ */}
+          {/* Trend Signals */}
           {trendSignals && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                   <TrendingUp className="h-4 w-4 mr-2" />
                   Trend Signals
+                  <PrecisionBadge label="First half vs second half of 30d window" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
