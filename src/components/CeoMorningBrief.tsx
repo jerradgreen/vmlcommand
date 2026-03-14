@@ -213,8 +213,8 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
       });
     }
 
-    if (cogsPct30d > 0.55 && m.depositRevenue > 0) {
-      const savings = (cogsPct30d - 0.45) * m.depositRevenue;
+      if (cogsPct30d > 0.55 && salesRevenue30d > 0) {
+      const savings = (cogsPct30d - 0.45) * salesRevenue30d;
       alerts.push({
         title: "COGS Reduction",
         explanation: `COGS at ${(cogsPct30d * 100).toFixed(1)}% of revenue — exceeds 55% threshold.`,
