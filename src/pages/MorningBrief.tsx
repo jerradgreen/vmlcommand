@@ -81,7 +81,7 @@ export default function MorningBrief() {
           <Select value={dateRange.preset} onValueChange={handlePresetChange}>
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {Object.entries(presetLabels).map(([k, v]) => (
+              {Object.entries(rangeLabels).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
               ))}
             </SelectContent>
