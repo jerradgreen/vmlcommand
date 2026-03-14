@@ -12,7 +12,7 @@ import ReportGenerator from "@/components/ReportGenerator";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 
-const presetLabels: Record<DatePreset, string> = {
+const rangeLabels: Record<DatePreset, string> = {
   all: "All Time", today: "Today", yesterday: "Yesterday", "7d": "Last 7 Days",
   "30d": "Last 30 Days", mtd: "Month to Date", ytd: "Year to Date",
   last_year: "Last Year", "12m": "Last 12 Months", custom: "Custom Range",
