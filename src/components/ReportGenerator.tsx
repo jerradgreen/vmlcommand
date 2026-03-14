@@ -115,7 +115,6 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
       ["Gross Profit (30d)", formatCurrency(m.grossProfit ?? 0)],
       ["Gross Margin", formatPercent(m.grossMargin ?? 0)],
       ["Ad Spend", formatCurrency(m.adsSpendTotal ?? 0)],
-      ["Cost Per New-Lead Sale", m.costPerSale != null ? formatCurrency(m.costPerSale) : "N/A"],
       ["Overhead", formatCurrency(m.overheadTotal ?? 0)],
       ["Shopify Capital Paid", formatCurrency(m.shopifyCapitalPaidInRange ?? 0)],
       ["Net Profit", formatCurrency(m.netProfit ?? 0)],
