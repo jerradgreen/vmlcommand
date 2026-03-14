@@ -568,25 +568,35 @@ export function useTrendData(range: DateRange) {
       for (const [, days] of Object.entries(monthGroups)) {
         if (days.length < 7) continue;
 
-        // Find "daily cutoff": first date in a run of ≥3 consecutive non-zero days
-        let dailyCutoffIdx = days.length; // default: no cutoff, entire month is bulk
-        for (let i = 2; i < days.length; i++) {
-          if (dayMap[days[i]].adSpend > 0 && dayMap[days[i - 1]].adSpend > 0 && dayMap[days[i - 2]].adSpend > 0) {
-            dailyCutoffIdx = i - 2;
-            break;
+        const nonZeroIdxs = days
+          .map((d, idx) => (dayMap[d].adSpend > 0 ? idx : -1))
+          .filter((idx) => idx >= 0);
+
+        if (nonZeroIdxs.length === 0) continue;
+
+        // Case 1: fully bulk month (e.g. one monthly entry) → spread across whole month
+        if (nonZeroIdxs.length <= 3) {
+          const monthTotal = days.reduce((sum, d) => sum + dayMap[d].adSpend, 0);
+          if (monthTotal > 0) {
+            const monthAvg = monthTotal / days.length;
+            for (const d of days) dayMap[d].adSpend = Math.round(monthAvg * 100) / 100;
           }
+          continue;
         }
 
-        const bulkDays = days.slice(0, dailyCutoffIdx);
-        if (bulkDays.length < 2) continue;
-        const bulkNonZero = bulkDays.filter((d) => dayMap[d].adSpend > 0);
-        if (bulkNonZero.length === 0 || bulkNonZero.length > 3) continue;
+        // Case 2: leading bulk entry before daily-ish tracking begins (e.g. Feb 1-21 lump, Feb 22+ daily)
+        const firstNonZeroIdx = nonZeroIdxs[0];
+        const prefixDays = days.slice(0, firstNonZeroIdx + 1);
+        const prefixNonZero = prefixDays.filter((d) => dayMap[d].adSpend > 0);
 
-        const bulkTotal = bulkDays.reduce((sum, d) => sum + dayMap[d].adSpend, 0);
-        if (bulkTotal === 0) continue;
-        const dailyAvg = bulkTotal / bulkDays.length;
-        for (const d of bulkDays) {
-          dayMap[d].adSpend = Math.round(dailyAvg * 100) / 100;
+        if (firstNonZeroIdx >= 6 && prefixNonZero.length === 1) {
+          const prefixTotal = prefixDays.reduce((sum, d) => sum + dayMap[d].adSpend, 0);
+          if (prefixTotal > 0) {
+            const prefixAvg = prefixTotal / prefixDays.length;
+            for (const d of prefixDays) {
+              dayMap[d].adSpend = Math.round(prefixAvg * 100) / 100;
+            }
+          }
         }
       }
 
