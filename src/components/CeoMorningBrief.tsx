@@ -590,7 +590,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 </div>
               </div>
               <Separator />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Cost Per Lead</p>
                   <p className="text-lg font-bold">
@@ -599,11 +599,22 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                   <p className="text-[10px] text-muted-foreground">Ad spend ÷ Cognito submissions</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Revenue Per Lead (New Leads)</p>
+                  <p className="text-xs text-muted-foreground">Revenue Per Lead (Est.)</p>
                   <p className="text-lg font-bold">
                     {m.totalLeads > 0 ? formatCurrency((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) : "N/A"}
                   </p>
                   <p className="text-[10px] text-muted-foreground">New-lead revenue ÷ Cognito submissions</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Contribution Per Lead</p>
+                  {(() => {
+                    if (m.totalLeads === 0) return <p className="text-lg font-bold text-muted-foreground">N/A</p>;
+                    const rpl = (m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads;
+                    const cpl = m.adsSpendTotal / m.totalLeads;
+                    const contrib = rpl * (1 - cogsPct30d) - cpl;
+                    return <p className={cn("text-lg font-bold", contrib >= 0 ? "text-emerald-600" : "text-destructive")}>{formatCurrency(contrib)}</p>;
+                  })()}
+                  <p className="text-[10px] text-muted-foreground">Est. gross profit per lead after ad cost</p>
                 </div>
               </div>
             </CardContent>
