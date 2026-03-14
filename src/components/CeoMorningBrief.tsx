@@ -652,7 +652,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 </div>
               </div>
               <Separator />
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Ad Spend</p>
                   <p className="text-lg font-bold">{formatCurrency(m.adsSpendTotal)}</p>
@@ -660,6 +660,10 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 <div>
                   <p className="text-xs text-muted-foreground">Overhead</p>
                   <p className="text-lg font-bold">{formatCurrency(m.overheadTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Loan Remittance</p>
+                  <p className="text-lg font-bold">{formatCurrency(shopifyCapPaid30d)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Net Profit</p>
