@@ -567,7 +567,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 Marketing Engine Health
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-4 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">ROAS</p>
@@ -587,6 +587,23 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 <div>
                   <p className="text-xs text-muted-foreground">AOV (30d)</p>
                   <p className="text-lg font-bold">{formatCurrency(m.avgOrderValue)}</p>
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Cost Per Lead</p>
+                  <p className="text-lg font-bold">
+                    {m.totalLeads > 0 ? formatCurrency(m.adsSpendTotal / m.totalLeads) : "N/A"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Ad spend ÷ Cognito submissions</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Revenue Per Lead (New Leads)</p>
+                  <p className="text-lg font-bold">
+                    {m.totalLeads > 0 ? formatCurrency((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) : "N/A"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">New-lead revenue ÷ Cognito submissions</p>
                 </div>
               </div>
             </CardContent>
