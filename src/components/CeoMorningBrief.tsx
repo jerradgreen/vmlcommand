@@ -159,7 +159,8 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const overheadMonthly = m.overheadMonthlyRunRate;
   const adSpendMonthly = m.adsMonthlyRunRate;
   const requiredGrossProfit = ownerTarget + overheadMonthly + adSpendMonthly;
-  const grossProfitThisMonth = mMtd.depositRevenue - briefCogsMtd;
+  const salesRevenueMtd = (mMtd as any).rangeRevenue ?? 0;
+  const grossProfitThisMonth = salesRevenueMtd - briefCogsMtd;
   const remainingGap = requiredGrossProfit - grossProfitThisMonth;
   const leadsRequired = leadValue > 0 ? Math.ceil(requiredGrossProfit / leadValue) : 0;
   const ownerOnTrack = grossProfitThisMonth >= requiredGrossProfit;
