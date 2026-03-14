@@ -631,9 +631,10 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Revenue (30d)</p>
-                  <p className="text-xl font-bold">{formatCurrency(m.depositRevenue)}</p>
+                 <div>
+                  <p className="text-xs text-muted-foreground">Sales Revenue (30d)</p>
+                  <p className="text-xl font-bold">{formatCurrency(salesRevenue30d)}</p>
+                  <p className="text-[10px] text-muted-foreground">Booked sales in window</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">COGS (actual + estimated)</p>
