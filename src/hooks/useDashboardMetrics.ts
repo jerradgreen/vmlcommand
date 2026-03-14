@@ -557,6 +557,41 @@ export function useTrendData(range: DateRange) {
         }
       });
 
+      // Smooth bulk ad spend entries: redistribute lump-sum months into daily averages
+      const monthGroups: Record<string, string[]> = {};
+      for (const d of sortedDisplayDates) {
+        const ym = d.slice(0, 7); // YYYY-MM
+        if (!monthGroups[ym]) monthGroups[ym] = [];
+        monthGroups[ym].push(d);
+      }
+
+      for (const [, days] of Object.entries(monthGroups)) {
+        if (days.length < 7) continue;
+        const nonZeroDays = days.filter((d) => dayMap[d].adSpend > 0);
+        if (nonZeroDays.length === 0 || nonZeroDays.length > 3) continue;
+
+        // Find "daily cutoff": first date in a run of ≥3 consecutive non-zero days at end of month
+        let dailyCutoffIdx = days.length; // default: no cutoff, entire month is bulk
+        for (let i = days.length - 1; i >= 2; i--) {
+          if (dayMap[days[i]].adSpend > 0 && dayMap[days[i - 1]].adSpend > 0 && dayMap[days[i - 2]].adSpend > 0) {
+            // Walk back to find the start of this consecutive run
+            let start = i - 2;
+            while (start > 0 && dayMap[days[start - 1]].adSpend > 0) start--;
+            dailyCutoffIdx = start;
+            break;
+          }
+        }
+
+        const bulkDays = days.slice(0, dailyCutoffIdx);
+        if (bulkDays.length === 0) continue;
+        const bulkTotal = bulkDays.reduce((sum, d) => sum + dayMap[d].adSpend, 0);
+        if (bulkTotal === 0) continue;
+        const dailyAvg = bulkTotal / bulkDays.length;
+        for (const d of bulkDays) {
+          dayMap[d].adSpend = Math.round(dailyAvg * 100) / 100;
+        }
+      }
+
       return Object.values(dayMap);
     },
   });
