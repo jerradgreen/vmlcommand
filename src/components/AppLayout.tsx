@@ -50,6 +50,19 @@ export default function AppLayout() {
     refetchInterval: 30000,
   });
 
+  const { data: unclassifiedCount } = useQuery({
+    queryKey: ["unclassified-txn-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("financial_transactions")
+        .select("id", { count: "exact", head: true })
+        .is("txn_category", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
   const sidebarContent = (
     <>
       <div className="p-5 flex items-center justify-between">
