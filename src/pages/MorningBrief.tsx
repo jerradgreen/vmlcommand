@@ -9,7 +9,6 @@ import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
 import ReportGenerator from "@/components/ReportGenerator";
-import CeoMorningBrief from "@/components/CeoMorningBrief";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 
 const rangeLabels: Record<DatePreset, string> = {
