@@ -244,6 +244,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ═══ CEO Morning Brief ═══ */}
+      <CeoMorningBrief metrics={m} cashMetrics={cashMetrics ?? null} trends={trends ?? null} />
+
       {/* ═══ SECTION 1 — Revenue Engine ═══ */}
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
