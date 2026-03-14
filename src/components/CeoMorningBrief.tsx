@@ -207,6 +207,45 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
     return items.slice(0, 2);
   }, [m.closeRate, cogsPct30d, cashCushionMonths, shopifyCapPaid30d]);
 
+  /* ══════ Business Insight Narrative ══════ */
+  const insightNarrative = useMemo(() => {
+    // Sentence 1 — Marketing + Conversion context
+    let s1: string;
+    if (m.rangeRoas > 5 && costPerLead < 50 && m.closeRate < 0.05) {
+      s1 = `Marketing is generating leads efficiently at ${formatCurrency(costPerLead)} per lead with strong ROAS, but the close rate of ${(m.closeRate * 100).toFixed(1)}% suggests much of that demand is not yet converting.`;
+    } else if (m.rangeRoas > 5 && m.closeRate >= 0.05) {
+      s1 = "Marketing and sales are both performing well — ROAS is strong and close rate is healthy.";
+    } else if (m.rangeRoas <= 1 && m.adsSpendTotal > 0) {
+      s1 = `Marketing is not producing profitable sales — ROAS is below breakeven at ${m.rangeRoas.toFixed(1)}x.`;
+    } else {
+      s1 = `Marketing is generating returns at ${m.rangeRoas.toFixed(1)}x ROAS with a ${(m.closeRate * 100).toFixed(1)}% close rate.`;
+    }
+
+    // Sentence 2 — Margin/cost pressure
+    let s2: string;
+    if (cogsPct30d > 0.55) {
+      s2 = `Production costs are consuming ${(cogsPct30d * 100).toFixed(0)}% of revenue, compressing margins significantly.`;
+    } else if (netProfitMargin30d < 0) {
+      s2 = `The business is operating at a net loss with a ${(netProfitMargin30d * 100).toFixed(1)}% margin.`;
+    } else {
+      s2 = `Margins are at ${(netProfitMargin30d * 100).toFixed(1)}% net profit, with COGS at ${(cogsPct30d * 100).toFixed(0)}% of revenue.`;
+    }
+
+    // Sentence 3 — Leverage (strict priority)
+    let s3: string;
+    if (cashCushionMonths < 1.5) {
+      s3 = `The most urgent lever is cash preservation — runway is critically short at ${cashCushionMonths.toFixed(1)} months.`;
+    } else if (cogsPct30d > 0.60) {
+      s3 = `The biggest opportunity is reducing production costs, currently at ${(cogsPct30d * 100).toFixed(0)}% of revenue.`;
+    } else if (m.closeRate < 0.05) {
+      s3 = "The highest-impact lever is improving conversion — each 1% increase adds meaningful revenue.";
+    } else {
+      s3 = "Continue optimizing current operations to maintain momentum.";
+    }
+
+    return `${s1} ${s2} ${s3}`;
+  }, [m.rangeRoas, m.adsSpendTotal, m.closeRate, costPerLead, cogsPct30d, netProfitMargin30d, cashCushionMonths]);
+
   /* ── Momentum directions ── */
   const revDir = trendSignals?.revenue ?? "flat";
   const closeDir = trendSignals?.closeRate ?? "flat";
