@@ -371,7 +371,18 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
         </CardContent>
       </Card>
 
-      {/* ═══ SECTION 5: FOCUS TODAY ═══ */}
+      {/* ═══ SECTION 5: BUSINESS INSIGHT ═══ */}
+      <Card className="bg-muted/40">
+        <CardContent className="pt-5 pb-4 px-8 space-y-2">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-amber-500" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Business Insight</p>
+          </div>
+          <p className="text-[15px] leading-relaxed text-foreground/90">{insightNarrative}</p>
+        </CardContent>
+      </Card>
+
+      {/* ═══ SECTION 6: FOCUS TODAY ═══ */}
       <Card className="border-2 border-primary/30">
         <CardContent className="pt-6 pb-5 px-8 space-y-3">
           <div className="flex items-center gap-2">
