@@ -57,7 +57,7 @@ export default function MorningBrief() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Daily Operational Brief</h1>
-          <p className="text-muted-foreground text-sm">Live snapshot — rolling 30-day window</p>
+          <p className="text-muted-foreground text-sm">Executive summary — what matters today</p>
         </div>
         {(() => {
           const salesRevenue = m30d.rangeRevenue ?? 0;
