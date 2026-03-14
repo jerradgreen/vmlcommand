@@ -1,20 +1,17 @@
 
 
-## Smooth Bulk Ad Spend Entries — One-Time Fix
+## Fix: "No allocations to save" Error in Manual Mode
 
-**What**: After populating `adSpend` from the expenses table (lines 551-558), add a post-processing block that detects months with sparse entries and redistributes their totals evenly across all days of that month within the display range.
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-**How** (single change in `src/hooks/useDashboardMetrics.ts`, after line 558):
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-1. Group `sortedDisplayDates` by `YYYY-MM`
-2. For each month-group, count days with non-zero `adSpend`
-3. If ≤ 3 non-zero days exist but the group has ≥ 7 total days:
-   - Find the last non-zero day; check if there's a run of ≥ 3 consecutive non-zero days at the end of the month (that's the "daily cutoff")
-   - Sum all adSpend before that cutoff, divide by count of days before cutoff, assign evenly
-   - Leave days at/after cutoff untouched
-4. If no daily cutoff found (entire month is bulk like January), spread entire sum across all days in that month
+### Fix
 
-This handles January (1 entry → spread across all Jan days in range) and Feb 1-21 (1 bulk entry redistributed across 21 days, while Feb 22+ daily entries stay as-is).
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**Scope**: ~30 lines added to one file, no new components or reusable abstractions.
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
