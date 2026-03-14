@@ -3,20 +3,25 @@ import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
 import ReportGenerator from "@/components/ReportGenerator";
-import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 
-const dateRange: DateRange = { preset: "30d" };
+const range30d: DateRange = { preset: "30d" };
+const range12m: DateRange = { preset: "12m" };
+const rangeMtd: DateRange = { preset: "mtd" };
 
 export default function MorningBrief() {
-  const { data: metrics, isLoading } = useDashboardMetrics(dateRange);
-  const { data: trends } = useTrendData(dateRange);
-  const { data: cashMetrics } = useCashMetrics(dateRange);
+  const { data: metrics30d, isLoading: loading30d } = useDashboardMetrics(range30d);
+  const { data: metrics12m, isLoading: loading12m } = useDashboardMetrics(range12m);
+  const { data: metricsMtd, isLoading: loadingMtd } = useDashboardMetrics(rangeMtd);
+  const { data: cashMetrics } = useCashMetrics(range30d);
+  const { data: trends } = useTrendData(range30d);
+
+  const isLoading = loading30d || loading12m || loadingMtd;
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading metrics…</div>;
   }
 
-  const m = metrics ?? {
+  const defaultMetrics = {
     earliestDate: null as string | null,
     totalRevenue: 0, totalLeads: 0, totalSales: 0,
     closeRate: 0, avgOrderValue: 0, avgDaysLeadToSale: null as number | null,
@@ -43,6 +48,10 @@ export default function MorningBrief() {
     rangeFrom: "2025-01-01", rangeTo: format(new Date(), "yyyy-MM-dd"),
   };
 
+  const m30d = metrics30d ?? defaultMetrics;
+  const m12m = metrics12m ?? defaultMetrics;
+  const mMtd = metricsMtd ?? defaultMetrics;
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -50,10 +59,16 @@ export default function MorningBrief() {
           <h1 className="text-2xl font-bold tracking-tight">Daily Operational Brief</h1>
           <p className="text-muted-foreground text-sm">Live snapshot — rolling 30-day window</p>
         </div>
-        <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel="Daily Brief" />
+        <ReportGenerator metrics={m30d} cashMetrics={cashMetrics} dateLabel="Daily Brief" />
       </div>
 
-      <CeoMorningBrief metrics={m} cashMetrics={cashMetrics ?? null} trends={trends ?? null} />
+      <CeoMorningBrief
+        metrics30d={m30d}
+        metrics12m={m12m}
+        metricsMtd={mMtd}
+        cashMetrics={cashMetrics ?? null}
+        trends={trends ?? null}
+      />
     </div>
   );
 }
