@@ -273,7 +273,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
         title: "Renegotiate Manufacturing Costs",
         reason: `COGS at ${(cogsPct30d * 100).toFixed(1)}% — exceeding 55% of revenue.`,
         step: "Request updated quotes from top 3 vendors; compare per-unit costs.",
-        impact: `Reducing to 50% would save ~${formatCurrency((cogsPct30d - 0.50) * m.depositRevenue)}/mo`,
+        impact: `Reducing to 50% would save ~${formatCurrency((cogsPct30d - 0.50) * salesRevenue30d)}/mo`,
         severity: 5,
       });
     }
