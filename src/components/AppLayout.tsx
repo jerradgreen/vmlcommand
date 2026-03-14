@@ -14,7 +14,7 @@ const navItems = [
   { to: "/sales", label: "Sales", icon: ShoppingCart },
   { to: "/attribution", label: "Attribution Inbox", icon: Inbox, badgeKey: "attribution" },
   { to: "/import", label: "Import Data", icon: Upload },
-  { to: "/transactions", label: "Transactions", icon: Banknote },
+  { to: "/transactions", label: "Transactions", icon: Banknote, badgeKey: "transactions" },
   
   { to: "/cogs-reconciliation", label: "COGS Reconciliation", icon: Factory },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -44,6 +44,19 @@ export default function AppLayout() {
         .select("id", { count: "exact", head: true })
         .eq("sale_type", "unknown")
         .is("lead_id", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: unclassifiedCount } = useQuery({
+    queryKey: ["unclassified-txn-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("financial_transactions")
+        .select("id", { count: "exact", head: true })
+        .is("txn_category", null);
       if (error) throw error;
       return count ?? 0;
     },
@@ -85,6 +98,11 @@ export default function AppLayout() {
             {item.badgeKey === "attribution" && unmatchedCount != null && unmatchedCount > 0 && (
               <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
                 {unmatchedCount}
+              </span>
+            )}
+            {item.badgeKey === "transactions" && unclassifiedCount != null && unclassifiedCount > 0 && (
+              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+                {unclassifiedCount}
               </span>
             )}
           </NavLink>
