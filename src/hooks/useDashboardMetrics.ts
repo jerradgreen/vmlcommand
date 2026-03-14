@@ -567,23 +567,21 @@ export function useTrendData(range: DateRange) {
 
       for (const [, days] of Object.entries(monthGroups)) {
         if (days.length < 7) continue;
-        const nonZeroDays = days.filter((d) => dayMap[d].adSpend > 0);
-        if (nonZeroDays.length === 0 || nonZeroDays.length > 3) continue;
 
-        // Find "daily cutoff": first date in a run of ≥3 consecutive non-zero days at end of month
+        // Find "daily cutoff": first date in a run of ≥3 consecutive non-zero days
         let dailyCutoffIdx = days.length; // default: no cutoff, entire month is bulk
-        for (let i = days.length - 1; i >= 2; i--) {
+        for (let i = 2; i < days.length; i++) {
           if (dayMap[days[i]].adSpend > 0 && dayMap[days[i - 1]].adSpend > 0 && dayMap[days[i - 2]].adSpend > 0) {
-            // Walk back to find the start of this consecutive run
-            let start = i - 2;
-            while (start > 0 && dayMap[days[start - 1]].adSpend > 0) start--;
-            dailyCutoffIdx = start;
+            dailyCutoffIdx = i - 2;
             break;
           }
         }
 
         const bulkDays = days.slice(0, dailyCutoffIdx);
-        if (bulkDays.length === 0) continue;
+        if (bulkDays.length < 2) continue;
+        const bulkNonZero = bulkDays.filter((d) => dayMap[d].adSpend > 0);
+        if (bulkNonZero.length === 0 || bulkNonZero.length > 3) continue;
+
         const bulkTotal = bulkDays.reduce((sum, d) => sum + dayMap[d].adSpend, 0);
         if (bulkTotal === 0) continue;
         const dailyAvg = bulkTotal / bulkDays.length;
