@@ -63,7 +63,7 @@ function StatusBadge({ status }: { status: "green" | "yellow" | "red" }) {
     yellow: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
     red: "bg-destructive/10 text-destructive border-destructive/30",
   };
-  const labels = { green: "Strong", yellow: "Watch", red: "Action Needed" };
+  const labels: Record<string, string> = { green: "Strong", yellow: "Watch", red: "Action Needed" };
   return <Badge variant="outline" className={cn("text-xs", styles[status])}>{labels[status]}</Badge>;
 }
 
