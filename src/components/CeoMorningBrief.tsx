@@ -165,10 +165,10 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const leadsRequired = leadValue > 0 ? Math.ceil(requiredGrossProfit / leadValue) : 0;
   const ownerOnTrack = grossProfitThisMonth >= requiredGrossProfit;
 
-  /* ── Margin Watch (30d, using briefCogs30d) ── */
+  /* ── Margin Watch (30d, using briefCogs30d against sales revenue) ── */
   const cogsPctStatus = getStatus(cogsPct30d, 0.45, 0.55, false);
-  const adsPctOfRev = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
-  const overheadPctOfRev = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
+  const adsPctOfRev = salesRevenue30d > 0 ? m.adsSpendTotal / salesRevenue30d : 0;
+  const overheadPctOfRev = salesRevenue30d > 0 ? m.overheadTotal / salesRevenue30d : 0;
 
   /* ── Sales Engine ── */
   const closeRateStatus = getStatus(m.closeRate, 0.05, 0.03);
