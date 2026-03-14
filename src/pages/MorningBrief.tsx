@@ -113,7 +113,8 @@ export default function MorningBrief() {
               </Popover>
               <Button size="sm" onClick={applyCustomRange}>Apply</Button>
             </div>
-          )}
+            )}
+          <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel={rangeLabels[dateRange.preset] ?? "YTD"} />
         </div>
       </div>
 
