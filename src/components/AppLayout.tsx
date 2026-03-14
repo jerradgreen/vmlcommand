@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/morning-brief", label: "Morning Brief", icon: Sun },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/sales", label: "Sales", icon: ShoppingCart },
   { to: "/attribution", label: "Attribution Inbox", icon: Inbox, badgeKey: "attribution" },

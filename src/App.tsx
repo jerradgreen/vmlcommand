@@ -32,6 +32,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/morning-brief" element={<MorningBrief />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/attribution" element={<Attribution />} />
