@@ -12,6 +12,7 @@ import Attribution from "./pages/Attribution";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
+import MorningBrief from "./pages/MorningBrief";
 
 import CogsReconciliation from "./pages/CogsReconciliation";
 import Login from "./pages/Login";
