@@ -100,6 +100,11 @@ export default function AppLayout() {
                 {unmatchedCount}
               </span>
             )}
+            {item.badgeKey === "transactions" && unclassifiedCount != null && unclassifiedCount > 0 && (
+              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+                {unclassifiedCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
