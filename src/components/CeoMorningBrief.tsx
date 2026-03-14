@@ -120,12 +120,14 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const briefCogs12m = m12.allocatedMfgTotal + m12.accruedMfgRemaining;
   const briefCogsMtd = mMtd.allocatedMfgTotal + mMtd.accruedMfgRemaining;
 
-  /* ── Derived profitability (30d) ── */
-  const grossProfit30d = m.depositRevenue - briefCogs30d;
-  const grossMargin30d = m.depositRevenue > 0 ? grossProfit30d / m.depositRevenue : 0;
-  const cogsPct30d = m.depositRevenue > 0 ? briefCogs30d / m.depositRevenue : 0;
-  const netProfit30d = grossProfit30d - m.adsSpendTotal - m.overheadTotal;
-  const netProfitMargin30d = m.depositRevenue > 0 ? netProfit30d / m.depositRevenue : 0;
+  /* ── Derived profitability (30d) — sales-based revenue for consistent timing ── */
+  const salesRevenue30d = (m as any).rangeRevenue ?? 0;
+  const grossProfit30d = salesRevenue30d - briefCogs30d;
+  const grossMargin30d = salesRevenue30d > 0 ? grossProfit30d / salesRevenue30d : 0;
+  const cogsPct30d = salesRevenue30d > 0 ? briefCogs30d / salesRevenue30d : 0;
+  const shopifyCapPaid30d = (m as any).shopifyCapitalPaidInRange ?? 0;
+  const netProfit30d = grossProfit30d - m.adsSpendTotal - m.overheadTotal - shopifyCapPaid30d;
+  const netProfitMargin30d = salesRevenue30d > 0 ? netProfit30d / salesRevenue30d : 0;
 
   /* ── Cash ── */
   const cashInBank = cashMetrics?.cashInBank ?? 0;
