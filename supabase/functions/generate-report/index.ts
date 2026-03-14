@@ -54,6 +54,8 @@ Here are the key metrics:
 - Unmatched Sales: ${metrics.unmatchedCount ?? 0}
 - ROAS: ${(metrics.rangeRoas ?? 0).toFixed(2)}x
 - Revenue per Sale: $${(metrics.revenuePerSale ?? 0).toFixed(0)}
+- Cost Per Lead: ${metrics.costPerLead != null ? `$${metrics.costPerLead.toFixed(0)}` : "N/A (no leads)"}
+- Revenue Per Lead (New Leads): ${metrics.revenuePerLead != null ? `$${metrics.revenuePerLead.toFixed(0)}` : "N/A (no leads)"}
 
 Return a JSON response using the tool provided.`;
 
