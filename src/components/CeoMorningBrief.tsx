@@ -148,10 +148,11 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
     mfgCoverage >= 0.6 ? "Normal" :
     mfgCoverage >= 0.4 ? "Watch" : "Risk";
 
-  /* ── 12m baseline assumptions ── */
+  /* ── 12m baseline assumptions — use sales revenue for margin consistency ── */
   const closeRate12m = m12.closeRate;
   const aov12m = m12.avgOrderValue;
-  const grossMargin12m = m12.depositRevenue > 0 ? (m12.depositRevenue - briefCogs12m) / m12.depositRevenue : 0;
+  const salesRevenue12m = (m12 as any).rangeRevenue ?? 0;
+  const grossMargin12m = salesRevenue12m > 0 ? (salesRevenue12m - briefCogs12m) / salesRevenue12m : 0;
   const leadValue = aov12m * closeRate12m * grossMargin12m;
 
   /* ── Owner Income Tracker ── */
