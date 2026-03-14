@@ -120,12 +120,14 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const briefCogs12m = m12.allocatedMfgTotal + m12.accruedMfgRemaining;
   const briefCogsMtd = mMtd.allocatedMfgTotal + mMtd.accruedMfgRemaining;
 
-  /* ── Derived profitability (30d) ── */
-  const grossProfit30d = m.depositRevenue - briefCogs30d;
-  const grossMargin30d = m.depositRevenue > 0 ? grossProfit30d / m.depositRevenue : 0;
-  const cogsPct30d = m.depositRevenue > 0 ? briefCogs30d / m.depositRevenue : 0;
-  const netProfit30d = grossProfit30d - m.adsSpendTotal - m.overheadTotal;
-  const netProfitMargin30d = m.depositRevenue > 0 ? netProfit30d / m.depositRevenue : 0;
+  /* ── Derived profitability (30d) — sales-based revenue for consistent timing ── */
+  const salesRevenue30d = (m as any).rangeRevenue ?? 0;
+  const grossProfit30d = salesRevenue30d - briefCogs30d;
+  const grossMargin30d = salesRevenue30d > 0 ? grossProfit30d / salesRevenue30d : 0;
+  const cogsPct30d = salesRevenue30d > 0 ? briefCogs30d / salesRevenue30d : 0;
+  const shopifyCapPaid30d = (m as any).shopifyCapitalPaidInRange ?? 0;
+  const netProfit30d = grossProfit30d - m.adsSpendTotal - m.overheadTotal - shopifyCapPaid30d;
+  const netProfitMargin30d = salesRevenue30d > 0 ? netProfit30d / salesRevenue30d : 0;
 
   /* ── Cash ── */
   const cashInBank = cashMetrics?.cashInBank ?? 0;
@@ -146,25 +148,27 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
     mfgCoverage >= 0.6 ? "Normal" :
     mfgCoverage >= 0.4 ? "Watch" : "Risk";
 
-  /* ── 12m baseline assumptions ── */
+  /* ── 12m baseline assumptions — use sales revenue for margin consistency ── */
   const closeRate12m = m12.closeRate;
   const aov12m = m12.avgOrderValue;
-  const grossMargin12m = m12.depositRevenue > 0 ? (m12.depositRevenue - briefCogs12m) / m12.depositRevenue : 0;
+  const salesRevenue12m = (m12 as any).rangeRevenue ?? 0;
+  const grossMargin12m = salesRevenue12m > 0 ? (salesRevenue12m - briefCogs12m) / salesRevenue12m : 0;
   const leadValue = aov12m * closeRate12m * grossMargin12m;
 
   /* ── Owner Income Tracker ── */
   const overheadMonthly = m.overheadMonthlyRunRate;
   const adSpendMonthly = m.adsMonthlyRunRate;
   const requiredGrossProfit = ownerTarget + overheadMonthly + adSpendMonthly;
-  const grossProfitThisMonth = mMtd.depositRevenue - briefCogsMtd;
+  const salesRevenueMtd = (mMtd as any).rangeRevenue ?? 0;
+  const grossProfitThisMonth = salesRevenueMtd - briefCogsMtd;
   const remainingGap = requiredGrossProfit - grossProfitThisMonth;
   const leadsRequired = leadValue > 0 ? Math.ceil(requiredGrossProfit / leadValue) : 0;
   const ownerOnTrack = grossProfitThisMonth >= requiredGrossProfit;
 
-  /* ── Margin Watch (30d, using briefCogs30d) ── */
+  /* ── Margin Watch (30d, using briefCogs30d against sales revenue) ── */
   const cogsPctStatus = getStatus(cogsPct30d, 0.45, 0.55, false);
-  const adsPctOfRev = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
-  const overheadPctOfRev = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
+  const adsPctOfRev = salesRevenue30d > 0 ? m.adsSpendTotal / salesRevenue30d : 0;
+  const overheadPctOfRev = salesRevenue30d > 0 ? m.overheadTotal / salesRevenue30d : 0;
 
   /* ── Sales Engine ── */
   const closeRateStatus = getStatus(m.closeRate, 0.05, 0.03);
@@ -209,8 +213,8 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
       });
     }
 
-    if (cogsPct30d > 0.55 && m.depositRevenue > 0) {
-      const savings = (cogsPct30d - 0.45) * m.depositRevenue;
+      if (cogsPct30d > 0.55 && salesRevenue30d > 0) {
+      const savings = (cogsPct30d - 0.45) * salesRevenue30d;
       alerts.push({
         title: "COGS Reduction",
         explanation: `COGS at ${(cogsPct30d * 100).toFixed(1)}% of revenue — exceeds 55% threshold.`,
@@ -269,7 +273,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
         title: "Renegotiate Manufacturing Costs",
         reason: `COGS at ${(cogsPct30d * 100).toFixed(1)}% — exceeding 55% of revenue.`,
         step: "Request updated quotes from top 3 vendors; compare per-unit costs.",
-        impact: `Reducing to 50% would save ~${formatCurrency((cogsPct30d - 0.50) * m.depositRevenue)}/mo`,
+        impact: `Reducing to 50% would save ~${formatCurrency((cogsPct30d - 0.50) * salesRevenue30d)}/mo`,
         severity: 5,
       });
     }
@@ -627,9 +631,10 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Revenue (30d)</p>
-                  <p className="text-xl font-bold">{formatCurrency(m.depositRevenue)}</p>
+                 <div>
+                  <p className="text-xs text-muted-foreground">Sales Revenue (30d)</p>
+                  <p className="text-xl font-bold">{formatCurrency(salesRevenue30d)}</p>
+                  <p className="text-[10px] text-muted-foreground">Booked sales in window</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">COGS (actual + estimated)</p>
@@ -647,7 +652,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 </div>
               </div>
               <Separator />
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Ad Spend</p>
                   <p className="text-lg font-bold">{formatCurrency(m.adsSpendTotal)}</p>
@@ -655,6 +660,10 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 <div>
                   <p className="text-xs text-muted-foreground">Overhead</p>
                   <p className="text-lg font-bold">{formatCurrency(m.overheadTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Loan Remittance</p>
+                  <p className="text-lg font-bold">{formatCurrency(shopifyCapPaid30d)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Net Profit</p>
@@ -702,7 +711,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                   <p className={cn("text-xl font-bold", grossProfitThisMonth >= requiredGrossProfit ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
                     {formatCurrency(grossProfitThisMonth)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">MTD deposits − MTD COGS</p>
+                  <p className="text-[10px] text-muted-foreground">MTD sales revenue − MTD COGS</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Remaining Gap</p>
