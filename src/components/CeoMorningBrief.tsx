@@ -711,7 +711,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                   <p className={cn("text-xl font-bold", grossProfitThisMonth >= requiredGrossProfit ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
                     {formatCurrency(grossProfitThisMonth)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">MTD deposits − MTD COGS</p>
+                  <p className="text-[10px] text-muted-foreground">MTD sales revenue − MTD COGS</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Remaining Gap</p>

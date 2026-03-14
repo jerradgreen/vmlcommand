@@ -59,7 +59,32 @@ export default function MorningBrief() {
           <h1 className="text-2xl font-bold tracking-tight">Daily Operational Brief</h1>
           <p className="text-muted-foreground text-sm">Live snapshot — rolling 30-day window</p>
         </div>
-        <ReportGenerator metrics={m30d} cashMetrics={cashMetrics} dateLabel="Daily Brief" />
+        {(() => {
+          const salesRevenue = m30d.rangeRevenue ?? 0;
+          const briefCogs = (m30d.allocatedMfgTotal ?? 0) + (m30d.accruedMfgRemaining ?? 0);
+          const grossProfit = salesRevenue - briefCogs;
+          const grossMargin = salesRevenue > 0 ? grossProfit / salesRevenue : 0;
+          const cogsPct = salesRevenue > 0 ? briefCogs / salesRevenue : 0;
+          const shopifyCapPaid = m30d.shopifyCapitalPaidInRange ?? 0;
+          const netProfit = grossProfit - (m30d.adsSpendTotal ?? 0) - (m30d.overheadTotal ?? 0) - shopifyCapPaid;
+          const netMargin = salesRevenue > 0 ? netProfit / salesRevenue : 0;
+          const newLeadCloseRate = (m30d.totalLeads ?? 0) > 0
+            ? (m30d.newLeadSalesCount ?? 0) / m30d.totalLeads
+            : 0;
+          const reportMetrics = {
+            ...m30d,
+            salesRevenue,
+            briefCogs,
+            grossProfit,
+            grossMargin,
+            cogsPct,
+            netProfit,
+            netMargin,
+            closeRate: newLeadCloseRate,
+            shopifyCapitalPaidInRange: shopifyCapPaid,
+          };
+          return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} dateLabel="Daily Brief" />;
+        })()}
       </div>
 
       <CeoMorningBrief

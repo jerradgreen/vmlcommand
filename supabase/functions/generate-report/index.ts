@@ -16,38 +16,42 @@ serve(async (req) => {
 
     const prompt = `You are a fractional CFO analyzing a small e-commerce business (custom signs/marquees). Generate a business health report for the period: ${dateLabel}.
 
+IMPORTANT: COGS and profitability metrics below are based on booked sales revenue (not bank deposits). Cash metrics are shown separately.
+
 Here are the key metrics:
-- Revenue (bank deposits): $${metrics.depositRevenue?.toLocaleString() ?? 0}
-- Sales sheet revenue: $${metrics.rangeRevenue?.toLocaleString() ?? 0}
-- Total Sales: ${metrics.totalSales ?? 0}
-- Total Leads: ${metrics.totalLeads ?? 0}
-- Close Rate: ${((metrics.closeRate ?? 0) * 100).toFixed(1)}%
-- Avg Order Value: $${metrics.avgOrderValue?.toFixed(0) ?? 0}
-- Avg Days Lead → Sale: ${metrics.avgDaysLeadToSale?.toFixed(1) ?? "N/A"}
-- New Lead Revenue: $${metrics.newLeadRevenue?.toLocaleString() ?? 0} (${metrics.newLeadSalesCount ?? 0} sales)
-- Repeat/Direct Revenue: $${metrics.repeatDirectRevenue?.toLocaleString() ?? 0} (${metrics.repeatDirectSalesCount ?? 0} sales)
-- Unmatched Sales: ${metrics.unmatchedCount ?? 0}
-- Ad Spend: $${metrics.adsSpendTotal?.toLocaleString() ?? 0}
-- ROAS: ${metrics.rangeRoas?.toFixed(2) ?? 0}x
-- Ad Spend % of Revenue: ${((metrics.adsSpendTotal ?? 0) / Math.max(metrics.depositRevenue ?? 1, 1) * 100).toFixed(1)}%
-- COGS (cash): $${metrics.cogsTotal?.toLocaleString() ?? 0}
-- Accrued Mfg Remaining: $${metrics.accruedMfgRemaining?.toLocaleString() ?? 0}
-- Adjusted COGS: $${metrics.adjustedCogsTotal?.toLocaleString() ?? 0}
-- COGS % of Revenue: ${((metrics.adjustedCogsPct ?? 0) * 100).toFixed(1)}%
-- Overhead: $${metrics.overheadTotal?.toLocaleString() ?? 0} (Recurring: $${metrics.overheadRecurringTotal?.toLocaleString() ?? 0}, One-time: $${metrics.overheadOneTimeTotal?.toLocaleString() ?? 0})
-- Overhead Monthly Run-Rate: $${metrics.overheadMonthlyRunRate?.toLocaleString() ?? 0}
-- Total Operating Cost Run-Rate: $${metrics.totalOpCostMonthlyRunRate?.toLocaleString() ?? 0}/mo
-- Net Profit Run-Rate: $${metrics.netProfitMonthlyRunRate?.toLocaleString() ?? 0}/mo
-- Profit Margin Run-Rate: ${((metrics.profitMarginPctRunRate ?? 0) * 100).toFixed(1)}%
-- Revenue per Sale: $${metrics.revenuePerSale?.toFixed(0) ?? 0}
-- Gross Profit per Sale: $${metrics.contributionMarginPerSale?.toFixed(0) ?? 0}
-- Net Profit per Sale: $${metrics.netProfitPerSaleRunRate?.toFixed(0) ?? 0}
-- Marketing Cost per Sale: $${metrics.fullyLoadedCPO?.toFixed(0) ?? 0}
-- Shopify Capital Remaining: $${metrics.shopifyCapitalRemaining?.toLocaleString() ?? 0}
-- Shopify Capital Paid (period): $${metrics.shopifyCapitalPaidInRange?.toLocaleString() ?? 0}
+
+--- PROFITABILITY (Sales-Based) ---
+- Sales Revenue (booked): $${(metrics.salesRevenue ?? metrics.rangeRevenue ?? 0).toLocaleString()}
+- COGS (Actual + Estimated): $${(metrics.briefCogs ?? metrics.adjustedCogsTotal ?? 0).toLocaleString()}
+- COGS % of Sales Revenue: ${((metrics.cogsPct ?? metrics.adjustedCogsPct ?? 0) * 100).toFixed(1)}%
+- Gross Profit: $${(metrics.grossProfit ?? 0).toLocaleString()}
+- Gross Margin: ${((metrics.grossMargin ?? 0) * 100).toFixed(1)}%
+- Ad Spend: $${(metrics.adsSpendTotal ?? 0).toLocaleString()}
+- Overhead: $${(metrics.overheadTotal ?? 0) .toLocaleString()} (Recurring: $${(metrics.overheadRecurringTotal ?? 0).toLocaleString()}, One-time: $${(metrics.overheadOneTimeTotal ?? 0).toLocaleString()})
+- Shopify Capital Paid (period): $${(metrics.shopifyCapitalPaidInRange ?? 0).toLocaleString()}
+- Net Profit: $${(metrics.netProfit ?? 0).toLocaleString()}
+- Net Margin: ${((metrics.netMargin ?? 0) * 100).toFixed(1)}%
+
+--- CASH METRICS (Deposit-Based) ---
+- Bank Deposits (cash collected): $${(metrics.depositRevenue ?? 0).toLocaleString()}
+- Cash in Bank: $${(metrics.cashInBank ?? "N/A").toLocaleString?.() ?? "N/A"}
+- Net Cash Position: $${(metrics.netCashPosition ?? "N/A").toLocaleString?.() ?? "N/A"}
+- Shopify Capital Remaining: $${(metrics.shopifyCapitalRemaining ?? 0).toLocaleString()}
 - Next 7 Days Due: $${((metrics.next7BillsDue ?? 0) + (metrics.next7CogsDue ?? 0)).toLocaleString()}
-- Cash in Bank: $${metrics.cashInBank?.toLocaleString() ?? "N/A"}
-- Net Cash Position: $${metrics.netCashPosition?.toLocaleString() ?? "N/A"}
+
+--- SALES & MARKETING ---
+- Total Sales: ${metrics.totalSales ?? 0}
+- New-Lead Sales: ${metrics.newLeadSalesCount ?? 0}
+- Total Leads (Cognito): ${metrics.totalLeads ?? 0}
+- New-Lead Close Rate: ${((metrics.closeRate ?? 0) * 100).toFixed(1)}%
+- Avg Order Value: $${(metrics.avgOrderValue ?? 0).toFixed(0)}
+- Avg Days Lead → Sale: ${(metrics.avgDaysLeadToSale ?? "N/A")}
+- New Lead Revenue: $${(metrics.newLeadRevenue ?? 0).toLocaleString()} (${metrics.newLeadSalesCount ?? 0} sales)
+- Repeat/Direct Revenue: $${(metrics.repeatDirectRevenue ?? 0).toLocaleString()} (${metrics.repeatDirectSalesCount ?? 0} sales)
+- Unmatched Sales: ${metrics.unmatchedCount ?? 0}
+- ROAS: ${(metrics.rangeRoas ?? 0).toFixed(2)}x
+- Marketing Cost per Sale: $${(metrics.fullyLoadedCPO ?? 0).toFixed(0)}
+- Revenue per Sale: $${(metrics.revenuePerSale ?? 0).toFixed(0)}
 
 Return a JSON response using the tool provided.`;
 
@@ -60,7 +64,7 @@ Return a JSON response using the tool provided.`;
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a fractional CFO generating business health reports. Be specific, data-driven, and actionable. Use actual numbers from the metrics provided." },
+          { role: "system", content: "You are a fractional CFO generating business health reports. Be specific, data-driven, and actionable. Use actual numbers from the metrics provided. Note: profitability metrics use booked sales revenue as the basis, not cash deposits." },
           { role: "user", content: prompt },
         ],
         tools: [

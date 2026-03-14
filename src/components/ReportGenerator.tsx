@@ -152,8 +152,8 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
     doc.text("Cost Breakdown (% of Revenue)", margin, y);
     y += 14;
 
-    const rev = Math.max(m.depositRevenue ?? 1, 1);
-    const cogsPct = (m.adjustedCogsTotal ?? 0) / rev;
+    const rev = Math.max(m.salesRevenue ?? m.rangeRevenue ?? 1, 1);
+    const cogsPct = (m.briefCogs ?? m.adjustedCogsTotal ?? 0) / rev;
     const adsPct = (m.adsSpendTotal ?? 0) / rev;
     const ohPct = (m.overheadTotal ?? 0) / rev;
     const barW = contentW - 40;
