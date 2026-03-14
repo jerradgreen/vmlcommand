@@ -101,16 +101,20 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
     y += 18;
 
     const kpis: [string, string][] = [
-      ["Revenue (Bank Deposits)", formatCurrency(m.depositRevenue ?? 0)],
+      ["Sales Revenue (30d)", formatCurrency(m.salesRevenue ?? m.rangeRevenue ?? 0)],
+      ["Bank Deposits (Cash)", formatCurrency(m.depositRevenue ?? 0)],
       ["Total Sales", formatNumber(m.totalSales ?? 0)],
+      ["New-Lead Sales", formatNumber(m.newLeadSalesCount ?? 0)],
       ["Avg Order Value", formatCurrency(m.avgOrderValue ?? 0)],
       ["ROAS", `${(m.rangeRoas ?? 0).toFixed(2)}x`],
-      ["Close Rate", formatPercent(m.closeRate ?? 0)],
+      ["New-Lead Close Rate", formatPercent(m.closeRate ?? 0)],
       ["Ad Spend", formatCurrency(m.adsSpendTotal ?? 0)],
-      ["Adjusted COGS", formatCurrency(m.adjustedCogsTotal ?? 0)],
+      ["COGS (Actual + Estimated)", formatCurrency(m.briefCogs ?? m.adjustedCogsTotal ?? 0)],
       ["Overhead", formatCurrency(m.overheadTotal ?? 0)],
-      ["Net Profit (run-rate)", formatCurrency(m.netProfitMonthlyRunRate ?? 0) + "/mo"],
-      ["Profit Margin", formatPercent(m.profitMarginPctRunRate ?? 0)],
+      ["Shopify Capital Paid", formatCurrency(m.shopifyCapitalPaidInRange ?? 0)],
+      ["Gross Margin", formatPercent(m.grossMargin ?? 0)],
+      ["Net Profit", formatCurrency(m.netProfit ?? 0)],
+      ["Net Margin", formatPercent(m.netMargin ?? 0)],
     ];
 
     if (m.cashInBank != null) {
