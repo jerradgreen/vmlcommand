@@ -103,6 +103,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   /* ── Cash runway ── */
   const monthlyOpCosts = m.totalOpCostMonthlyRunRate;
   const cashCushionMonths = monthlyOpCosts > 0 ? cashInBank / monthlyOpCosts : 99;
+  const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : 0;
 
   /* ══════ Opportunity Alerts ══════ */
   const opportunityAlerts = useMemo(() => {
