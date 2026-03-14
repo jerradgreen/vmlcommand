@@ -71,6 +71,9 @@ export default function MorningBrief() {
           const newLeadCloseRate = (m30d.totalLeads ?? 0) > 0
             ? (m30d.newLeadSalesCount ?? 0) / m30d.totalLeads
             : 0;
+          const costPerSale = (m30d.newLeadSalesCount ?? 0) > 0
+            ? (m30d.adsSpendTotal ?? 0) / m30d.newLeadSalesCount
+            : null;
           const reportMetrics = {
             ...m30d,
             salesRevenue,
@@ -82,6 +85,7 @@ export default function MorningBrief() {
             netMargin,
             closeRate: newLeadCloseRate,
             shopifyCapitalPaidInRange: shopifyCapPaid,
+            costPerSale,
           };
           return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} dateLabel="Daily Brief" />;
         })()}

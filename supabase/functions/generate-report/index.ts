@@ -66,7 +66,7 @@ Return a JSON response using the tool provided.`;
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a fractional CFO generating business health reports. Be specific, data-driven, and actionable. Use actual numbers from the metrics provided. Note: profitability metrics use booked sales revenue as the basis, not cash deposits." },
+          { role: "system", content: "You are a fractional CFO generating business health reports. Be specific, data-driven, and actionable. Use actual numbers from the metrics provided. Note: profitability metrics use booked sales revenue as the basis, not cash deposits. Always refer to individual orders as 'sales' or 'orders', never 'units'." },
           { role: "user", content: prompt },
         ],
         tools: [

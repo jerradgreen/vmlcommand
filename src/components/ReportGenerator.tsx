@@ -148,44 +148,49 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
     }
     y += 8;
 
-    // ── Cost Breakdown Bar ──
-    checkPage(50);
+    // ── Profit Breakdown Bar ──
+    checkPage(60);
     addText("", 11, "bold");
-    doc.text("Cost Breakdown (% of Revenue)", margin, y);
+    doc.text("Profit Breakdown (% of Sales Revenue)", margin, y);
     y += 14;
 
     const rev = Math.max(m.salesRevenue ?? m.rangeRevenue ?? 1, 1);
     const cogsPct = (m.briefCogs ?? m.adjustedCogsTotal ?? 0) / rev;
     const adsPct = (m.adsSpendTotal ?? 0) / rev;
     const ohPct = (m.overheadTotal ?? 0) / rev;
+    const capPct = (m.shopifyCapitalPaidInRange ?? 0) / rev;
+    const netProfitPct = 1 - cogsPct - adsPct - ohPct - capPct;
     const barW = contentW - 40;
     const barH = 18;
 
-    // COGS bar
-    doc.setFillColor(59, 130, 246); // blue
-    doc.rect(margin, y, barW * Math.min(cogsPct, 1), barH, "F");
-    // Ads bar
-    doc.setFillColor(239, 68, 68); // red
-    doc.rect(margin + barW * Math.min(cogsPct, 1), y, barW * Math.min(adsPct, 1 - cogsPct), barH, "F");
-    // Overhead bar
-    doc.setFillColor(234, 179, 8); // yellow
-    doc.rect(margin + barW * Math.min(cogsPct + adsPct, 1), y, barW * Math.min(ohPct, 1 - cogsPct - adsPct), barH, "F");
-    // Remaining (profit)
-    const usedPct = Math.min(cogsPct + adsPct + ohPct, 1);
-    if (usedPct < 1) {
-      doc.setFillColor(22, 163, 74); // green
-      doc.rect(margin + barW * usedPct, y, barW * (1 - usedPct), barH, "F");
+    // Stacked segments — clamp each to available space
+    let barX = margin;
+    const segments = [
+      { pct: cogsPct, color: [59, 130, 246] as [number, number, number] },   // blue
+      { pct: adsPct, color: [239, 68, 68] as [number, number, number] },     // red
+      { pct: ohPct, color: [234, 179, 8] as [number, number, number] },      // yellow
+      { pct: capPct, color: [168, 85, 247] as [number, number, number] },    // purple
+      { pct: Math.max(netProfitPct, 0), color: [22, 163, 74] as [number, number, number] }, // green (clamped)
+    ];
+    for (const seg of segments) {
+      const w = barW * Math.max(Math.min(seg.pct, 1), 0);
+      if (w > 0) {
+        doc.setFillColor(seg.color[0], seg.color[1], seg.color[2]);
+        doc.rect(barX, y, w, barH, "F");
+        barX += w;
+      }
     }
     y += barH + 8;
 
-    // Legend
+    // Legend — show true percentages including negative net profit
     doc.setFontSize(8);
     doc.setTextColor(80, 80, 80);
     const legendItems = [
       { label: `COGS ${(cogsPct * 100).toFixed(0)}%`, color: [59, 130, 246] },
       { label: `Ads ${(adsPct * 100).toFixed(0)}%`, color: [239, 68, 68] },
       { label: `Overhead ${(ohPct * 100).toFixed(0)}%`, color: [234, 179, 8] },
-      { label: `Margin ${((1 - usedPct) * 100).toFixed(0)}%`, color: [22, 163, 74] },
+      { label: `Capital ${(capPct * 100).toFixed(0)}%`, color: [168, 85, 247] },
+      { label: `Net Profit ${(netProfitPct * 100).toFixed(0)}%`, color: [22, 163, 74] },
     ];
     let lx = margin;
     for (const item of legendItems) {
