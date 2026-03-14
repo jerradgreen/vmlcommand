@@ -365,7 +365,7 @@ function TransactionsTab() {
                     }}
                   />
                 </TableCell>
-                <TableCell className="whitespace-nowrap" onClick={() => setEditTxn(txn)}>{format(new Date(txn.txn_date), "MMM d, yyyy")}</TableCell>
+                <TableCell className="whitespace-nowrap" onClick={() => setEditTxn(txn)}>{format(new Date(txn.txn_date + "T00:00:00"), "MMM d, yyyy")}</TableCell>
                 <TableCell className="max-w-[300px] truncate" onClick={() => setEditTxn(txn)}>{txn.description}</TableCell>
                 <TableCell className="text-right whitespace-nowrap font-mono" onClick={() => setEditTxn(txn)}>
                   {txn.amount < 0 ? "-" : ""}${Math.abs(txn.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
