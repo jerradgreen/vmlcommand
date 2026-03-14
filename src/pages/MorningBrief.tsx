@@ -8,9 +8,10 @@ import { useDashboardMetrics, useTrendData, DateRange, DatePreset } from "@/hook
 import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
+import ReportGenerator from "@/components/ReportGenerator";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 
-const presetLabels: Record<DatePreset, string> = {
+const rangeLabels: Record<DatePreset, string> = {
   all: "All Time", today: "Today", yesterday: "Yesterday", "7d": "Last 7 Days",
   "30d": "Last 30 Days", mtd: "Month to Date", ytd: "Year to Date",
   last_year: "Last Year", "12m": "Last 12 Months", custom: "Custom Range",
@@ -80,7 +81,7 @@ export default function MorningBrief() {
           <Select value={dateRange.preset} onValueChange={handlePresetChange}>
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {Object.entries(presetLabels).map(([k, v]) => (
+              {Object.entries(rangeLabels).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
               ))}
             </SelectContent>
@@ -112,7 +113,8 @@ export default function MorningBrief() {
               </Popover>
               <Button size="sm" onClick={applyCustomRange}>Apply</Button>
             </div>
-          )}
+            )}
+          <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel={rangeLabels[dateRange.preset] ?? "YTD"} />
         </div>
       </div>
 
