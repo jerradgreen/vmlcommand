@@ -54,6 +54,8 @@ Here are the key metrics:
 - Unmatched Sales: ${metrics.unmatchedCount ?? 0}
 - ROAS: ${(metrics.rangeRoas ?? 0).toFixed(2)}x
 - Revenue per Sale: $${(metrics.revenuePerSale ?? 0).toFixed(0)}
+- Cost Per Lead: ${metrics.costPerLead != null ? `$${metrics.costPerLead.toFixed(0)}` : "N/A (no leads)"}
+- Revenue Per Lead (New Leads): ${metrics.revenuePerLead != null ? `$${metrics.revenuePerLead.toFixed(0)}` : "N/A (no leads)"}
 
 Return a JSON response using the tool provided.`;
 
@@ -66,7 +68,7 @@ Return a JSON response using the tool provided.`;
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a fractional CFO generating business health reports. Be specific, data-driven, and actionable. Use actual numbers from the metrics provided. Note: profitability metrics use booked sales revenue as the basis, not cash deposits. Always refer to individual orders as 'sales' or 'orders', never 'units'." },
+          { role: "system", content: "You are a fractional CFO generating business health reports. Be specific, data-driven, and actionable. Use actual numbers from the metrics provided. Note: profitability metrics use booked sales revenue as the basis, not cash deposits. Always refer to individual orders as 'sales' or 'orders', never 'units'. Cost Per Lead and Revenue Per Lead are lead funnel efficiency metrics measuring ad spend efficiency and revenue yield per Cognito form submission." },
           { role: "user", content: prompt },
         ],
         tools: [

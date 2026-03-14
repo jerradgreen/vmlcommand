@@ -74,6 +74,12 @@ export default function MorningBrief() {
           const costPerSale = (m30d.newLeadSalesCount ?? 0) > 0
             ? (m30d.adsSpendTotal ?? 0) / m30d.newLeadSalesCount
             : null;
+          const costPerLead = (m30d.totalLeads ?? 0) > 0
+            ? (m30d.adsSpendTotal ?? 0) / m30d.totalLeads
+            : null;
+          const revenuePerLead = (m30d.totalLeads ?? 0) > 0
+            ? ((m30d.newLeadSalesCount ?? 0) * (m30d.avgOrderValue ?? 0)) / m30d.totalLeads
+            : null;
           const reportMetrics = {
             ...m30d,
             salesRevenue,
@@ -86,6 +92,8 @@ export default function MorningBrief() {
             closeRate: newLeadCloseRate,
             shopifyCapitalPaidInRange: shopifyCapPaid,
             costPerSale,
+            costPerLead,
+            revenuePerLead,
           };
           return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} dateLabel="Daily Brief" />;
         })()}
