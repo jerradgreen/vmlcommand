@@ -14,7 +14,7 @@ const navItems = [
   { to: "/sales", label: "Sales", icon: ShoppingCart },
   { to: "/attribution", label: "Attribution Inbox", icon: Inbox, badgeKey: "attribution" },
   { to: "/import", label: "Import Data", icon: Upload },
-  { to: "/transactions", label: "Transactions", icon: Banknote },
+  { to: "/transactions", label: "Transactions", icon: Banknote, badgeKey: "transactions" },
   
   { to: "/cogs-reconciliation", label: "COGS Reconciliation", icon: Factory },
   { to: "/settings", label: "Settings", icon: Settings },
