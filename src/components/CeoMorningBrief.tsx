@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import {
-  TrendingUp, TrendingDown, Minus, AlertTriangle, Zap,
+  TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
