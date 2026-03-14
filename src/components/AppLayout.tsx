@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Settings, Menu, X, LogOut, Factory } from "lucide-react";
+import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Settings, Menu, X, LogOut, Factory, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useEffect } from "react";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/morning-brief", label: "Morning Brief", icon: Sun },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/sales", label: "Sales", icon: ShoppingCart },
   { to: "/attribution", label: "Attribution Inbox", icon: Inbox, badgeKey: "attribution" },

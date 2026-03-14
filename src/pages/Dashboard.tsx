@@ -25,7 +25,6 @@ import { useCashMetrics } from "@/hooks/useCashMetrics";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import ReportGenerator from "@/components/ReportGenerator";
-import CeoMorningBrief from "@/components/CeoMorningBrief";
 
 /* ── Metric Card ── */
 function MetricCard({ title, value, icon: Icon, subtitle, onClick }: {
@@ -243,9 +242,6 @@ export default function Dashboard() {
           <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel={rangeLabel} />
         </div>
       </div>
-
-      {/* ═══ CEO Morning Brief ═══ */}
-      <CeoMorningBrief metrics={m} cashMetrics={cashMetrics ?? null} trends={trends ?? null} />
 
       {/* ═══ SECTION 1 — Revenue Engine ═══ */}
       <SectionHeader title="Revenue Engine" subtitle="Is the machine producing?" />

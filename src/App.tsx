@@ -12,6 +12,7 @@ import Attribution from "./pages/Attribution";
 import Import from "./pages/Import";
 import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
+import MorningBrief from "./pages/MorningBrief";
 
 import CogsReconciliation from "./pages/CogsReconciliation";
 import Login from "./pages/Login";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/morning-brief" element={<MorningBrief />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/attribution" element={<Attribution />} />
