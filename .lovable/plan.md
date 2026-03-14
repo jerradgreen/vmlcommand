@@ -1,42 +1,17 @@
 
 
-## Improve PDF Report Clarity & KPI Display
+## Fix: "No allocations to save" Error in Manual Mode
 
-### 3 files changed — no formula changes, visualization/labeling only
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-### 1. `src/pages/MorningBrief.tsx`
-- Add `costPerSale` to `reportMetrics`: if `newLeadSalesCount > 0`, compute `adsSpendTotal / newLeadSalesCount`; otherwise set to `null`
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-### 2. `src/components/ReportGenerator.tsx`
+### Fix
 
-**KPI Table** — reorder to this sequence:
-1. Sales Revenue (30d)
-2. Bank Deposits (Cash)
-3. Total Sales
-4. New-Lead Sales
-5. Avg Order Value
-6. ROAS
-7. New-Lead Close Rate
-8. COGS (Actual + Estimated)
-9. **Gross Profit (30d)** ← new row
-10. Gross Margin
-11. Ad Spend
-12. **Cost Per New-Lead Sale** ← new row; display `formatCurrency(m.costPerSale)` if non-null, otherwise `"N/A"`
-13. Overhead
-14. Shopify Capital Paid
-15. Net Profit
-16. Net Margin
-17. Cash in Bank (if available)
-18. Net Cash Position (if available)
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**Cost Breakdown Bar** — replace with 5-segment "Profit Breakdown (% of Sales Revenue)":
-- Segments: COGS (blue), Ads (red), Overhead (yellow), Shopify Capital (purple), Net Profit (green)
-- Each segment pct = `value / salesRevenue`
-- Net Profit segment: compute as `1 - (cogsPct + adsPct + ohPct + capPct)`. If negative, **clamp bar width to 0** but **show the true negative percentage in the legend** (e.g. "Net Profit -8%")
-- Rename section title: "Profit Breakdown (% of Sales Revenue)"
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-### 3. `supabase/functions/generate-report/index.ts`
-
-- Add to prompt data: `grossProfit`, `costPerSale` (or "N/A" if null)
-- Add system note: "Always refer to individual orders as 'sales' or 'orders', never 'units'."
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
