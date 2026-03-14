@@ -7,7 +7,7 @@ import { LineChart, Line, XAxis, YAxis, ReferenceLine, Tooltip } from "recharts"
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 import {
   Target, Shield, TrendingUp, TrendingDown, Minus, DollarSign, Factory,
-  ShoppingCart, Megaphone, PieChart, AlertTriangle, ArrowRight, Lock,
+  ShoppingCart, Megaphone, PieChart, AlertTriangle, ArrowRight,
   ChevronDown, ChevronUp, Zap, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,9 +43,11 @@ interface TrendPoint {
 }
 
 interface Props {
-  metrics: Metrics;
-  cashMetrics: CashMetrics | null | undefined;
-  trends: TrendPoint[] | null | undefined;
+  metrics30d: Metrics;
+  metrics12m: Metrics;
+  metricsMtd: Metrics;
+  cashMetrics: CashMetrics | null;
+  trends: TrendPoint[] | null;
 }
 
 /* ── Precision Badge ── */
@@ -98,7 +100,7 @@ function SectionHeader({ title, icon: Icon }: { title: string; icon: React.Eleme
 }
 
 /* ══════════════════ MAIN COMPONENT ══════════════════ */
-export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Props) {
+export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metricsMtd: mMtd, cashMetrics, trends }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [ownerTarget, setOwnerTarget] = useState(() => {
     const saved = localStorage.getItem("ceo-owner-target");
@@ -109,15 +111,67 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
     localStorage.setItem("ceo-owner-target", String(ownerTarget));
   }, [ownerTarget]);
 
+  /* ══════ EXPLICIT COGS BY TIME WINDOW ══════
+     briefCogs = allocatedMfgTotal (actual mfg allocated to sales in window)
+               + accruedMfgRemaining (estimated 50% cost for unallocated sales in window)
+     This is per-sale COGS — NOT bank-feed COGS, NOT cumulative liability.
+  */
+  const briefCogs30d = m.allocatedMfgTotal + m.accruedMfgRemaining;
+  const briefCogs12m = m12.allocatedMfgTotal + m12.accruedMfgRemaining;
+  const briefCogsMtd = mMtd.allocatedMfgTotal + mMtd.accruedMfgRemaining;
+
+  /* ── Derived profitability (30d) ── */
+  const grossProfit30d = m.depositRevenue - briefCogs30d;
+  const grossMargin30d = m.depositRevenue > 0 ? grossProfit30d / m.depositRevenue : 0;
+  const cogsPct30d = m.depositRevenue > 0 ? briefCogs30d / m.depositRevenue : 0;
+  const netProfit30d = grossProfit30d - m.adsSpendTotal - m.overheadTotal;
+  const netProfitMargin30d = m.depositRevenue > 0 ? netProfit30d / m.depositRevenue : 0;
+
+  /* ── Cash ── */
   const cashInBank = cashMetrics?.cashInBank ?? 0;
+  const netCashPosition = cashMetrics?.netCashPosition ?? 0;
 
-  /* ── Run-rate calculations ── */
+  /* ── Manufacturing Liability (cumulative — use 12m as best proxy) ── */
+  const outstandingMfgLiability = m12.accruedMfgRemaining;
+  const depositProxy = m.depositRevenue;
+  const mfgCoverage = (depositProxy + outstandingMfgLiability) > 0
+    ? depositProxy / (depositProxy + outstandingMfgLiability)
+    : 1;
+  const mfgCoverageStatus: "green" | "yellow" | "red" =
+    mfgCoverage >= 0.8 ? "green" :
+    mfgCoverage >= 0.6 ? "green" :
+    mfgCoverage >= 0.4 ? "yellow" : "red";
+  const mfgCoverageLabel =
+    mfgCoverage >= 0.8 ? "Safe" :
+    mfgCoverage >= 0.6 ? "Normal" :
+    mfgCoverage >= 0.4 ? "Watch" : "Risk";
+
+  /* ── 12m baseline assumptions ── */
+  const closeRate12m = m12.closeRate;
+  const aov12m = m12.avgOrderValue;
+  const grossMargin12m = m12.depositRevenue > 0 ? (m12.depositRevenue - briefCogs12m) / m12.depositRevenue : 0;
+  const leadValue = aov12m * closeRate12m * grossMargin12m;
+
+  /* ── Owner Income Tracker ── */
+  const overheadMonthly = m.overheadMonthlyRunRate;
+  const adSpendMonthly = m.adsMonthlyRunRate;
+  const requiredGrossProfit = ownerTarget + overheadMonthly + adSpendMonthly;
+  const grossProfitThisMonth = mMtd.depositRevenue - briefCogsMtd;
+  const remainingGap = requiredGrossProfit - grossProfitThisMonth;
+  const leadsRequired = leadValue > 0 ? Math.ceil(requiredGrossProfit / leadValue) : 0;
+  const ownerOnTrack = grossProfitThisMonth >= requiredGrossProfit;
+
+  /* ── Margin Watch (30d, using briefCogs30d) ── */
+  const cogsPctStatus = getStatus(cogsPct30d, 0.45, 0.55, false);
+  const adsPctOfRev = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
+  const overheadPctOfRev = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
+
+  /* ── Sales Engine ── */
+  const closeRateStatus = getStatus(m.closeRate, 0.05, 0.03);
+  const marketingStatus = getStatus(m.rangeRoas, 3, 2);
+
+  /* ── Cash forecast ── */
   const monthlyNetRunRate = m.revenueMonthlyRunRate - m.totalOpCostMonthlyRunRate;
-  const cashAvailable = cashInBank + monthlyNetRunRate;
-  const ownerSurplus = cashAvailable - ownerTarget;
-  const ownerSafetyStatus = getStatus(ownerSurplus, ownerTarget * 0.2, 0);
-
-  /* ── 30-Day Cash Forecast ── */
   const dailyNetRunRate = monthlyNetRunRate / 30.44;
   const forecastData = useMemo(() => {
     const points = [0, 7, 14, 21, 30];
@@ -132,39 +186,17 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
     projected: { label: "Projected Cash", color: "hsl(220, 70%, 50%)" },
   };
 
-  /* ── Revenue Pipeline Coverage ── */
-  const pipelineLeads = Math.max(0, m.totalLeads - m.newLeadSalesCount);
-  const expectedPipelineRevenue = pipelineLeads * m.closeRate * m.avgOrderValue;
-  const revenueTarget = m.profitMarginPctRunRate > 0 ? ownerTarget / m.profitMarginPctRunRate : ownerTarget * 5;
-  const pipelineCoverage = revenueTarget > 0 ? expectedPipelineRevenue / revenueTarget : 0;
-  const pipelineStatus = getStatus(pipelineCoverage, 0.8, 0.5);
-
-  /* ── Manufacturing Liability ── */
-  const mfgOwed = m.accruedMfgRemaining;
-  const depositProxy = m.depositRevenue;
-  const mfgCoverage = (depositProxy + mfgOwed) > 0 ? depositProxy / (depositProxy + mfgOwed) : 1;
-  const mfgStatus = getStatus(mfgCoverage, 0.8, 0.5);
-
-  /* ── Marketing Health ── */
-  const marketingStatus = getStatus(m.rangeRoas, 3, 2);
-
-  /* ── Margin Watch ── */
-  const cogsPctStatus = getStatus(m.adjustedCogsPct, 0.45, 0.55, false);
-  const adsPctOfRev = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
-  const overheadPctOfRev = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
-
-  /* ── Sales Engine ── */
-  const closeRateStatus = getStatus(m.closeRate, 0.05, 0.03);
-
   /* ── Cash runway ── */
   const monthlyOpCosts = m.totalOpCostMonthlyRunRate;
   const cashCushionMonths = monthlyOpCosts > 0 ? cashInBank / monthlyOpCosts : 99;
+
+  /* ── Next 3 Sales Impact (using briefCogs30d for profit per sale) ── */
+  const profitPerSale30d = m.totalSales > 0 ? netProfit30d / m.totalSales : 0;
 
   /* ══════ Opportunity Alerts ══════ */
   const opportunityAlerts = useMemo(() => {
     const alerts: { title: string; explanation: string; impact: string; severity: number }[] = [];
 
-    // Close rate improvement opportunity
     if (m.closeRate < 0.03 && m.totalLeads > 0) {
       const targetRate = 0.033;
       const additionalSales = Math.round((targetRate - m.closeRate) * m.totalLeads);
@@ -177,18 +209,16 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
       });
     }
 
-    // COGS reduction opportunity
-    if (m.adjustedCogsPct > 0.55 && m.depositRevenue > 0) {
-      const savings = (m.adjustedCogsPct - 0.45) * m.depositRevenue;
+    if (cogsPct30d > 0.55 && m.depositRevenue > 0) {
+      const savings = (cogsPct30d - 0.45) * m.depositRevenue;
       alerts.push({
         title: "COGS Reduction",
-        explanation: `COGS at ${(m.adjustedCogsPct * 100).toFixed(1)}% of revenue — exceeds 55% threshold.`,
+        explanation: `COGS at ${(cogsPct30d * 100).toFixed(1)}% of revenue — exceeds 55% threshold.`,
         impact: `Reducing to 45% would save ~${formatCurrency(savings)}/mo in production costs`,
         severity: 5,
       });
     }
 
-    // ROAS improvement
     if (m.rangeRoas > 0 && m.rangeRoas < 2 && m.adsSpendTotal > 0) {
       const wastedSpend = m.adsSpendTotal * (1 - m.rangeRoas / 2);
       alerts.push({
@@ -199,7 +229,6 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
       });
     }
 
-    // Cash runway risk
     if (cashCushionMonths < 2) {
       alerts.push({
         title: "Cash Runway Risk",
@@ -209,21 +238,10 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
       });
     }
 
-    // Unconverted lead harvest
-    if (pipelineLeads > m.totalSales * 2 && pipelineLeads > 10) {
-      const harvestRevenue = Math.round(pipelineLeads * 0.02) * m.avgOrderValue;
-      alerts.push({
-        title: "Unconverted Lead Harvest",
-        explanation: `${formatNumber(pipelineLeads)} leads remain unconverted — ${(pipelineLeads / Math.max(m.totalSales, 1)).toFixed(1)}x your sales count.`,
-        impact: `Even a 2% re-engagement conversion would yield ~${formatCurrency(harvestRevenue)} in revenue`,
-        severity: 3,
-      });
-    }
-
     return alerts.sort((a, b) => b.severity - a.severity).slice(0, 4);
-  }, [m, cashCushionMonths, monthlyOpCosts, pipelineLeads]);
+  }, [m, cogsPct30d, cashCushionMonths, monthlyOpCosts]);
 
-  /* ══════ Action Engine (Today's Priorities) ══════ */
+  /* ══════ Action Engine ══════ */
   const actions = useMemo(() => {
     const items: { title: string; reason: string; step: string; impact: string; severity: number }[] = [];
 
@@ -246,12 +264,12 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
       });
     }
 
-    if (m.adjustedCogsPct > 0.55) {
+    if (cogsPct30d > 0.55) {
       items.push({
         title: "Renegotiate Manufacturing Costs",
-        reason: `COGS at ${(m.adjustedCogsPct * 100).toFixed(1)}% — exceeding 55% of revenue.`,
+        reason: `COGS at ${(cogsPct30d * 100).toFixed(1)}% — exceeding 55% of revenue.`,
         step: "Request updated quotes from top 3 vendors; compare per-unit costs.",
-        impact: `Reducing to 50% would save ~${formatCurrency((m.adjustedCogsPct - 0.50) * m.depositRevenue)}/mo`,
+        impact: `Reducing to 50% would save ~${formatCurrency((cogsPct30d - 0.50) * m.depositRevenue)}/mo`,
         severity: 5,
       });
     }
@@ -266,10 +284,10 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
       });
     }
 
-    if (ownerSurplus < 0) {
+    if (remainingGap > 0) {
       items.push({
         title: "Address Owner Draw Shortfall",
-        reason: `${formatCurrency(Math.abs(ownerSurplus))} below target after projected costs.`,
+        reason: `${formatCurrency(remainingGap)} below target after projected costs.`,
         step: "Review discretionary overhead; defer non-essential expenses this month.",
         impact: `Closing the gap secures your ${formatCurrency(ownerTarget)}/mo target`,
         severity: 4,
@@ -291,13 +309,13 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
         title: "Collect Outstanding Deposits",
         reason: `Manufacturing coverage at ${(mfgCoverage * 100).toFixed(0)}% — deposits may not cover production.`,
         step: "Follow up on outstanding customer deposits before starting new production runs.",
-        impact: `Closing the gap reduces ${formatCurrency(mfgOwed)} in unfunded manufacturing liability`,
+        impact: `Closing the gap reduces ${formatCurrency(outstandingMfgLiability)} in unfunded manufacturing liability`,
         severity: 3,
       });
     }
 
     return items.sort((a, b) => b.severity - a.severity).slice(0, 3);
-  }, [m, ownerSurplus, ownerTarget, cashCushionMonths, monthlyOpCosts, mfgCoverage, mfgOwed]);
+  }, [m, cogsPct30d, remainingGap, ownerTarget, cashCushionMonths, monthlyOpCosts, mfgCoverage, outstandingMfgLiability]);
 
   /* ── Trend Signals ── */
   const trendSignals = useMemo(() => {
@@ -337,7 +355,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
           <h2 className="text-lg font-semibold flex items-center gap-2">
             ☀️ Daily Operational Brief
           </h2>
-          <p className="text-sm text-muted-foreground">Key decisions at a glance — rolling 30-day window, all estimates use monthly run-rates</p>
+          <p className="text-sm text-muted-foreground">Key decisions at a glance — 30d operational · 12m baseline · MTD owner draw</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -369,43 +387,34 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                   onChange={(e) => setOwnerTarget(Number(e.target.value) || 0)}
                   className="w-40 font-mono"
                 />
-                <span className="text-xs text-muted-foreground">per month — used to calculate safety metrics below</span>
+                <span className="text-xs text-muted-foreground">per month — used to calculate owner income tracker below</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Owner Draw Safety */}
-          <Card className={cn("border-2", ownerSafetyStatus === "green" ? "border-emerald-500/30" : ownerSafetyStatus === "yellow" ? "border-amber-500/30" : "border-destructive/30")}>
+          {/* Cash Position */}
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
-                <Shield className="h-4 w-4 mr-2" />
-                Owner Draw Safety
-                <PrecisionBadge label="Estimated (Run-Rate Based)" />
+                <DollarSign className="h-4 w-4 mr-2" />
+                Cash Position
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Target</p>
-                  <p className="text-xl font-bold">{formatCurrency(ownerTarget)}</p>
+                  <p className="text-xs text-muted-foreground">Cash in Bank</p>
+                  <p className="text-xl font-bold">{formatCurrency(cashInBank)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Cash Available (est.)</p>
-                  <p className={cn("text-xl font-bold", cashAvailable >= ownerTarget ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>{formatCurrency(cashAvailable)}</p>
+                  <p className="text-xs text-muted-foreground">Credit Cards Owed</p>
+                  <p className="text-xl font-bold text-destructive">{formatCurrency(cashMetrics?.cardsOwedDisplay ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">{ownerSurplus >= 0 ? "Surplus" : "Shortfall"}</p>
-                  <div className="flex items-center gap-2">
-                    <p className={cn("text-xl font-bold", ownerSurplus >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>{formatCurrency(Math.abs(ownerSurplus))}</p>
-                    <StatusBadge status={ownerSafetyStatus} />
-                  </div>
+                  <p className="text-xs text-muted-foreground">Net Cash Position</p>
+                  <p className={cn("text-xl font-bold", netCashPosition >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>{formatCurrency(netCashPosition)}</p>
                 </div>
               </div>
-              <p className="text-[11px] text-muted-foreground border-t pt-2">
-                Cash Available = Cash in Bank ({formatCurrency(cashInBank)}) + Revenue Run-Rate ({formatCurrency(m.revenueMonthlyRunRate)}/mo)
-                − COGS ({formatCurrency(m.cogsMonthlyRunRate)}/mo) − Ads ({formatCurrency(m.adsMonthlyRunRate)}/mo)
-                − Overhead ({formatCurrency(m.overheadMonthlyRunRate)}/mo) − Loan ({formatCurrency(m.loanMonthlyRunRate)}/mo)
-              </p>
             </CardContent>
           </Card>
 
@@ -436,7 +445,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             </CardContent>
           </Card>
 
-          {/* Manufacturing Liability */}
+          {/* Manufacturing Liability + Coverage Ratio */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
@@ -448,26 +457,28 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
             <CardContent className="space-y-2">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Mfg Owed</p>
-                  <p className="text-lg font-bold">{formatCurrency(mfgOwed)}</p>
-                  <p className="text-[10px] text-muted-foreground">Cumulative unpaid</p>
+                  <p className="text-xs text-muted-foreground">Outstanding Mfg Liability</p>
+                  <p className="text-lg font-bold">{formatCurrency(outstandingMfgLiability)}</p>
+                  <p className="text-[10px] text-muted-foreground">Cumulative unpaid (12m proxy)</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Customer Deposits (30d)</p>
                   <p className="text-lg font-bold">{formatCurrency(depositProxy)}</p>
-                  <p className="text-[10px] text-muted-foreground">Last 30 days, not order-specific</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Production Coverage</p>
+                  <p className="text-xs text-muted-foreground">Manufacturing Coverage</p>
                   <div className="flex items-center gap-2">
                     <p className="text-lg font-bold">{formatPercent(mfgCoverage)}</p>
-                    <StatusBadge status={mfgStatus} />
+                    <Badge variant="outline" className={cn("text-xs",
+                      mfgCoverageStatus === "green" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" :
+                      mfgCoverageStatus === "yellow" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30" :
+                      "bg-destructive/10 text-destructive border-destructive/30"
+                    )}>{mfgCoverageLabel}</Badge>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Approximate ratio</p>
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground border-t pt-2">
-                Coverage = 30d Deposits ÷ (30d Deposits + Total Unpaid Mfg Cost).
+                Coverage = 30d Deposits ÷ (30d Deposits + Outstanding Mfg Liability).
                 Mixes 30-day deposit window with cumulative liability — treat as directional, not exact.
               </p>
             </CardContent>
@@ -479,6 +490,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                 <PieChart className="h-4 w-4 mr-2" />
                 Margin Watch
+                <PrecisionBadge label="30-day window · per-sale COGS" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -486,7 +498,7 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                 <div>
                   <p className="text-xs text-muted-foreground">COGS %</p>
                   <div className="flex items-center gap-2">
-                    <p className={cn("text-lg font-bold", m.adjustedCogsPct > 0.55 && "text-destructive")}>{formatPercent(m.adjustedCogsPct)}</p>
+                    <p className={cn("text-lg font-bold", cogsPct30d > 0.55 && "text-destructive")}>{formatPercent(cogsPct30d)}</p>
                     <StatusBadge status={cogsPctStatus} />
                   </div>
                 </div>
@@ -503,53 +515,9 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
           </Card>
 
           {/* ══════════════════════════════════════════════════════
-              SECTION 2: REVENUE ENGINE
+              SECTION 2: REVENUE ENGINE (30d)
               ══════════════════════════════════════════════════════ */}
           <SectionHeader title="Revenue Engine" icon={ShoppingCart} />
-
-          {/* Revenue Pipeline Coverage */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Revenue Pipeline Coverage
-                <PrecisionBadge label="Approximate" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {pipelineLeads > 0 ? (
-                <>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Unconverted Leads</p>
-                      <p className="text-lg font-bold">{formatNumber(pipelineLeads)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Expected Revenue</p>
-                      <p className="text-lg font-bold">{formatCurrency(expectedPipelineRevenue)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Revenue Target</p>
-                      <p className="text-lg font-bold">{formatCurrency(revenueTarget)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Coverage</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-lg font-bold">{formatPercent(pipelineCoverage)}</p>
-                        <StatusBadge status={pipelineStatus} />
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground border-t pt-2">
-                    Based on unconverted leads ({formatNumber(pipelineLeads)}) × close rate ({formatPercent(m.closeRate)}) × AOV ({formatCurrency(m.avgOrderValue)}).
-                    Revenue target derived from owner target ÷ profit margin run-rate.
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">No open pipeline leads detected — all leads have converted or no leads in range.</p>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Sales Engine Status */}
           <Card>
@@ -557,17 +525,19 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Sales Engine Status
+                <PrecisionBadge label="30-day window" />
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Leads (30d)</p>
+                  <p className="text-xs text-muted-foreground">Cognito Submissions</p>
                   <p className="text-lg font-bold">{formatNumber(m.totalLeads)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Sales (30d)</p>
-                  <p className="text-lg font-bold">{formatNumber(m.totalSales)}</p>
+                  <p className="text-lg font-bold">{formatNumber(m.newLeadSalesCount)}</p>
+                  <p className="text-[10px] text-muted-foreground">New lead sales only</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Close Rate</p>
@@ -575,10 +545,11 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                     <p className="text-lg font-bold">{formatPercent(m.closeRate)}</p>
                     <StatusBadge status={closeRateStatus} />
                   </div>
+                  <p className="text-[10px] text-muted-foreground">Sales ÷ Cognito submissions</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Backlog (Unmatched)</p>
-                  <p className="text-lg font-bold">{formatNumber(pipelineLeads)}</p>
+                  <p className="text-xs text-muted-foreground">Deposits (30d)</p>
+                  <p className="text-lg font-bold">{formatCurrency(m.depositRevenue)}</p>
                 </div>
               </div>
             </CardContent>
@@ -610,19 +581,19 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                   <p className="text-lg font-bold">{formatCurrency(m.adsSpendTotal)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Marketing % of Rev</p>
-                  <p className="text-lg font-bold">{formatPercent(m.marketingPctOfRevenue)}</p>
+                  <p className="text-xs text-muted-foreground">AOV (30d)</p>
+                  <p className="text-lg font-bold">{formatCurrency(m.avgOrderValue)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Next Sales Impact */}
+          {/* Next 3 Sales Impact */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
                 <ArrowRight className="h-4 w-4 mr-2" />
-                Next Sales Impact
+                Next 3 Sales Impact
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -630,38 +601,150 @@ export default function CeoMorningBrief({ metrics: m, cashMetrics, trends }: Pro
                 <div>
                   <p className="text-xs text-muted-foreground">+1 Sale</p>
                   <p className="text-lg font-bold">{formatCurrency(m.avgOrderValue)}</p>
-                  <p className="text-xs text-muted-foreground">≈ {formatCurrency(m.profitPerSale)} net profit</p>
+                  <p className="text-xs text-muted-foreground">≈ {formatCurrency(profitPerSale30d)} net profit</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">+3 Sales</p>
                   <p className="text-lg font-bold">{formatCurrency(m.avgOrderValue * 3)}</p>
-                  <p className="text-xs text-muted-foreground">≈ {formatCurrency(m.profitPerSale * 3)} net profit</p>
+                  <p className="text-xs text-muted-foreground">≈ {formatCurrency(profitPerSale30d * 3)} net profit</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Quote Engagement Monitor (Coming Soon) */}
-          <Card className="border-dashed border-2 border-muted-foreground/20">
+          {/* ══════════════════════════════════════════════════════
+              SECTION 3: PROFITABILITY (30d)
+              ══════════════════════════════════════════════════════ */}
+          <SectionHeader title="Profitability" icon={PieChart} />
+
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground/60 flex items-center">
-                <Lock className="h-4 w-4 mr-2" />
-                Quote Engagement Monitor
-                <Badge variant="outline" className="ml-2 text-[10px] border-dashed text-muted-foreground/60">
-                  Coming Soon — No Data Connected Yet
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                <PieChart className="h-4 w-4 mr-2" />
+                30-Day P&L Summary
+                <PrecisionBadge label="COGS = actual allocated + 50% estimate for unallocated" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Revenue (30d)</p>
+                  <p className="text-xl font-bold">{formatCurrency(m.depositRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">COGS (actual + estimated)</p>
+                  <p className="text-xl font-bold">{formatCurrency(briefCogs30d)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Allocated: {formatCurrency(m.allocatedMfgTotal)} · Est: {formatCurrency(m.accruedMfgRemaining)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Gross Profit</p>
+                  <p className={cn("text-xl font-bold", grossProfit30d >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {formatCurrency(grossProfit30d)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Margin: {formatPercent(grossMargin30d)}</p>
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Ad Spend</p>
+                  <p className="text-lg font-bold">{formatCurrency(m.adsSpendTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Overhead</p>
+                  <p className="text-lg font-bold">{formatCurrency(m.overheadTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net Profit</p>
+                  <p className={cn("text-lg font-bold", netProfit30d >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {formatCurrency(netProfit30d)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net Margin</p>
+                  <p className={cn("text-lg font-bold", netProfitMargin30d >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {formatPercent(netProfitMargin30d)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ══════════════════════════════════════════════════════
+              SECTION 4: OWNER INCOME TRACKER
+              ══════════════════════════════════════════════════════ */}
+          <SectionHeader title="Owner Income Tracker" icon={Target} />
+
+          <Card className={cn("border-2", ownerOnTrack ? "border-emerald-500/30" : "border-destructive/30")}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                <Target className="h-4 w-4 mr-2" />
+                Monthly Income Goal
+                <Badge variant="outline" className={cn("ml-2 text-xs",
+                  ownerOnTrack
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                    : "bg-destructive/10 text-destructive border-destructive/30"
+                )}>
+                  {ownerOnTrack ? "On Track" : "Behind Pace"}
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground/50 italic">
-                This section will track quote-to-close timing and engagement once quote data is connected.
-                Future feature — not a live metric.
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Required Gross Profit to Cover Draw + Ads + Overhead</p>
+                  <p className="text-xl font-bold">{formatCurrency(requiredGrossProfit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Gross Profit This Month</p>
+                  <p className={cn("text-xl font-bold", grossProfitThisMonth >= requiredGrossProfit ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {formatCurrency(grossProfitThisMonth)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">MTD deposits − MTD COGS</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Remaining Gap</p>
+                  <p className={cn("text-xl font-bold", remainingGap <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {remainingGap <= 0 ? "Covered ✓" : formatCurrency(remainingGap)}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Lead Value (12m)</p>
+                  <p className="text-lg font-bold">{formatCurrency(leadValue)}</p>
+                  <p className="text-[10px] text-muted-foreground">AOV × Close Rate × Gross Margin</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Leads Required / Month</p>
+                  <p className="text-lg font-bold">{formatNumber(leadsRequired)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Leads Generated (30d)</p>
+                  <p className="text-lg font-bold">{formatNumber(m.totalLeads)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Lead Gap</p>
+                  <p className={cn("text-lg font-bold", m.totalLeads >= leadsRequired ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {m.totalLeads >= leadsRequired ? "Sufficient ✓" : `Need ${formatNumber(leadsRequired - m.totalLeads)} more`}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground border-t pt-2">
+                Required = {formatCurrency(ownerTarget)} draw + {formatCurrency(overheadMonthly)}/mo overhead + {formatCurrency(adSpendMonthly)}/mo ad spend.
+                Lead Value uses 12m baseline: AOV ({formatCurrency(aov12m)}) × Close Rate ({formatPercent(closeRate12m)}) × Gross Margin ({formatPercent(grossMargin12m)}).
               </p>
             </CardContent>
           </Card>
 
           {/* ══════════════════════════════════════════════════════
-              SECTION 3: WHAT TO DO TODAY
+              SECTION 5: WHAT TO DO TODAY
               ══════════════════════════════════════════════════════ */}
           <SectionHeader title="What To Do Today" icon={Zap} />
 
