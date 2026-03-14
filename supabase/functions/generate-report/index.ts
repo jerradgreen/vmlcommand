@@ -14,9 +14,11 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    const costPerSaleDisplay = metrics.costPerSale != null ? `$${metrics.costPerSale.toFixed(0)}` : "N/A (no new-lead sales)";
+
     const prompt = `You are a fractional CFO analyzing a small e-commerce business (custom signs/marquees). Generate a business health report for the period: ${dateLabel}.
 
-IMPORTANT: COGS and profitability metrics below are based on booked sales revenue (not bank deposits). Cash metrics are shown separately.
+IMPORTANT: COGS and profitability metrics below are based on booked sales revenue (not bank deposits). Cash metrics are shown separately. Always refer to individual orders as "sales" or "orders", never "units".
 
 Here are the key metrics:
 
@@ -27,7 +29,8 @@ Here are the key metrics:
 - Gross Profit: $${(metrics.grossProfit ?? 0).toLocaleString()}
 - Gross Margin: ${((metrics.grossMargin ?? 0) * 100).toFixed(1)}%
 - Ad Spend: $${(metrics.adsSpendTotal ?? 0).toLocaleString()}
-- Overhead: $${(metrics.overheadTotal ?? 0) .toLocaleString()} (Recurring: $${(metrics.overheadRecurringTotal ?? 0).toLocaleString()}, One-time: $${(metrics.overheadOneTimeTotal ?? 0).toLocaleString()})
+- Cost Per New-Lead Sale: ${costPerSaleDisplay}
+- Overhead: $${(metrics.overheadTotal ?? 0).toLocaleString()} (Recurring: $${(metrics.overheadRecurringTotal ?? 0).toLocaleString()}, One-time: $${(metrics.overheadOneTimeTotal ?? 0).toLocaleString()})
 - Shopify Capital Paid (period): $${(metrics.shopifyCapitalPaidInRange ?? 0).toLocaleString()}
 - Net Profit: $${(metrics.netProfit ?? 0).toLocaleString()}
 - Net Margin: ${((metrics.netMargin ?? 0) * 100).toFixed(1)}%
@@ -50,7 +53,6 @@ Here are the key metrics:
 - Repeat/Direct Revenue: $${(metrics.repeatDirectRevenue ?? 0).toLocaleString()} (${metrics.repeatDirectSalesCount ?? 0} sales)
 - Unmatched Sales: ${metrics.unmatchedCount ?? 0}
 - ROAS: ${(metrics.rangeRoas ?? 0).toFixed(2)}x
-- Marketing Cost per Sale: $${(metrics.fullyLoadedCPO ?? 0).toFixed(0)}
 - Revenue per Sale: $${(metrics.revenuePerSale ?? 0).toFixed(0)}
 
 Return a JSON response using the tool provided.`;
