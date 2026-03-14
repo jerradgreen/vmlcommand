@@ -1,17 +1,30 @@
 
 
-## Fix: "No allocations to save" Error in Manual Mode
+## Daily Operational Brief — Final Adjustments
 
-### Problem
-When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
+Two small fixes to the approved plan before implementation:
 
-There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
+### 1. Manufacturing Liability — Label as Approximate
 
-### Fix
+Since `accruedMfgRemaining` is cumulative but `depositRevenue` comes from the 30d window, the coverage ratio mixes time horizons. Fix: add a precision badge and formula footnote:
 
-1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
+- Badge: **"Approximate — deposits reflect last 30 days; liability is cumulative"**
+- Footnote: `Coverage = 30d Deposits ÷ (30d Deposits + Total Unpaid Mfg Cost)`
 
-2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+No formula change — just explicit labeling so it's not misread as exact.
 
-3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
+### 2. Cash Forecast — Add Projection Basis Label
+
+Add a small muted label below the 30-day cash outlook chart:
+
+> "Projection based on last 30 days average daily net cash flow"
+
+This prevents the chart from being interpreted as a guaranteed forecast.
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/pages/MorningBrief.tsx` | Remove date selector, hardcode `{ preset: "30d" }`, simplify header |
+| `src/components/CeoMorningBrief.tsx` | Full rewrite: add 3 visual groups (Business Health / Revenue Engine / What To Do Today), Opportunity Alerts section, Action Engine, precision labels for Mfg Liability and Cash Forecast, all existing sections preserved |
 
