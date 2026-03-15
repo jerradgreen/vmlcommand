@@ -1,17 +1,40 @@
 
 
-## Fix: "No allocations to save" Error in Manual Mode
+## Add Dismiss & Completion System for Actions
 
-### Problem
-When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
+### File: `src/components/CeoMorningBrief.tsx`
 
-There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
+**Action ID**: Each action already has a unique `title` — use that as the stable key (kebab-cased via simple slug function).
 
-### Fix
+**New logic before `topAction` derivation (~line 254):**
 
-1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
+1. Define two localStorage helpers:
+   - `getCompletedActions(): string[]` — reads `completedActions` from localStorage
+   - `getDismissedActions(): Record<string, number>` — reads `dismissedActions` (map of id → expiry timestamp), prunes expired entries
+   - `markComplete(id: string)` — adds to completedActions, persists
+   - `markDismissed(id: string)` — adds to dismissedActions with `Date.now() + 30 days`, persists
 
-2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+2. Add `useState` for `completedIds` and `dismissedMap` (initialized from localStorage). This ensures re-renders when user clicks buttons.
 
-3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
+3. Filter `actions` array before picking `topAction`:
+   ```
+   const filteredActions = actions.filter(a => {
+     const id = slugify(a.title);
+     if (completedIds.includes(id)) return false;
+     const expiry = dismissedMap[id];
+     if (expiry && Date.now() < expiry) return false;
+     return true;
+   });
+   const topAction = filteredActions[0] ?? null;
+   ```
+
+**UI change in Focus Today card (~line 392):**
+
+Add two small buttons below the action content:
+- `✓ Done` (ghost button, green text) — calls `markComplete` and updates state
+- `✕ Dismiss` (ghost button, muted text) — calls `markDismissed` and updates state
+
+Buttons are small (`text-xs`), inline, right-aligned. Only shown when `topAction` exists.
+
+**No other files changed.** No database changes needed — localStorage only.
 
