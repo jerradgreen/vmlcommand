@@ -7,6 +7,24 @@ import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+/* ── Action persistence helpers ── */
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+function getCompletedActions(): string[] {
+  try { return JSON.parse(localStorage.getItem("completedActions") || "[]"); } catch { return []; }
+}
+function getDismissedActions(): Record<string, number> {
+  try {
+    const raw: Record<string, number> = JSON.parse(localStorage.getItem("dismissedActions") || "{}");
+    const now = Date.now();
+    const pruned: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw)) { if (v > now) pruned[k] = v; }
+    if (Object.keys(pruned).length !== Object.keys(raw).length) localStorage.setItem("dismissedActions", JSON.stringify(pruned));
+    return pruned;
+  } catch { return {}; }
+}
 
 /* ── Types ── */
 interface Metrics {
