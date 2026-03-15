@@ -269,7 +269,31 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const closeDir = trendSignals?.closeRate ?? "flat";
   const profitDir = trendSignals ? trendSignals.revenue : "flat"; // proxy
 
-  const topAction = actions[0] ?? null;
+  /* ── Action dismiss/complete state ── */
+  const [completedIds, setCompletedIds] = useState<string[]>(getCompletedActions);
+  const [dismissedMap, setDismissedMap] = useState<Record<string, number>>(getDismissedActions);
+
+  const markComplete = useCallback((id: string) => {
+    const next = [...completedIds, id];
+    setCompletedIds(next);
+    localStorage.setItem("completedActions", JSON.stringify(next));
+  }, [completedIds]);
+
+  const markDismissed = useCallback((id: string) => {
+    const next = { ...dismissedMap, [id]: Date.now() + 30 * 24 * 60 * 60 * 1000 };
+    setDismissedMap(next);
+    localStorage.setItem("dismissedActions", JSON.stringify(next));
+  }, [dismissedMap]);
+
+  const filteredActions = actions.filter(a => {
+    const id = slugify(a.title);
+    if (completedIds.includes(id)) return false;
+    const expiry = dismissedMap[id];
+    if (expiry && Date.now() < expiry) return false;
+    return true;
+  });
+
+  const topAction = filteredActions[0] ?? null;
 
   /* ══════ RENDER ══════ */
   return (
