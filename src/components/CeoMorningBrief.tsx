@@ -436,7 +436,12 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
               <p className="text-lg font-bold">{topAction.title}</p>
               <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Reason:</span> {topAction.reason}</p>
               <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400"><span className="text-foreground">Impact:</span> {topAction.impact}</p>
-            </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
+                  onClick={() => markComplete(slugify(topAction.title))}>✓ Done</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => markDismissed(slugify(topAction.title))}>✕ Dismiss</Button>
+              </div>
           ) : (
             <p className="text-sm text-muted-foreground">No urgent actions — stay the course.</p>
           )}
