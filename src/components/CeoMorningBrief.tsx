@@ -442,6 +442,7 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
                 <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground hover:text-foreground"
                   onClick={() => markDismissed(slugify(topAction.title))}>✕ Dismiss</Button>
               </div>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">No urgent actions — stay the course.</p>
           )}
