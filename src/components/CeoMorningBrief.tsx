@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +7,24 @@ import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+/* ── Action persistence helpers ── */
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+function getCompletedActions(): string[] {
+  try { return JSON.parse(localStorage.getItem("completedActions") || "[]"); } catch { return []; }
+}
+function getDismissedActions(): Record<string, number> {
+  try {
+    const raw: Record<string, number> = JSON.parse(localStorage.getItem("dismissedActions") || "{}");
+    const now = Date.now();
+    const pruned: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw)) { if (v > now) pruned[k] = v; }
+    if (Object.keys(pruned).length !== Object.keys(raw).length) localStorage.setItem("dismissedActions", JSON.stringify(pruned));
+    return pruned;
+  } catch { return {}; }
+}
 
 /* ── Types ── */
 interface Metrics {
@@ -251,7 +269,31 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const closeDir = trendSignals?.closeRate ?? "flat";
   const profitDir = trendSignals ? trendSignals.revenue : "flat"; // proxy
 
-  const topAction = actions[0] ?? null;
+  /* ── Action dismiss/complete state ── */
+  const [completedIds, setCompletedIds] = useState<string[]>(getCompletedActions);
+  const [dismissedMap, setDismissedMap] = useState<Record<string, number>>(getDismissedActions);
+
+  const markComplete = useCallback((id: string) => {
+    const next = [...completedIds, id];
+    setCompletedIds(next);
+    localStorage.setItem("completedActions", JSON.stringify(next));
+  }, [completedIds]);
+
+  const markDismissed = useCallback((id: string) => {
+    const next = { ...dismissedMap, [id]: Date.now() + 30 * 24 * 60 * 60 * 1000 };
+    setDismissedMap(next);
+    localStorage.setItem("dismissedActions", JSON.stringify(next));
+  }, [dismissedMap]);
+
+  const filteredActions = actions.filter(a => {
+    const id = slugify(a.title);
+    if (completedIds.includes(id)) return false;
+    const expiry = dismissedMap[id];
+    if (expiry && Date.now() < expiry) return false;
+    return true;
+  });
+
+  const topAction = filteredActions[0] ?? null;
 
   /* ══════ RENDER ══════ */
   return (
@@ -394,6 +436,12 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
               <p className="text-lg font-bold">{topAction.title}</p>
               <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Reason:</span> {topAction.reason}</p>
               <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400"><span className="text-foreground">Impact:</span> {topAction.impact}</p>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
+                  onClick={() => markComplete(slugify(topAction.title))}>✓ Done</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => markDismissed(slugify(topAction.title))}>✕ Dismiss</Button>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No urgent actions — stay the course.</p>
