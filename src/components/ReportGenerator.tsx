@@ -101,7 +101,7 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
     y += 18;
 
     const kpis: [string, string][] = [
-      ["Sales Revenue (30d)", formatCurrency(m.salesRevenue ?? m.rangeRevenue ?? 0)],
+      ["Sales Revenue", formatCurrency(m.salesRevenue ?? m.rangeRevenue ?? 0)],
       ["Bank Deposits (Cash)", formatCurrency(m.depositRevenue ?? 0)],
       ["Total Sales", formatNumber(m.totalSales ?? 0)],
       ["New-Lead Sales", formatNumber(m.newLeadSalesCount ?? 0)],
@@ -110,9 +110,9 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
       ["New-Lead Close Rate", formatPercent(m.closeRate ?? 0)],
       ["Cost Per Lead", m.costPerLead != null ? formatCurrency(m.costPerLead) : "N/A"],
       ["Revenue Per Lead (New Leads)", m.revenuePerLead != null ? formatCurrency(m.revenuePerLead) : "N/A"],
-      ["Cost Per New-Lead Sale", m.costPerSale != null ? formatCurrency(m.costPerSale) : "N/A"],
+      ["Cost Per New-Lead Sale", (m.newLeadSalesCount ?? 0) > 0 ? formatCurrency(m.adsSpendTotal / m.newLeadSalesCount) : "N/A"],
       ["COGS (Actual + Estimated)", formatCurrency(m.briefCogs ?? m.adjustedCogsTotal ?? 0)],
-      ["Gross Profit (30d)", formatCurrency(m.grossProfit ?? 0)],
+      ["Gross Profit", formatCurrency(m.grossProfit ?? 0)],
       ["Gross Margin", formatPercent(m.grossMargin ?? 0)],
       ["Ad Spend", formatCurrency(m.adsSpendTotal ?? 0)],
       ["Overhead", formatCurrency(m.overheadTotal ?? 0)],
