@@ -112,7 +112,7 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
       ["Revenue Per Lead (New Leads)", m.revenuePerLead != null ? formatCurrency(m.revenuePerLead) : "N/A"],
       ["Cost Per New-Lead Sale", (m.newLeadSalesCount ?? 0) > 0 ? formatCurrency(m.adsSpendTotal / m.newLeadSalesCount) : "N/A"],
       ["COGS (Actual + Estimated)", formatCurrency(m.briefCogs ?? m.adjustedCogsTotal ?? 0)],
-      ["Gross Profit (30d)", formatCurrency(m.grossProfit ?? 0)],
+      ["Gross Profit", formatCurrency(m.grossProfit ?? 0)],
       ["Gross Margin", formatPercent(m.grossMargin ?? 0)],
       ["Ad Spend", formatCurrency(m.adsSpendTotal ?? 0)],
       ["Overhead", formatCurrency(m.overheadTotal ?? 0)],
