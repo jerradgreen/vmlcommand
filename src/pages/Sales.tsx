@@ -90,6 +90,7 @@ export default function Sales() {
                 <SortableHead label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Order ID" sortKey="order_id" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Product" sortKey="product_name" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Style" sortKey="sign_style" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Revenue" sortKey="revenue" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Type" sortKey="sale_type" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Match" sortKey="match_method" current={sortKey} dir={sortDir} onSort={handleSort} />
