@@ -45,23 +45,25 @@ function SortableHead({ label, sortKey, current, dir, onSort }: {
   );
 }
 
-function InlineStyleEditor({ saleId, currentStyle, onSaved }: { saleId: string; currentStyle: string | null; onSaved: () => void }) {
+function InlineStyleEditor({ saleId, currentStyle, onSaved }: { saleId: string; currentStyle: string | null; onSaved: (newStyle: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [customMode, setCustomMode] = useState(false);
   const [customValue, setCustomValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const handleSave = async (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
+    setSaving(true);
+    setEditing(false);
+    setCustomMode(false);
+    onSaved(trimmed); // optimistic update
     const { error } = await supabase.from("sales").update({ sign_style: trimmed } as any).eq("id", saleId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      onSaved();
     }
-    setEditing(false);
-    setCustomMode(false);
+    setSaving(false);
   };
 
   if (!editing) {
