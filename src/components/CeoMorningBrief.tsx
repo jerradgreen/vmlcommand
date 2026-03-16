@@ -207,8 +207,8 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
     0.25 * Math.min(100, Math.max(0, cashCushionMonths / 6 * 100)) +
     0.15 * Math.min(100, Math.max(0, (0.8 - cogsPct30d) / 0.5 * 100))
   )));
-  const pulseLabel = pulseScore >= 70 ? "Strong" : pulseScore >= 40 ? "Watch" : "Risk";
-  const pulseColor = pulseScore >= 70 ? "emerald" : pulseScore >= 40 ? "amber" : "red";
+  const pulseLabel = pulseScore >= 70 ? "Strong" : pulseScore >= 45 ? "Watch" : "Needs Attention";
+  const pulseColor = pulseScore >= 70 ? "emerald" : pulseScore >= 45 ? "amber" : "red";
   const pulseSubtitle = pulseScore >= 70
     ? "Business is moving in the right direction"
     : pulseScore >= 40
