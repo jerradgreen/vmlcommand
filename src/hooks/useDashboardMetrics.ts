@@ -358,6 +358,14 @@ export function useDashboardMetrics(range: DateRange) {
         netProfitMonthlyRunRate,
         netProfitPerSaleRunRate,
         profitMarginPctRunRate,
+        // Sales-based profit waterfall
+        briefCogs,
+        salesRevenue,
+        grossProfit,
+        grossMargin,
+        cogsPct,
+        netProfit,
+        netMargin,
         // Pass-through date bounds for drilldowns (exact same values used in all queries)
         rangeFrom,
         rangeTo,
