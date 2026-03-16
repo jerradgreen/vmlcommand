@@ -191,8 +191,14 @@ export default function Dashboard() {
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
   const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
-      const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
-    const netAfterUpcomingDue = m.netProfitMonthlyRunRate - next7TotalDue;
+  const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
+  const netAfterUpcomingDue = m.netProfitMonthlyRunRate - next7TotalDue;
+
+  const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : null;
+  const revenuePerLead = m.totalLeads > 0 ? (m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads : null;
+  const contributionPerLead = m.totalLeads > 0 && (m as any).cogsPct != null
+    ? (((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) * (1 - (m as any).cogsPct) - (m.adsSpendTotal / m.totalLeads))
+    : null;
 
   return (
     <div className="space-y-6">
@@ -239,7 +245,7 @@ export default function Dashboard() {
               <Button size="sm" onClick={applyCustomRange}>Apply</Button>
             </div>
           )}
-          <ReportGenerator metrics={m} cashMetrics={cashMetrics} dateLabel={rangeLabel} />
+          <ReportGenerator metrics={{ ...m, costPerLead, revenuePerLead, contributionPerLead }} cashMetrics={cashMetrics} dateLabel={rangeLabel} />
         </div>
       </div>
 
@@ -263,20 +269,11 @@ export default function Dashboard() {
 
       {/* ═══ Lead Funnel Economics ═══ */}
       <SectionHeader title="Lead Funnel Economics" subtitle="What does each lead cost and produce?" />
-      {(() => {
-        const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : null;
-        const revenuePerLead = m.totalLeads > 0 ? (m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads : null;
-        const contributionPerLead = m.totalLeads > 0 && (m as any).cogsPct != null
-          ? (((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) * (1 - (m as any).cogsPct) - (m.adsSpendTotal / m.totalLeads))
-          : null;
-        return (
-          <div className="grid gap-4 md:grid-cols-3">
-            <MetricCard title="Cost Per Lead" value={costPerLead != null ? formatCurrency(costPerLead) : "N/A"} icon={Users} subtitle="Ad Spend ÷ Leads" />
-            <MetricCard title="Revenue Per Lead (Est.)" value={revenuePerLead != null ? formatCurrency(revenuePerLead) : "N/A"} icon={Users} subtitle="New-lead revenue ÷ Leads" />
-            <MetricCard title="Contribution Per Lead" value={contributionPerLead != null ? formatCurrency(contributionPerLead) : "N/A"} icon={Users} subtitle="Est. gross profit per lead after ad cost" />
-          </div>
-        );
-      })()}
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard title="Cost Per Lead" value={costPerLead != null ? formatCurrency(costPerLead) : "N/A"} icon={Users} subtitle="Ad Spend ÷ Leads" />
+        <MetricCard title="Revenue Per Lead (Est.)" value={revenuePerLead != null ? formatCurrency(revenuePerLead) : "N/A"} icon={Users} subtitle="New-lead revenue ÷ Leads" />
+        <MetricCard title="Contribution Per Lead" value={contributionPerLead != null ? formatCurrency(contributionPerLead) : "N/A"} icon={Users} subtitle="Est. gross profit per lead after ad cost" />
+      </div>
 
       {/* ═══ SECTION 3 — Cost Structure ═══ */}
       <SectionHeader title="Cost Structure (Leak Detection)" subtitle="Where is money drifting?" />

@@ -1,37 +1,17 @@
 
 
-## Fix: Pass Derived Metrics to Report Generator
+## Fix: "No allocations to save" Error in Manual Mode
 
-### Root Cause
-**Line 242** passes raw `m` to `ReportGenerator` — but `costPerLead`, `revenuePerLead`, and `contributionPerLead` are computed inside a JSX IIFE (lines 266-271), completely isolated from the report data flow. The hook returns `grossProfit`, `netProfit`, etc., but they flow through `m` which may have type issues with `(m as any)`.
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-### Changes — `src/pages/Dashboard.tsx` only
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-**1. Hoist derived metrics** — Move the three lead funnel calculations from the IIFE (lines 266-271) up to ~line 193, alongside `adSpendPctOfRevenue`:
+### Fix
 
-```typescript
-const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : null;
-const revenuePerLead = m.totalLeads > 0 ? (m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads : null;
-const contributionPerLead = m.totalLeads > 0 && (m as any).cogsPct != null
-  ? (((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) * (1 - (m as any).cogsPct) - (m.adsSpendTotal / m.totalLeads))
-  : null;
-```
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**2. Enrich ReportGenerator props** — Line 242, change:
-```tsx
-<ReportGenerator metrics={m} ...
-```
-to:
-```tsx
-<ReportGenerator metrics={{ ...m, costPerLead, revenuePerLead, contributionPerLead }} ...
-```
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-This ensures all derived fields (`costPerLead`, `revenuePerLead`, `contributionPerLead`) plus the hook-provided fields (`grossProfit`, `netProfit`, `briefCogs`, `cogsPct`, `grossMargin`, `netMargin`, `salesRevenue`) all flow into the report payload.
-
-**3. Simplify IIFE** — Replace the IIFE block (lines 266-279) to reference the hoisted variables directly instead of recomputing.
-
-### No changes needed elsewhere
-- `ReportGenerator.tsx` already spreads `...metrics` into the payload — all fields pass through.
-- The edge function prompt already references `grossProfit`, `netProfit`, `costPerLead`, `revenuePerLead`, `briefCogs`, etc. by name.
-- The KPI table in `buildPDF` already reads `m.grossProfit`, `m.netProfit`, `m.costPerLead`, `m.revenuePerLead` — they just weren't populated before.
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
