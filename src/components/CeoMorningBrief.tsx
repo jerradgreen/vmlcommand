@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, Lightbulb,
+  Flame, Settings, Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
