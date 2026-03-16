@@ -45,23 +45,25 @@ function SortableHead({ label, sortKey, current, dir, onSort }: {
   );
 }
 
-function InlineStyleEditor({ saleId, currentStyle, onSaved }: { saleId: string; currentStyle: string | null; onSaved: () => void }) {
+function InlineStyleEditor({ saleId, currentStyle, onSaved }: { saleId: string; currentStyle: string | null; onSaved: (newStyle: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [customMode, setCustomMode] = useState(false);
   const [customValue, setCustomValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const handleSave = async (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
+    setSaving(true);
+    setEditing(false);
+    setCustomMode(false);
+    onSaved(trimmed); // optimistic update
     const { error } = await supabase.from("sales").update({ sign_style: trimmed } as any).eq("id", saleId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      onSaved();
     }
-    setEditing(false);
-    setCustomMode(false);
+    setSaving(false);
   };
 
   if (!editing) {
@@ -161,7 +163,11 @@ export default function Sales() {
     });
   }, [sales, sortKey, sortDir]);
 
-  const refetch = () => queryClient.invalidateQueries({ queryKey: ["sales"] });
+  const handleStyleUpdate = (saleId: string, newStyle: string) => {
+    queryClient.setQueryData(["sales"], (old: any[] | undefined) =>
+      old?.map((s) => s.id === saleId ? { ...s, sign_style: newStyle } : s)
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -205,7 +211,7 @@ export default function Sales() {
                     <TableCell className="max-w-[180px] truncate text-sm">{sale.email || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{sale.product_name || "—"}</TableCell>
                     <TableCell>
-                      <InlineStyleEditor saleId={sale.id} currentStyle={sale.sign_style} onSaved={refetch} />
+                      <InlineStyleEditor saleId={sale.id} currentStyle={sale.sign_style} onSaved={(newStyle) => handleStyleUpdate(sale.id, newStyle)} />
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(sale.revenue) || 0)}</TableCell>
                     <TableCell>{saleTypeBadge(sale.sale_type)}</TableCell>
