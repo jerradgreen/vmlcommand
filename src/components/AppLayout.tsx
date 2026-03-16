@@ -148,7 +148,7 @@ export default function AppLayout() {
             <span className="text-sm font-semibold">VML Command Center</span>
           </div>
         )}
-        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <div className={cn("p-4 sm:p-6 max-w-7xl mx-auto", isMobile && "pt-16")}>
           <Outlet />
         </div>
       </main>
