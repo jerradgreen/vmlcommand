@@ -1,39 +1,17 @@
 
 
-## Fix: Add Sales-Based Profit Waterfall to `useDashboardMetrics`
+## Fix: "No allocations to save" Error in Manual Mode
 
-### Clarification Confirmed
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-`adjustedCogsTotal` (line 268) = `cogsTotal` (cash bank transactions) + `accruedMfgRemaining` — this is the **old cash-mixed** COGS field.
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-`briefCogs` must be = `allocatedMfgTotal` + `accruedMfgRemaining` — the **sales-based** COGS per established logic. These are **not identical**.
+### Fix
 
-### Change: `src/hooks/useDashboardMetrics.ts`
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**Add after line 288** (after run-rate calculations, before the return object):
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-```typescript
-// Sales-based profit waterfall (briefCogs = actual allocated + estimated accrued)
-const briefCogs = allocatedMfgTotal + accruedMfgRemaining;
-const salesRevenue = rangeRevenue;
-const grossProfit = salesRevenue - briefCogs;
-const grossMargin = salesRevenue > 0 ? grossProfit / salesRevenue : 0;
-const cogsPct = salesRevenue > 0 ? briefCogs / salesRevenue : 0;
-const netProfit = grossProfit - adsSpendTotal - overheadTotal - shopifyCapitalPaidInRange;
-const netMargin = salesRevenue > 0 ? netProfit / salesRevenue : 0;
-```
-
-**Add to the return object** (after line 350): `briefCogs`, `salesRevenue`, `grossProfit`, `grossMargin`, `cogsPct`, `netProfit`, `netMargin`.
-
-### What This Does
-
-- `briefCogs` is explicitly `allocatedMfgTotal + accruedMfgRemaining` — no aliasing to `adjustedCogsTotal`
-- COGS subtracted exactly once
-- Full waterfall: Revenue → Gross Profit → Net Profit (after Ads, Overhead, Capital)
-- The old `adjusted*` fields remain untouched for any legacy consumers
-- `ReportGenerator` and edge function already read `grossProfit`, `netProfit`, `briefCogs`, `cogsPct`, `grossMargin`, `netMargin` — all will now be populated from the hook
-
-### No other file changes needed
-
-The Morning Brief's inline computation (in `MorningBrief.tsx`) becomes redundant but harmless since its spread is overwritten. No UI changes.
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
