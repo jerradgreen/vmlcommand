@@ -112,6 +112,7 @@ export default function Sales() {
                     </TableCell>
                     <TableCell className="font-mono text-sm">{sale.order_id}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{sale.product_name || "—"}</TableCell>
+                    <TableCell>{(sale as any).sign_style || "—"}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(sale.revenue) || 0)}</TableCell>
                     <TableCell>{saleTypeBadge(sale.sale_type)}</TableCell>
                     <TableCell>
