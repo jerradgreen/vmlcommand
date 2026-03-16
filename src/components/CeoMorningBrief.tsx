@@ -332,6 +332,9 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
             )}
           />
           <p className="text-sm text-muted-foreground">{pulseSubtitle}</p>
+          <p className="text-xs text-muted-foreground/70">
+            Primary Constraint: {cashCushionMonths < 1.5 ? "Cash Runway" : cogsPct30d > 0.60 ? "Production Costs" : m.closeRate < 0.05 ? "Lead Conversion" : "Maintain Momentum"}
+          </p>
         </CardContent>
       </Card>
 
