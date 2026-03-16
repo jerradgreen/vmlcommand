@@ -18,7 +18,7 @@ function saleTypeBadge(type: string) {
   }
 }
 
-type SortKey = "date" | "order_id" | "product_name" | "revenue" | "sale_type" | "match_method" | "match_confidence";
+type SortKey = "date" | "order_id" | "product_name" | "sign_style" | "revenue" | "sale_type" | "match_method" | "match_confidence";
 type SortDir = "asc" | "desc";
 
 function SortableHead({ label, sortKey, current, dir, onSort }: {
