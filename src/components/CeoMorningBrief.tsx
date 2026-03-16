@@ -434,12 +434,32 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
         </CardContent>
       </Card>
 
+      {/* ═══ REVENUE OPPORTUNITY ═══ */}
+      <Card>
+        <CardContent className="pt-5 pb-4 px-8 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Revenue Opportunity</p>
+          <p className="text-sm text-muted-foreground">
+            Current Close Rate: {(m.closeRate * 100).toFixed(1)}% • Target Close Rate: 5%
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xl font-bold text-foreground">+{additionalSalesOpportunity} sales</p>
+              <p className="text-xs text-muted-foreground">Potential additional orders</p>
+            </div>
+            <div>
+              <p className="text-xl font-bold text-foreground">{formatCurrency(additionalRevenueOpportunity)}</p>
+              <p className="text-xs text-muted-foreground">Revenue unlocked at 5% conversion</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ═══ SECTION 6: TODAY'S PRIORITIES ═══ */}
       {(() => {
         const priorities: { icon: typeof Flame; title: string; description: string; impact: string }[] = [];
         // Priority 1 — Revenue
         if (m.closeRate < 0.05 && m.totalLeads > 50) {
-          priorities.push({ icon: Flame, title: "Reactivate Dormant Leads", description: `${m.totalLeads} leads exist in the pipeline with a ${(m.closeRate * 100).toFixed(1)}% close rate.`, impact: "Moving conversion toward 5% could unlock additional revenue." });
+          priorities.push({ icon: Flame, title: "Improve Lead Conversion", description: `${m.totalLeads} leads generated with a ${(m.closeRate * 100).toFixed(1)}% close rate.`, impact: "Raising conversion toward 5% would unlock additional revenue without increasing ad spend." });
         } else {
           priorities.push({ icon: Flame, title: "Strengthen Sales Pipeline", description: "Continue nurturing existing leads to maintain conversion.", impact: "Consistent follow-up compounds over time." });
         }
