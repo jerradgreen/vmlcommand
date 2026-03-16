@@ -1,27 +1,17 @@
 
 
-## Improve Conversion Priority Wording + Add Revenue Opportunity Card
+## Fix: "No allocations to save" Error in Manual Mode
 
-### File: `src/components/CeoMorningBrief.tsx`
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-**1. Add derived metrics (~line 121, after existing derived metrics):**
-```typescript
-const targetCloseRate = 0.05;
-const expectedSalesAtTarget = m.totalLeads > 0 ? Math.floor(m.totalLeads * targetCloseRate) : 0;
-const additionalSalesOpportunity = Math.max(expectedSalesAtTarget - m.newLeadSalesCount, 0);
-const additionalRevenueOpportunity = additionalSalesOpportunity * m.avgOrderValue;
-```
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-**2. Update Priority 1 wording (line 436):**
-Replace "Reactivate Dormant Leads" with "Improve Lead Conversion" and update description/impact text per the spec.
+### Fix
 
-**3. Insert Revenue Opportunity card (between Business Insight ~line 429 and Today's Priorities ~line 431):**
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-New card showing:
-- Header: "Revenue Opportunity"
-- Subtitle line: `Current Close Rate: X% • Target Close Rate: 5%`
-- Two side-by-side metrics: additional sales count + additional revenue at 5% conversion
-- Uses `formatCurrency` (already imported)
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-No changes to existing calculations, layout sections, or dismiss system.
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
