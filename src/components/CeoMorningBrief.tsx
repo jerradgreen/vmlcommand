@@ -428,7 +428,44 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
         </CardContent>
       </Card>
 
-      {/* ═══ SECTION 6: FOCUS TODAY ═══ */}
+      {/* ═══ SECTION 6: TODAY'S PRIORITIES ═══ */}
+      {(() => {
+        const priorities: { icon: typeof Flame; title: string; description: string; impact: string }[] = [];
+        // Priority 1 — Revenue
+        if (m.closeRate < 0.05 && m.totalLeads > 50) {
+          priorities.push({ icon: Flame, title: "Reactivate Dormant Leads", description: `${m.totalLeads} leads exist in the pipeline with a ${(m.closeRate * 100).toFixed(1)}% close rate.`, impact: "Moving conversion toward 5% could unlock additional revenue." });
+        } else {
+          priorities.push({ icon: Flame, title: "Strengthen Sales Pipeline", description: "Continue nurturing existing leads to maintain conversion.", impact: "Consistent follow-up compounds over time." });
+        }
+        // Priority 2 — Cost
+        if (cogsPct30d > 0.60) {
+          priorities.push({ icon: Settings, title: "Reduce Production Costs", description: `COGS currently consume ${(cogsPct30d * 100).toFixed(0)}% of revenue.`, impact: "Reducing toward 50–55% would significantly increase margins." });
+        } else {
+          priorities.push({ icon: Settings, title: "Optimize Cost Structure", description: `COGS at ${(cogsPct30d * 100).toFixed(0)}% — monitor for upward pressure.`, impact: "Maintaining cost discipline protects margins." });
+        }
+        // Priority 3 — Growth (always)
+        priorities.push({ icon: Rocket, title: "Expand Organic Lead Flow", description: "Create or improve one SEO landing page targeting marquee sign searches.", impact: "Organic traffic lowers cost per lead over time." });
+
+        return (
+          <Card>
+            <CardContent className="pt-5 pb-4 px-8 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Today's Priorities</p>
+              {priorities.map(p => (
+                <div key={p.title} className="flex gap-3 items-start">
+                  <p.icon className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" />
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-semibold">{p.title}</p>
+                    <p className="text-sm text-muted-foreground">{p.description}</p>
+                    <p className="text-xs text-muted-foreground/70">Impact: {p.impact}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* ═══ SECTION 7: FOCUS TODAY ═══ */}
       <Card className="border-2 border-primary/30">
         <CardContent className="pt-6 pb-5 px-8 space-y-3">
           <div className="flex items-center gap-2">
