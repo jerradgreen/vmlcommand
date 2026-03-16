@@ -141,7 +141,7 @@ export default function AppLayout() {
       {/* Main content */}
       <main className="flex-1 overflow-auto">
         {isMobile && (
-          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background px-4 py-2">
+          <div className="fixed top-0 left-0 right-0 z-30 flex items-center gap-3 border-b border-border bg-background px-4 py-2">
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
