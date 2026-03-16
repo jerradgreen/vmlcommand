@@ -287,6 +287,15 @@ export function useDashboardMetrics(range: DateRange) {
       const netProfitPerSaleRunRate = rangeSalesCount > 0 ? netProfitMonthlyRunRate * rangeMonths / rangeSalesCount : 0;
       const profitMarginPctRunRate = revenueMonthlyRunRate > 0 ? netProfitMonthlyRunRate / revenueMonthlyRunRate : 0;
 
+      // Sales-based profit waterfall (briefCogs = actual allocated + estimated accrued)
+      const briefCogs = allocatedMfgTotal + accruedMfgRemaining;
+      const salesRevenue = rangeRevenue;
+      const grossProfit = salesRevenue - briefCogs;
+      const grossMargin = salesRevenue > 0 ? grossProfit / salesRevenue : 0;
+      const cogsPct = salesRevenue > 0 ? briefCogs / salesRevenue : 0;
+      const netProfit = grossProfit - adsSpendTotal - overheadTotal - shopifyCapitalPaidInRange;
+      const netMargin = salesRevenue > 0 ? netProfit / salesRevenue : 0;
+
       return {
         earliestDate,
         totalRevenue,
