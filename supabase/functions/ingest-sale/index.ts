@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
       date: body.date ?? null,
       email: body.email ?? null,
       product_name: body.product_name ?? null,
+      sign_style: body.sign_style ?? null,
       revenue: body.revenue != null ? Number(body.revenue) : null,
       order_text: body.order_text ?? null,
       raw_payload: body,

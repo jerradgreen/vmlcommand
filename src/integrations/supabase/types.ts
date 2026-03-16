@@ -519,6 +519,7 @@ export type Database = {
           raw_payload: Json | null
           revenue: number | null
           sale_type: string
+          sign_style: string | null
           source_system: string
           strong_tokens: string[] | null
           suggested_lead_id: string | null
@@ -548,6 +549,7 @@ export type Database = {
           raw_payload?: Json | null
           revenue?: number | null
           sale_type?: string
+          sign_style?: string | null
           source_system?: string
           strong_tokens?: string[] | null
           suggested_lead_id?: string | null
@@ -577,6 +579,7 @@ export type Database = {
           raw_payload?: Json | null
           revenue?: number | null
           sale_type?: string
+          sign_style?: string | null
           source_system?: string
           strong_tokens?: string[] | null
           suggested_lead_id?: string | null

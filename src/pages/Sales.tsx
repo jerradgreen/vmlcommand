@@ -18,7 +18,7 @@ function saleTypeBadge(type: string) {
   }
 }
 
-type SortKey = "date" | "order_id" | "product_name" | "revenue" | "sale_type" | "match_method" | "match_confidence";
+type SortKey = "date" | "order_id" | "product_name" | "sign_style" | "revenue" | "sale_type" | "match_method" | "match_confidence";
 type SortDir = "asc" | "desc";
 
 function SortableHead({ label, sortKey, current, dir, onSort }: {
@@ -90,6 +90,7 @@ export default function Sales() {
                 <SortableHead label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Order ID" sortKey="order_id" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Product" sortKey="product_name" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Style" sortKey="sign_style" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Revenue" sortKey="revenue" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Type" sortKey="sale_type" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Match" sortKey="match_method" current={sortKey} dir={sortDir} onSort={handleSort} />
@@ -99,7 +100,7 @@ export default function Sales() {
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No sales found. Import data to get started.
                   </TableCell>
                 </TableRow>
@@ -111,6 +112,7 @@ export default function Sales() {
                     </TableCell>
                     <TableCell className="font-mono text-sm">{sale.order_id}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{sale.product_name || "—"}</TableCell>
+                    <TableCell>{(sale as any).sign_style || "—"}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(sale.revenue) || 0)}</TableCell>
                     <TableCell>{saleTypeBadge(sale.sale_type)}</TableCell>
                     <TableCell>
