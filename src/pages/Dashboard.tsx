@@ -191,8 +191,14 @@ export default function Dashboard() {
   const rangeLabel = presetLabels[dateRange.preset] ?? "MTD";
   const adSpendPctOfRevenue = m.depositRevenue > 0 ? m.adsSpendTotal / m.depositRevenue : 0;
   const overheadPctOfRevenue = m.depositRevenue > 0 ? m.overheadTotal / m.depositRevenue : 0;
-      const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
-    const netAfterUpcomingDue = m.netProfitMonthlyRunRate - next7TotalDue;
+  const next7TotalDue = m.next7BillsDue + m.next7CogsDue;
+  const netAfterUpcomingDue = m.netProfitMonthlyRunRate - next7TotalDue;
+
+  const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : null;
+  const revenuePerLead = m.totalLeads > 0 ? (m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads : null;
+  const contributionPerLead = m.totalLeads > 0 && (m as any).cogsPct != null
+    ? (((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) * (1 - (m as any).cogsPct) - (m.adsSpendTotal / m.totalLeads))
+    : null;
 
   return (
     <div className="space-y-6">
