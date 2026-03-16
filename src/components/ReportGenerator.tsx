@@ -101,7 +101,7 @@ export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: Rep
     y += 18;
 
     const kpis: [string, string][] = [
-      ["Sales Revenue (30d)", formatCurrency(m.salesRevenue ?? m.rangeRevenue ?? 0)],
+      ["Sales Revenue", formatCurrency(m.salesRevenue ?? m.rangeRevenue ?? 0)],
       ["Bank Deposits (Cash)", formatCurrency(m.depositRevenue ?? 0)],
       ["Total Sales", formatNumber(m.totalSales ?? 0)],
       ["New-Lead Sales", formatNumber(m.newLeadSalesCount ?? 0)],
