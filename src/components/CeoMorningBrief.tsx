@@ -124,6 +124,12 @@ export default function CeoMorningBrief({ metrics30d: m, metrics12m: m12, metric
   const cashCushionMonths = monthlyOpCosts > 0 ? cashInBank / monthlyOpCosts : 99;
   const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : 0;
 
+  /* ── Revenue Opportunity ── */
+  const targetCloseRate = 0.05;
+  const expectedSalesAtTarget = m.totalLeads > 0 ? Math.floor(m.totalLeads * targetCloseRate) : 0;
+  const additionalSalesOpportunity = Math.max(expectedSalesAtTarget - m.newLeadSalesCount, 0);
+  const additionalRevenueOpportunity = additionalSalesOpportunity * m.avgOrderValue;
+
   /* ══════ Opportunity Alerts ══════ */
   const opportunityAlerts = useMemo(() => {
     const alerts: { title: string; explanation: string; impact: string; severity: number }[] = [];
