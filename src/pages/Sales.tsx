@@ -15,6 +15,7 @@ const STYLE_OPTIONS = [
   "Letters/Numbers-Wall Hanging",
   "Layered, single-unit sign (logo, etc)",
   "Rental Inventory Package Info",
+  "Mobile Vendor Sign",
   "Not sure",
 ];
 
