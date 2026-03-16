@@ -163,7 +163,11 @@ export default function Sales() {
     });
   }, [sales, sortKey, sortDir]);
 
-  const refetch = () => queryClient.invalidateQueries({ queryKey: ["sales"] });
+  const handleStyleUpdate = (saleId: string, newStyle: string) => {
+    queryClient.setQueryData(["sales"], (old: any[] | undefined) =>
+      old?.map((s) => s.id === saleId ? { ...s, sign_style: newStyle } : s)
+    );
+  };
 
   return (
     <div className="space-y-4">
