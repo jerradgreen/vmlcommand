@@ -1,17 +1,33 @@
 
 
-## Fix: "No allocations to save" Error in Manual Mode
+## Fix Report Period Logic + KPI Labels
 
-### Problem
-When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
+### File: `src/components/ReportGenerator.tsx`
 
-There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
+**1. Remove hardcoded "(30d)" from KPI labels** (lines 104, 115)
 
-### Fix
+Since the report header already shows `Period: ${dateLabel}`, simplify the labels:
+- `"Sales Revenue (30d)"` → `"Sales Revenue"`
+- `"Gross Profit (30d)"` → `"Gross Profit"`
 
-1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
+**2. Fix Cost Per New-Lead Sale calculation** (line 113)
 
-2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+Currently reads `m.costPerSale` which may not be set. Add inline calculation:
+```typescript
+["Cost Per New-Lead Sale", 
+  (m.newLeadSalesCount ?? 0) > 0 
+    ? formatCurrency(m.adsSpendTotal / m.newLeadSalesCount) 
+    : "N/A"],
+```
 
-3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
+**3. Use passed-through metrics directly** — already correct
+
+The metrics object spread from Dashboard (`{ ...m, costPerLead, revenuePerLead, contributionPerLead }`) already flows into `buildPDF`. The KPI table already reads `m.grossProfit`, `m.netProfit`, `m.costPerLead`, `m.revenuePerLead`, `m.briefCogs`, `m.grossMargin`, `m.netMargin` directly. No recomputation needed — just the label and costPerSale fixes above.
+
+**4. No Morning Brief changes** — Morning Brief is a separate page with its own 30-day logic.
+
+### Summary of line changes in `ReportGenerator.tsx`
+- Line 104: Remove `(30d)` suffix
+- Line 113: Replace `m.costPerSale` lookup with inline `adsSpendTotal / newLeadSalesCount` calculation
+- Line 115: Remove `(30d)` suffix
 
