@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       email: pickValue("email", "email_address") ?? null,
       phone: pickValue("phone", "phone_number", "mobile") ?? null,
       phrase: pickValue("phrase", "main_text", "text", "message", "custom_text", "inquiry", "details") ?? null,
-      sign_style: pickValue("sign_style", "sign_type", "style", "product_type", "product") ?? null,
+      sign_style: pickValue("sign_style", "sign_type", "style", "product_type", "product", "What style of sign are you wanting us to make?") ?? null,
       size_text: pickValue("size_text", "main_text_size", "size", "dimensions") ?? null,
       budget_text: pickValue("budget_text", "budget", "budget_range", "price_range") ?? null,
       notes: pickValue("notes", "additional_notes", "comments") ?? null,
