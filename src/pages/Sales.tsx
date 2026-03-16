@@ -211,7 +211,7 @@ export default function Sales() {
                     <TableCell className="max-w-[180px] truncate text-sm">{sale.email || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{sale.product_name || "—"}</TableCell>
                     <TableCell>
-                      <InlineStyleEditor saleId={sale.id} currentStyle={sale.sign_style} onSaved={refetch} />
+                      <InlineStyleEditor saleId={sale.id} currentStyle={sale.sign_style} onSaved={(newStyle) => handleStyleUpdate(sale.id, newStyle)} />
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(sale.revenue) || 0)}</TableCell>
                     <TableCell>{saleTypeBadge(sale.sale_type)}</TableCell>
