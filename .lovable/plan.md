@@ -1,17 +1,28 @@
 
 
-## Fix: "No allocations to save" Error in Manual Mode
+## Add Lead Funnel Metrics to Dashboard
 
-### Problem
-When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
+### File: `src/pages/Dashboard.tsx`
 
-There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
+**1. Compute derived metrics** (after existing derived vars ~line 194):
 
-### Fix
+```typescript
+const costPerLead = m.totalLeads > 0 ? m.adsSpendTotal / m.totalLeads : null;
+const revenuePerLead = m.totalLeads > 0 ? (m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads : null;
+const contributionPerLead = m.totalLeads > 0 && m.cogsPct != null
+  ? (((m.newLeadSalesCount * m.avgOrderValue) / m.totalLeads) * (1 - m.cogsPct) - (m.adsSpendTotal / m.totalLeads))
+  : null;
+```
 
-1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
+`contributionPerLead` returns `null` (displays "N/A") unless both `totalLeads > 0` **and** `cogsPct` is defined. No fallback to 0.
 
-2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+**2. Insert "Lead Funnel Economics" section** after Ad Performance, before Cost Structure:
 
-3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
+- Section header: "Lead Funnel Economics" / "What does each lead cost and produce?"
+- 3-column grid with `MetricCard` + `Users` icon:
+  - **Cost Per Lead** — `formatCurrency` or "N/A" — subtitle: "Ad Spend ÷ Leads"
+  - **Revenue Per Lead (Est.)** — `formatCurrency` or "N/A" — subtitle: "New-lead revenue ÷ Leads"
+  - **Contribution Per Lead** — `formatCurrency` or "N/A" — subtitle: "Est. gross profit per lead after ad cost"
+
+No changes to existing cards or calculations.
 
