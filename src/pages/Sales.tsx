@@ -132,7 +132,7 @@ export default function Sales() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales")
-        .select("*, leads(name)")
+        .select("*, leads!sales_lead_id_fkey(name)")
         .order("date", { ascending: false });
       if (error) throw error;
       return data.map((s: any) => ({
