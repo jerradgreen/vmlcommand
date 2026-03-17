@@ -27,7 +27,7 @@ const STYLE_KEYWORDS: [StyleBucket, string[]][] = [
   ["Mobile Vendors", ["mobile", "vendor"]],
 ];
 
-function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: string | null): StyleBucket {
+function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: string | null, phraseText?: string | null): StyleBucket {
   // Try sign_style first
   if (signStyle && signStyle.trim()) {
     const lower = signStyle.toLowerCase();
@@ -38,6 +38,17 @@ function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: stri
   // Fall back to cognito_form name
   if (cognitoForm && cognitoForm.trim()) {
     const lower = cognitoForm.toLowerCase();
+    for (const [bucket, keywords] of STYLE_KEYWORDS) {
+      if (keywords.some((kw) => lower.includes(kw))) return bucket;
+    }
+  }
+  // Fall back to raw_payload phrase/message text (no "marquee" in STYLE_KEYWORDS so it stays Unknown)
+  if (phraseText && phraseText.trim()) {
+    const lower = phraseText.toLowerCase();
+    // Special case: marquee + rental co-occurrence → Rental
+    if (lower.includes("marquee") && (lower.includes("rental") || lower.includes("package"))) {
+      return "Rental Inventory Package";
+    }
     for (const [bucket, keywords] of STYLE_KEYWORDS) {
       if (keywords.some((kw) => lower.includes(kw))) return bucket;
     }
@@ -82,11 +93,11 @@ export function useSignStyleMetrics(range: DateRange) {
     queryKey: ["sign-style-metrics", key, keyEnd],
     queryFn: async () => {
       // Query leads (paginated to avoid 1000-row limit)
-      const allLeads: { sign_style: string | null; cognito_form: string | null }[] = [];
+      const allLeads: { sign_style: string | null; cognito_form: string | null; raw_payload: any }[] = [];
       let leadsFrom = 0;
       const pageSize = 1000;
       while (true) {
-        let leadsQ = supabase.from("leads").select("sign_style, cognito_form");
+        let leadsQ = supabase.from("leads").select("sign_style, cognito_form, raw_payload");
         if (from) leadsQ = leadsQ.gte("submitted_at", from.toISOString());
         if (to) leadsQ = leadsQ.lte("submitted_at", to.toISOString());
         const { data, error: leadsErr } = await leadsQ.range(leadsFrom, leadsFrom + pageSize - 1);
@@ -114,7 +125,11 @@ export function useSignStyleMetrics(range: DateRange) {
       const leadCounts: Record<StyleBucket, number> = {} as any;
       for (const b of STYLE_BUCKETS) leadCounts[b] = 0;
       for (const row of allLeads) {
-        leadCounts[normalizeStyle(row.sign_style, row.cognito_form)]++;
+        const phraseText = [
+          row.raw_payload?.["What word(s) will you spell? Or numbers?"],
+          row.raw_payload?.["Message-Anything else?"],
+        ].filter(Boolean).join(" ");
+        leadCounts[normalizeStyle(row.sign_style, row.cognito_form, phraseText || null)]++;
       }
 
       // Aggregate sales by bucket
