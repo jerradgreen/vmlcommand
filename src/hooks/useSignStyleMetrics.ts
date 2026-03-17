@@ -96,12 +96,19 @@ export function useSignStyleMetrics(range: DateRange) {
         leadsFrom += pageSize;
       }
 
-      // Query sales
-      let salesQ = supabase.from("sales").select("sign_style, revenue");
-      if (from) salesQ = salesQ.gte("date", format(from, "yyyy-MM-dd"));
-      if (to) salesQ = salesQ.lte("date", format(to, "yyyy-MM-dd"));
-      const { data: salesData, error: salesErr } = await salesQ;
-      if (salesErr) throw salesErr;
+      // Query sales (paginated)
+      const allSales: { sign_style: string | null; revenue: number | null; email: string | null; lead_id: string | null }[] = [];
+      let salesFrom = 0;
+      while (true) {
+        let salesQ = supabase.from("sales").select("sign_style, revenue, email, lead_id");
+        if (from) salesQ = salesQ.gte("date", format(from, "yyyy-MM-dd"));
+        if (to) salesQ = salesQ.lte("date", format(to, "yyyy-MM-dd"));
+        const { data, error: salesErr } = await salesQ.range(salesFrom, salesFrom + pageSize - 1);
+        if (salesErr) throw salesErr;
+        allSales.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+        salesFrom += pageSize;
+      }
 
       // Aggregate leads by bucket
       const leadCounts: Record<StyleBucket, number> = {} as any;
@@ -113,23 +120,29 @@ export function useSignStyleMetrics(range: DateRange) {
       // Aggregate sales by bucket
       const saleCounts: Record<StyleBucket, number> = {} as any;
       const saleRevenue: Record<StyleBucket, number> = {} as any;
-      for (const b of STYLE_BUCKETS) { saleCounts[b] = 0; saleRevenue[b] = 0; }
-      for (const row of salesData ?? []) {
+      const customerSets: Record<StyleBucket, Set<string>> = {} as any;
+      for (const b of STYLE_BUCKETS) { saleCounts[b] = 0; saleRevenue[b] = 0; customerSets[b] = new Set(); }
+      for (const row of allSales) {
         const bucket = normalizeStyle(row.sign_style);
         saleCounts[bucket]++;
         saleRevenue[bucket] += Number(row.revenue) || 0;
+        // Unique customer: prefer lead_id, fallback to email
+        const custKey = row.lead_id ?? (row.email ? row.email.toLowerCase().trim() : null);
+        if (custKey) customerSets[bucket].add(custKey);
       }
 
       // Build rows
       const rows: SignStyleRow[] = STYLE_BUCKETS.map((style) => {
         const leads = leadCounts[style];
         const sales = saleCounts[style];
+        const customers = customerSets[style].size;
         const revenue = saleRevenue[style];
         return {
           style,
           leads,
           sales,
-          closeRate: leads > 0 ? sales / leads : null,
+          customers,
+          closeRate: leads > 0 ? customers / leads : null,
           revenue,
           revenuePerLead: leads > 0 ? revenue / leads : null,
           avgSaleValue: sales > 0 ? revenue / sales : null,

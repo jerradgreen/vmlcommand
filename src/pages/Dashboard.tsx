@@ -288,7 +288,8 @@ export default function Dashboard() {
               <TableRow>
                 <TableHead>Style</TableHead>
                 <TableHead className="text-right">Leads</TableHead>
-                <TableHead className="text-right">Sales</TableHead>
+                <TableHead className="text-right">Sales (Total)</TableHead>
+                <TableHead className="text-right">Customers</TableHead>
                 <TableHead className="text-right">Close Rate</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
                 <TableHead className="text-right">Rev/Lead</TableHead>
@@ -301,6 +302,7 @@ export default function Dashboard() {
                   <TableCell className="font-medium">{row.style}</TableCell>
                   <TableCell className="text-right">{formatNumber(row.leads)}</TableCell>
                   <TableCell className="text-right">{formatNumber(row.sales)}</TableCell>
+                  <TableCell className="text-right">{formatNumber(row.customers)}</TableCell>
                   <TableCell className="text-right">{row.closeRate != null ? formatPercent(row.closeRate) : "N/A"}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                   <TableCell className="text-right">{row.revenuePerLead != null ? formatCurrency(row.revenuePerLead) : "N/A"}</TableCell>
