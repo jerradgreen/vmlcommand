@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format, addDays } from "date-fns";
 
-export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "ytd" | "last_year" | "12m" | "custom";
+export type DatePreset = "all" | "today" | "yesterday" | "7d" | "30d" | "mtd" | "ytd" | "last_year" | "6m" | "12m" | "custom";
 
 export interface DateRange {
   preset: DatePreset;
