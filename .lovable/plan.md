@@ -1,17 +1,27 @@
 
 
-## Fix: "No allocations to save" Error in Manual Mode
+## Plan: Allocate Wire Transfer to VML18410 & VML18412
 
-### Problem
-When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
+### The Math
 
-There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
+| | VML18412 | VML18410 |
+|---|---|---|
+| Revenue | $3,720 | $8,000 |
+| Manufacturing cost | $1,458 | — |
+| Wire allocation | $1,458 | $2,155 ($3,613 − $1,458) |
+| Remaining est. COGS | $0 (fully paid) | $600 (4 unpaid units) |
+| Total est. COGS | $1,458 | $2,755 ($2,155 + $600) |
+| New `estimated_cogs_pct` | 0.392 ($1,458/$3,720) | 0.3444 ($2,755/$8,000) |
+| New `manufacturing_status` | `paid` | `unpaid` (still has $600 outstanding) |
 
-### Fix
+### Data Operations (no code changes needed)
 
-1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
+1. **Insert two `cogs_allocations` rows** linking the wire transfer (`87bb8072...`) to each sale with the correct amounts ($1,458 and $2,155).
 
-2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+2. **Update `estimated_cogs_pct`** on both sales so the estimated totals reflect reality instead of the default 50%.
 
-3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
+3. **Update `manufacturing_status`** on VML18412 to `paid`. Leave VML18410 as `unpaid` since $600 remains.
+
+### Note on 70% Auto-Clear Rule
+VML18410's allocation ($2,155) is ~78% of its estimated COGS ($2,755), which would normally trigger the auto-clear to "paid." I'll keep it as `unpaid` since you specifically want $600 to remain outstanding. If the COGS Reconciliation page auto-clears it later, we can adjust the threshold or override it.
 
