@@ -175,6 +175,7 @@ export default function Leads() {
                     <TableCell className="font-medium">{lead.name || "—"}</TableCell>
                     <TableCell>{lead.email || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{lead.phrase || "—"}</TableCell>
+                    <TableCell className="max-w-[180px] truncate text-sm">{lead.sign_style || "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">{lead.cognito_form}</Badge>
                     </TableCell>
