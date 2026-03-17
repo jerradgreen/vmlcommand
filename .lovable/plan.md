@@ -1,49 +1,17 @@
 
 
-## Problem
+## Fix: "No allocations to save" Error in Manual Mode
 
-1,903 leads have no `sign_style` value, but many of them came through form-specific Cognito forms that tell us exactly what style they're asking about. Currently, the `normalizeStyle` function only looks at the `sign_style` column and ignores the `cognito_form` column — so those leads all fall into "Unknown."
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-Here's the breakdown of leads with **no sign_style** by form:
-- `general_quote` → 1,241 (can't infer — truly unknown without manual review)
-- `event_style` → 348 → **Event Style Letters**
-- `wall_hanging` → 105 → **Wall Hanging Letters**
-- `Event Style letters quote form` → 99 → **Event Style Letters**
-- `rental_guide_download` → 26 → **Rental Inventory Package**
-- `layered_logo` → 25 → **3D Layered Logo Sign**
-- `Individual Wall-Hanging letters/numbers` → 16 → **Wall Hanging Letters**
-- `mobile_vendor` → 9 → **Mobile Vendors**
-- `3D Logo Layered Sign Form` → 9 → **3D Layered Logo Sign**
-- `Custom Vintage Marquee Lights...` → 8 → **Rental Inventory Package**
-- `Mobile Vendor Sign Form` → 7 → **Mobile Vendors**
-- `"Not Sure"...` → 6 → **Unknown**
-- `not_sure` → 4 → **Unknown**
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-This means ~650 leads can be rescued from "Unknown" just by looking at the form name.
+### Fix
 
-## Plan
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-### 1. Update `normalizeStyle` to accept both `sign_style` and `cognito_form`
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-In `src/hooks/useSignStyleMetrics.ts`:
-
-- Change the function signature to `normalizeStyle(signStyle, cognitoForm)`.
-- First, try to match on `sign_style` using the existing keyword logic.
-- If that returns "Unknown" (i.e., `sign_style` was null/empty/unrecognized), fall back to matching on `cognito_form` using the **same keyword list** — since the keywords ("event", "wall", "mobile", "rental", "layered", "logo", "3d") already cover all the form names naturally.
-- `general_quote` and `not_sure` won't match any keyword, so they correctly stay "Unknown."
-
-### 2. Fetch `cognito_form` alongside `sign_style` in the leads query
-
-Update the leads `select` from `"sign_style"` to `"sign_style, cognito_form"` so we have both fields available for normalization.
-
-### 3. Pass both fields during aggregation
-
-When counting leads into buckets, call `normalizeStyle(row.sign_style, row.cognito_form)` instead of just `normalizeStyle(row.sign_style)`.
-
-### Expected Impact
-
-- ~650 leads move from "Unknown" to their correct style bucket
-- ~1,241 `general_quote` leads with no `sign_style` remain "Unknown" (you'd need to manually review those or inspect their `raw_payload` for clues)
-- No database migration needed — this is purely a client-side normalization change
-- Sales normalization is unaffected (sales don't have `cognito_form`)
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
