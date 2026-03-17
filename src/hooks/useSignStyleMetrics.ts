@@ -96,7 +96,7 @@ export function useSignStyleMetrics(range: DateRange) {
       // Aggregate leads by bucket
       const leadCounts: Record<StyleBucket, number> = {} as any;
       for (const b of STYLE_BUCKETS) leadCounts[b] = 0;
-      for (const row of leadsData ?? []) {
+      for (const row of allLeads) {
         leadCounts[normalizeStyle(row.sign_style)]++;
       }
 
