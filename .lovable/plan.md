@@ -1,33 +1,17 @@
 
 
-## Plan: Add Sign Style Performance Section to Dashboard
+## Fix: "No allocations to save" Error in Manual Mode
 
-### Approach change from previous plan
-Metrics are computed by **direct style-based aggregation** — no `lead_id` linkage needed. Leads are counted from the `leads` table grouped by normalized `sign_style`, sales/revenue from the `sales` table grouped by normalized `sign_style`. Close rate is simply `Sales / Leads` within each bucket.
+### Problem
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-### 6-bucket normalization (unchanged)
-Case-insensitive keyword matching on `sign_style`:
-- **Rental Inventory Package** — "rental", "package"
-- **Event Style Letters** — "event"
-- **3D Layered Logo Sign** — "layered", "logo"
-- **Wall Hanging Letters** — "wall", "hanging"
-- **Mobile Vendors** — "mobile", "vendor"
-- **Unknown** — null, empty, or unmatched
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-### Files
+### Fix
 
-**1. `src/hooks/useSignStyleMetrics.ts`** (new)
-- Accepts date range from dashboard
-- Query 1: `leads` table → `sign_style` field → normalize → count per bucket
-- Query 2: `sales` table → `sign_style`, `revenue` → normalize → count + sum revenue per bucket
-- No `lead_id` join — both queries are independent aggregations
-- Returns `{ style, leads, sales, closeRate, revenue, revenuePerLead, avgSaleValue }[]` sorted by revenue desc
-- N/A for divide-by-zero cases
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**2. `src/pages/Dashboard.tsx`**
-- Import hook + table components
-- Add "Sign Style Performance" section after Lead Funnel Economics
-- Compact `Table` with columns: Style | Leads | Sales | Close Rate | Revenue | Rev/Lead | Avg Sale
-- Uses existing `formatCurrency` / `formatPercent` helpers
-- No changes to any existing cards or calculations
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
+
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 

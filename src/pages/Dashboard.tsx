@@ -22,6 +22,8 @@ import {
   Landmark, CreditCard, ArrowUpRight, ArrowDownRight, Wallet,
 } from "lucide-react";
 import { useCashMetrics } from "@/hooks/useCashMetrics";
+import { useSignStyleMetrics } from "@/hooks/useSignStyleMetrics";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import ReportGenerator from "@/components/ReportGenerator";
@@ -135,6 +137,7 @@ export default function Dashboard() {
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
   const { data: trends, isLoading: trendsLoading } = useTrendData(dateRange);
   const { data: cashMetrics } = useCashMetrics(dateRange);
+  const { data: styleMetrics } = useSignStyleMetrics(dateRange);
 
   const handlePresetChange = (value: string) => {
     const preset = value as DatePreset;
@@ -274,6 +277,40 @@ export default function Dashboard() {
         <MetricCard title="Revenue Per Lead (Est.)" value={revenuePerLead != null ? formatCurrency(revenuePerLead) : "N/A"} icon={Users} subtitle="New-lead revenue ÷ Leads" />
         <MetricCard title="Contribution Per Lead" value={contributionPerLead != null ? formatCurrency(contributionPerLead) : "N/A"} icon={Users} subtitle="Est. gross profit per lead after ad cost" />
       </div>
+
+
+      {/* ═══ Sign Style Performance ═══ */}
+      <SectionHeader title="Sign Style Performance" subtitle="How each product category is performing" />
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Style</TableHead>
+                <TableHead className="text-right">Leads</TableHead>
+                <TableHead className="text-right">Sales</TableHead>
+                <TableHead className="text-right">Close Rate</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead className="text-right">Rev/Lead</TableHead>
+                <TableHead className="text-right">Avg Sale</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(styleMetrics ?? []).map((row) => (
+                <TableRow key={row.style}>
+                  <TableCell className="font-medium">{row.style}</TableCell>
+                  <TableCell className="text-right">{formatNumber(row.leads)}</TableCell>
+                  <TableCell className="text-right">{formatNumber(row.sales)}</TableCell>
+                  <TableCell className="text-right">{row.closeRate != null ? formatPercent(row.closeRate) : "N/A"}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                  <TableCell className="text-right">{row.revenuePerLead != null ? formatCurrency(row.revenuePerLead) : "N/A"}</TableCell>
+                  <TableCell className="text-right">{row.avgSaleValue != null ? formatCurrency(row.avgSaleValue) : "N/A"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* ═══ SECTION 3 — Cost Structure ═══ */}
       <SectionHeader title="Cost Structure (Leak Detection)" subtitle="Where is money drifting?" />
