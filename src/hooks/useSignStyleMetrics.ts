@@ -5,14 +5,23 @@ import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format } from
 
 const STYLE_BUCKETS = [
   "3D Layered Logo Sign",
-  "Event Style Letters",
-  "Mobile Vendors",
-  "Rental Inventory Package",
   "Wall Hanging Letters",
+  "Mobile Vendors",
+  "Event Style Letters",
+  "Rental Inventory Package",
   "Zaxby's",
   "Misc",
   "Unknown",
 ] as const;
+
+/** Only these buckets are shown in the performance chart, in display order */
+const DISPLAY_STYLES: StyleBucket[] = [
+  "3D Layered Logo Sign",
+  "Wall Hanging Letters",
+  "Mobile Vendors",
+  "Event Style Letters",
+  "Rental Inventory Package",
+];
 
 export type StyleBucket = (typeof STYLE_BUCKETS)[number];
 
@@ -146,8 +155,8 @@ export function useSignStyleMetrics(range: DateRange) {
         if (custKey) customerSets[bucket].add(custKey);
       }
 
-      // Build rows
-      const rows: SignStyleRow[] = STYLE_BUCKETS.map((style) => {
+      // Build rows — only display styles, in order
+      const rows: SignStyleRow[] = DISPLAY_STYLES.map((style) => {
         const leads = leadCounts[style];
         const sales = saleCounts[style];
         const customers = customerSets[style].size;
