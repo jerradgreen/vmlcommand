@@ -49,6 +49,7 @@ export interface SignStyleRow {
   style: StyleBucket;
   leads: number;
   sales: number;
+  customers: number;
   closeRate: number | null;
   revenue: number;
   revenuePerLead: number | null;
