@@ -125,7 +125,11 @@ export function useSignStyleMetrics(range: DateRange) {
       const leadCounts: Record<StyleBucket, number> = {} as any;
       for (const b of STYLE_BUCKETS) leadCounts[b] = 0;
       for (const row of allLeads) {
-        leadCounts[normalizeStyle(row.sign_style, row.cognito_form)]++;
+        const phraseText = [
+          row.raw_payload?.["What word(s) will you spell? Or numbers?"],
+          row.raw_payload?.["Message-Anything else?"],
+        ].filter(Boolean).join(" ");
+        leadCounts[normalizeStyle(row.sign_style, row.cognito_form, phraseText || null)]++;
       }
 
       // Aggregate sales by bucket
