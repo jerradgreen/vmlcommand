@@ -106,7 +106,7 @@ export function useSignStyleMetrics(range: DateRange) {
       const leadCounts: Record<StyleBucket, number> = {} as any;
       for (const b of STYLE_BUCKETS) leadCounts[b] = 0;
       for (const row of allLeads) {
-        leadCounts[normalizeStyle(row.sign_style)]++;
+        leadCounts[normalizeStyle(row.sign_style, row.cognito_form)]++;
       }
 
       // Aggregate sales by bucket
