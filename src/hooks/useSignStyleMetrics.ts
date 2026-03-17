@@ -6,11 +6,11 @@ import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format } from
 const STYLE_BUCKETS = [
   "3D Layered Logo Sign",
   "Event Style Letters",
-  "Misc",
   "Mobile Vendors",
   "Rental Inventory Package",
   "Wall Hanging Letters",
   "Zaxby's",
+  "Misc",
   "Unknown",
 ] as const;
 
