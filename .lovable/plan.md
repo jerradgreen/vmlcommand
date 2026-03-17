@@ -1,43 +1,17 @@
 
 
-## Plan: Add Unique Customers metric to Sign Style Performance
+## Fix: "No allocations to save" Error in Manual Mode
 
 ### Problem
-Close rate currently uses total sales (124), which double-counts repeat buyers. Using unique customers (by email or lead_id) gives a true conversion rate.
+When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
 
-### Changes
+There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
 
-#### 1. Hook: `src/hooks/useSignStyleMetrics.ts`
+### Fix
 
-**Data fetching**: Update sales query to also fetch `email` and `lead_id`:
-```
-select("sign_style, revenue, email, lead_id")
-```
-Also paginate sales like leads (to handle future growth past 1000).
+1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
 
-**Aggregation**: For each style bucket, track a `Set` of unique customers. A customer is identified by `lead_id` if present, otherwise `email` (lowercased/trimmed), otherwise skip (can't deduplicate).
+2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
 
-**Interface update**: Add `customers` (unique count) to `SignStyleRow`. Update `closeRate` formula to `customers / leads`.
-
-```typescript
-export interface SignStyleRow {
-  style: StyleBucket;
-  leads: number;
-  sales: number;        // total transactions
-  customers: number;    // unique buyers
-  closeRate: number | null;  // customers / leads
-  revenue: number;
-  revenuePerLead: number | null;
-  avgSaleValue: number | null;  // revenue / sales (total)
-}
-```
-
-#### 2. Dashboard UI: `src/pages/Dashboard.tsx`
-
-- Rename "Sales" header → "Sales (Total)"
-- Add "Customers" column after it
-- Close Rate now uses `row.closeRate` (already recalculated in hook)
-- Display `row.customers` in the new column
-
-Column order: Style | Leads | Sales (Total) | Customers | Close Rate | Revenue | Rev/Lead | Avg Sale
+3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
 
