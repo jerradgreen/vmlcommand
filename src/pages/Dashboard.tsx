@@ -22,6 +22,8 @@ import {
   Landmark, CreditCard, ArrowUpRight, ArrowDownRight, Wallet,
 } from "lucide-react";
 import { useCashMetrics } from "@/hooks/useCashMetrics";
+import { useSignStyleMetrics } from "@/hooks/useSignStyleMetrics";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import ReportGenerator from "@/components/ReportGenerator";
