@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { Search, ArrowUpDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-type SortKey = "submitted_at" | "name" | "email" | "phrase" | "cognito_form" | "status";
+type SortKey = "submitted_at" | "name" | "email" | "phrase" | "sign_style" | "cognito_form" | "status";
 type SortDir = "asc" | "desc";
 
 function SortableHead({ label, sortKey, current, dir, onSort }: {
