@@ -71,12 +71,20 @@ export function useSignStyleMetrics(range: DateRange) {
   return useQuery({
     queryKey: ["sign-style-metrics", key, keyEnd],
     queryFn: async () => {
-      // Query leads
-      let leadsQ = supabase.from("leads").select("sign_style");
-      if (from) leadsQ = leadsQ.gte("submitted_at", from.toISOString());
-      if (to) leadsQ = leadsQ.lte("submitted_at", to.toISOString());
-      const { data: leadsData, error: leadsErr } = await leadsQ;
-      if (leadsErr) throw leadsErr;
+      // Query leads (paginated to avoid 1000-row limit)
+      const allLeads: { sign_style: string | null }[] = [];
+      let leadsFrom = 0;
+      const pageSize = 1000;
+      while (true) {
+        let leadsQ = supabase.from("leads").select("sign_style");
+        if (from) leadsQ = leadsQ.gte("submitted_at", from.toISOString());
+        if (to) leadsQ = leadsQ.lte("submitted_at", to.toISOString());
+        const { data, error: leadsErr } = await leadsQ.range(leadsFrom, leadsFrom + pageSize - 1);
+        if (leadsErr) throw leadsErr;
+        allLeads.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+        leadsFrom += pageSize;
+      }
 
       // Query sales
       let salesQ = supabase.from("sales").select("sign_style, revenue");
@@ -88,7 +96,7 @@ export function useSignStyleMetrics(range: DateRange) {
       // Aggregate leads by bucket
       const leadCounts: Record<StyleBucket, number> = {} as any;
       for (const b of STYLE_BUCKETS) leadCounts[b] = 0;
-      for (const row of leadsData ?? []) {
+      for (const row of allLeads) {
         leadCounts[normalizeStyle(row.sign_style)]++;
       }
 
