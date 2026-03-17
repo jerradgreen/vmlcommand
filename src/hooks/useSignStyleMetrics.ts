@@ -4,20 +4,25 @@ import { DateRange } from "@/hooks/useDashboardMetrics";
 import { subDays, startOfDay, endOfDay, startOfMonth, startOfYear, format } from "date-fns";
 
 const STYLE_BUCKETS = [
-  "Rental Inventory Package",
-  "Event Style Letters",
   "3D Layered Logo Sign",
-  "Wall Hanging Letters",
+  "Event Style Letters",
+  "Misc",
   "Mobile Vendors",
+  "Rental Inventory Package",
+  "Wall Hanging Letters",
+  "Zaxby's",
   "Unknown",
 ] as const;
 
 export type StyleBucket = (typeof STYLE_BUCKETS)[number];
 
+// Order matters — first match wins. Exact-ish checks (zaxby, misc) come before broad keywords.
 const STYLE_KEYWORDS: [StyleBucket, string[]][] = [
+  ["Zaxby's", ["zaxby"]],
+  ["Misc", ["misc"]],
   ["Rental Inventory Package", ["rental", "package"]],
   ["Event Style Letters", ["event"]],
-  ["3D Layered Logo Sign", ["layered", "logo"]],
+  ["3D Layered Logo Sign", ["layered", "logo", "3d"]],
   ["Wall Hanging Letters", ["wall", "hanging"]],
   ["Mobile Vendors", ["mobile", "vendor"]],
 ];
@@ -114,7 +119,6 @@ export function useSignStyleMetrics(range: DateRange) {
       });
 
       // Sort by revenue desc
-      rows.sort((a, b) => b.revenue - a.revenue);
       return rows;
     },
   });
