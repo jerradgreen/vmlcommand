@@ -119,7 +119,6 @@ export function useSignStyleMetrics(range: DateRange) {
       });
 
       // Sort by revenue desc
-      rows.sort((a, b) => b.revenue - a.revenue);
       return rows;
     },
   });
