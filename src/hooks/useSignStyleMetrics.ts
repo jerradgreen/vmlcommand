@@ -155,8 +155,8 @@ export function useSignStyleMetrics(range: DateRange) {
         if (custKey) customerSets[bucket].add(custKey);
       }
 
-      // Build rows
-      const rows: SignStyleRow[] = STYLE_BUCKETS.map((style) => {
+      // Build rows — only display styles, in order
+      const rows: SignStyleRow[] = DISPLAY_STYLES.map((style) => {
         const leads = leadCounts[style];
         const sales = saleCounts[style];
         const customers = customerSets[style].size;
