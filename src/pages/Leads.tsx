@@ -169,13 +169,13 @@ export default function Leads() {
               ) : (
                 sorted.map((lead) => (
                   <TableRow key={lead.id}>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-xs">
                       {lead.submitted_at ? format(new Date(lead.submitted_at), "MMM d, yyyy") : "—"}
                     </TableCell>
-                    <TableCell className="font-medium">{lead.name || "—"}</TableCell>
-                    <TableCell>{lead.email || "—"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{lead.phrase || "—"}</TableCell>
-                    <TableCell className="max-w-[180px] truncate text-sm">{lead.sign_style || "—"}</TableCell>
+                    <TableCell className="font-medium max-w-[120px] truncate">{lead.name || "—"}</TableCell>
+                    <TableCell className="max-w-[140px] truncate text-xs">{lead.email || "—"}</TableCell>
+                    <TableCell className="max-w-[150px] truncate text-xs">{lead.phrase || "—"}</TableCell>
+                    <TableCell className="max-w-[130px] truncate text-xs">{lead.sign_style || "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">{lead.cognito_form}</Badge>
                     </TableCell>
