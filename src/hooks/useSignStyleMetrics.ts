@@ -27,11 +27,20 @@ const STYLE_KEYWORDS: [StyleBucket, string[]][] = [
   ["Mobile Vendors", ["mobile", "vendor"]],
 ];
 
-function normalizeStyle(raw: string | null | undefined): StyleBucket {
-  if (!raw || !raw.trim()) return "Unknown";
-  const lower = raw.toLowerCase();
-  for (const [bucket, keywords] of STYLE_KEYWORDS) {
-    if (keywords.some((kw) => lower.includes(kw))) return bucket;
+function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: string | null): StyleBucket {
+  // Try sign_style first
+  if (signStyle && signStyle.trim()) {
+    const lower = signStyle.toLowerCase();
+    for (const [bucket, keywords] of STYLE_KEYWORDS) {
+      if (keywords.some((kw) => lower.includes(kw))) return bucket;
+    }
+  }
+  // Fall back to cognito_form name
+  if (cognitoForm && cognitoForm.trim()) {
+    const lower = cognitoForm.toLowerCase();
+    for (const [bucket, keywords] of STYLE_KEYWORDS) {
+      if (keywords.some((kw) => lower.includes(kw))) return bucket;
+    }
   }
   return "Unknown";
 }
