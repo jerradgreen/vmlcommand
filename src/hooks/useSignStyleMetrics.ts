@@ -87,6 +87,7 @@ function getDateBounds(range: DateRange): { from: Date | null; to: Date | null }
     case "mtd": return { from: startOfMonth(now), to: endOfDay(now) };
     case "ytd": return { from: startOfYear(now), to: endOfDay(now) };
     case "last_year": { const ly = now.getFullYear() - 1; return { from: new Date(ly, 0, 1), to: endOfDay(new Date(ly, 11, 31)) }; }
+    case "6m": return { from: startOfDay(subDays(now, 182)), to: endOfDay(now) };
     case "12m": return { from: startOfDay(subDays(now, 364)), to: endOfDay(now) };
     case "custom": return { from: range.from ?? null, to: range.to ?? null };
     default: return { from: null, to: null };
