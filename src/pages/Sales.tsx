@@ -17,6 +17,7 @@ const STYLE_OPTIONS = [
   "Rental Inventory Package Info",
   "Mobile Vendor Sign",
   "Zaxby's",
+  "Misc",
   "Not sure",
 ];
 
