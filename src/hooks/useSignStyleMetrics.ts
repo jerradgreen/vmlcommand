@@ -27,7 +27,7 @@ const STYLE_KEYWORDS: [StyleBucket, string[]][] = [
   ["Mobile Vendors", ["mobile", "vendor"]],
 ];
 
-function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: string | null): StyleBucket {
+function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: string | null, phraseText?: string | null): StyleBucket {
   // Try sign_style first
   if (signStyle && signStyle.trim()) {
     const lower = signStyle.toLowerCase();
@@ -38,6 +38,17 @@ function normalizeStyle(signStyle: string | null | undefined, cognitoForm?: stri
   // Fall back to cognito_form name
   if (cognitoForm && cognitoForm.trim()) {
     const lower = cognitoForm.toLowerCase();
+    for (const [bucket, keywords] of STYLE_KEYWORDS) {
+      if (keywords.some((kw) => lower.includes(kw))) return bucket;
+    }
+  }
+  // Fall back to raw_payload phrase/message text (no "marquee" in STYLE_KEYWORDS so it stays Unknown)
+  if (phraseText && phraseText.trim()) {
+    const lower = phraseText.toLowerCase();
+    // Special case: marquee + rental co-occurrence → Rental
+    if (lower.includes("marquee") && (lower.includes("rental") || lower.includes("package"))) {
+      return "Rental Inventory Package";
+    }
     for (const [bucket, keywords] of STYLE_KEYWORDS) {
       if (keywords.some((kw) => lower.includes(kw))) return bucket;
     }
