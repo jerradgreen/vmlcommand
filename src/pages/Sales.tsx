@@ -70,13 +70,15 @@ function InlineStyleEditor({ saleId, currentStyle, onSaved }: { saleId: string; 
 
   if (!editing) {
     return (
-      <span
-        className="inline-flex items-center gap-1 cursor-pointer group hover:text-primary"
-        onClick={() => setEditing(true)}
-      >
-        {currentStyle || <span className="text-muted-foreground">—</span>}
-        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 text-muted-foreground" />
-      </span>
+      <div className="min-w-[11rem] h-7 flex items-center">
+        <span
+          className="inline-flex items-center gap-1 cursor-pointer group hover:text-primary"
+          onClick={() => setEditing(true)}
+        >
+          {currentStyle || <span className="text-muted-foreground">—</span>}
+          <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 text-muted-foreground" />
+        </span>
+      </div>
     );
   }
 
