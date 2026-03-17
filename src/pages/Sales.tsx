@@ -16,6 +16,7 @@ const STYLE_OPTIONS = [
   "Layered, single-unit sign (logo, etc)",
   "Rental Inventory Package Info",
   "Mobile Vendor Sign",
+  "Zaxby's",
   "Not sure",
 ];
 
