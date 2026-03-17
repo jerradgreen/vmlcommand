@@ -137,6 +137,7 @@ export default function Dashboard() {
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
   const { data: trends, isLoading: trendsLoading } = useTrendData(dateRange);
   const { data: cashMetrics } = useCashMetrics(dateRange);
+  const { data: styleMetrics } = useSignStyleMetrics(dateRange);
 
   const handlePresetChange = (value: string) => {
     const preset = value as DatePreset;
