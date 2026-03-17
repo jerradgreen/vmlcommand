@@ -33,6 +33,8 @@ function getDateBounds(range: DateRange): { from: Date | null; to: Date | null }
       const ly = now.getFullYear() - 1;
       return { from: new Date(ly, 0, 1), to: endOfDay(new Date(ly, 11, 31)) };
     }
+    case "6m":
+      return { from: startOfDay(subDays(now, 182)), to: endOfDay(now) };
     case "12m":
       return { from: startOfDay(subDays(now, 364)), to: endOfDay(now) };
     case "custom":

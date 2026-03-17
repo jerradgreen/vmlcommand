@@ -120,7 +120,7 @@ function TrendChart({ data, dataKey, label, formatFn, onPointClick }: {
 const presetLabels: Record<DatePreset, string> = {
   all: "All Time", today: "Today", yesterday: "Yesterday", "7d": "Last 7 Days",
   "30d": "Last 30 Days", mtd: "Month to Date", ytd: "Year to Date",
-  last_year: "Last Year", "12m": "Last 12 Months", custom: "Custom Range",
+  last_year: "Last Year", "6m": "Last 6 Months", "12m": "Last 12 Months", custom: "Custom Range",
 };
 
 /* ══════════════════ DASHBOARD ══════════════════ */
