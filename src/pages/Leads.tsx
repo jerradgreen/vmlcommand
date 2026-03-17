@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { Search, ArrowUpDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-type SortKey = "submitted_at" | "name" | "email" | "phrase" | "cognito_form" | "status";
+type SortKey = "submitted_at" | "name" | "email" | "phrase" | "sign_style" | "cognito_form" | "status";
 type SortDir = "asc" | "desc";
 
 function SortableHead({ label, sortKey, current, dir, onSort }: {
@@ -153,6 +153,7 @@ export default function Leads() {
                 <SortableHead label="Name" sortKey="name" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Email" sortKey="email" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Phrase" sortKey="phrase" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Sign Style" sortKey="sign_style" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Form" sortKey="cognito_form" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <TableHead className="w-10"></TableHead>
@@ -161,7 +162,7 @@ export default function Leads() {
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No leads found. Import data to get started.
                   </TableCell>
                 </TableRow>
@@ -174,6 +175,7 @@ export default function Leads() {
                     <TableCell className="font-medium">{lead.name || "—"}</TableCell>
                     <TableCell>{lead.email || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{lead.phrase || "—"}</TableCell>
+                    <TableCell className="max-w-[180px] truncate text-sm">{lead.sign_style || "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">{lead.cognito_form}</Badge>
                     </TableCell>
