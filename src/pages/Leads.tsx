@@ -153,6 +153,7 @@ export default function Leads() {
                 <SortableHead label="Name" sortKey="name" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Email" sortKey="email" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Phrase" sortKey="phrase" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortableHead label="Sign Style" sortKey="sign_style" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Form" sortKey="cognito_form" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortableHead label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={handleSort} />
                 <TableHead className="w-10"></TableHead>
