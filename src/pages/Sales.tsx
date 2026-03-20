@@ -21,15 +21,15 @@ const STYLE_OPTIONS = [
   "Not sure",
 ];
 
+const SALE_TYPE_OPTIONS = [
+  { value: "unknown", label: "Unknown", className: "bg-muted text-muted-foreground" },
+  { value: "new_lead", label: "New Lead", className: "bg-success text-success-foreground" },
+  { value: "repeat_direct", label: "Repeat/Direct", className: "bg-secondary text-secondary-foreground" },
+] as const;
+
 function saleTypeBadge(type: string) {
-  switch (type) {
-    case "new_lead":
-      return <Badge className="bg-success text-success-foreground text-xs">New Lead</Badge>;
-    case "repeat_direct":
-      return <Badge variant="secondary" className="text-xs">Repeat/Direct</Badge>;
-    default:
-      return <Badge variant="outline" className="text-xs">Unknown</Badge>;
-  }
+  const opt = SALE_TYPE_OPTIONS.find((o) => o.value === type) ?? SALE_TYPE_OPTIONS[0];
+  return <Badge className={`${opt.className} text-xs`}>{opt.label}</Badge>;
 }
 
 type SortKey = "date" | "order_id" | "product_name" | "sign_style" | "revenue" | "sale_type" | "email" | "lead_name";
