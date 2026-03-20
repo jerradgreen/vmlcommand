@@ -21,15 +21,15 @@ const STYLE_OPTIONS = [
   "Not sure",
 ];
 
+const SALE_TYPE_OPTIONS = [
+  { value: "unknown", label: "Unknown", className: "bg-muted text-muted-foreground" },
+  { value: "new_lead", label: "New Lead", className: "bg-success text-success-foreground" },
+  { value: "repeat_direct", label: "Repeat/Direct", className: "bg-secondary text-secondary-foreground" },
+] as const;
+
 function saleTypeBadge(type: string) {
-  switch (type) {
-    case "new_lead":
-      return <Badge className="bg-success text-success-foreground text-xs">New Lead</Badge>;
-    case "repeat_direct":
-      return <Badge variant="secondary" className="text-xs">Repeat/Direct</Badge>;
-    default:
-      return <Badge variant="outline" className="text-xs">Unknown</Badge>;
-  }
+  const opt = SALE_TYPE_OPTIONS.find((o) => o.value === type) ?? SALE_TYPE_OPTIONS[0];
+  return <Badge className={`${opt.className} text-xs`}>{opt.label}</Badge>;
 }
 
 type SortKey = "date" | "order_id" | "product_name" | "sign_style" | "revenue" | "sale_type" | "email" | "lead_name";
@@ -126,6 +126,55 @@ function InlineStyleEditor({ saleId, currentStyle, onSaved }: { saleId: string; 
   );
 }
 
+function InlineSaleTypeEditor({ saleId, currentType, leadId, onSaved }: {
+  saleId: string; currentType: string; leadId: string | null;
+  onSaved: (newType: string, unlinkLead: boolean) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async (value: string) => {
+    setEditing(false);
+    const unlinkLead = value === "repeat_direct" && !!leadId;
+    onSaved(value, unlinkLead);
+
+    const update: Record<string, unknown> = { sale_type: value };
+    if (unlinkLead) {
+      update.lead_id = null;
+      update.match_method = null;
+      update.match_confidence = null;
+      update.match_reason = "Manually set as repeat/direct";
+    }
+
+    const { error } = await supabase.from("sales").update(update as any).eq("id", saleId);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+  };
+
+  if (!editing) {
+    return (
+      <div className="min-w-[6rem] h-7 flex items-center">
+        <span className="inline-flex items-center gap-1 cursor-pointer group" onClick={() => setEditing(true)}>
+          {saleTypeBadge(currentType)}
+          <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 text-muted-foreground" />
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Select onValueChange={handleSave}>
+      <SelectTrigger className="h-7 w-36 text-xs">
+        <SelectValue placeholder="Select type…" />
+      </SelectTrigger>
+      <SelectContent>
+        {SALE_TYPE_OPTIONS.map((o) => (
+          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function Sales() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -174,6 +223,16 @@ export default function Sales() {
     );
   };
 
+  const handleTypeUpdate = (saleId: string, newType: string, unlinkLead: boolean) => {
+    queryClient.setQueryData(["sales"], (old: any[] | undefined) =>
+      old?.map((s) => s.id === saleId ? {
+        ...s,
+        sale_type: newType,
+        ...(unlinkLead ? { lead_id: null, lead_name: null } : {}),
+      } : s)
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -219,7 +278,14 @@ export default function Sales() {
                       <InlineStyleEditor saleId={sale.id} currentStyle={sale.sign_style} onSaved={(newStyle) => handleStyleUpdate(sale.id, newStyle)} />
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(sale.revenue) || 0)}</TableCell>
-                    <TableCell>{saleTypeBadge(sale.sale_type)}</TableCell>
+                    <TableCell>
+                      <InlineSaleTypeEditor
+                        saleId={sale.id}
+                        currentType={sale.sale_type}
+                        leadId={sale.lead_id}
+                        onSaved={(newType, unlinkLead) => handleTypeUpdate(sale.id, newType, unlinkLead)}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))
               )}

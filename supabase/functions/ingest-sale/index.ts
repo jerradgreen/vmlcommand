@@ -78,13 +78,22 @@ Deno.serve(async (req) => {
       throw error;
     }
 
-    // Run per-sale matching
-    let match_result = null;
+    // Generate suggestion (but do NOT auto-link) so Attribution Inbox can show candidates
+    let suggestion_result = null;
     if (upserted?.id) {
-      const { data } = await supabase.rpc("match_sale_by_id", {
+      const { data } = await supabase.rpc("get_match_suggestions", {
         p_sale_id: upserted.id,
+        limit_n: 1,
       });
-      match_result = data;
+      if (data && data.length > 0) {
+        const best = data[0];
+        await supabase.from("sales").update({
+          suggested_lead_id: best.lead_id,
+          suggested_score: best.score,
+          suggested_reasons: best.reasons,
+        } as any).eq("id", upserted.id);
+        suggestion_result = best;
+      }
     }
 
     await supabase.from("ingestion_logs").insert({
@@ -94,7 +103,7 @@ Deno.serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ ok: true, external_id, order_id, match_result }),
+      JSON.stringify({ ok: true, external_id, order_id, suggestion_result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: unknown) {
