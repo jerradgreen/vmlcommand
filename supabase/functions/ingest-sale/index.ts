@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ ok: true, external_id, order_id, match_result }),
+      JSON.stringify({ ok: true, external_id, order_id, suggestion_result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: unknown) {
