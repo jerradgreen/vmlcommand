@@ -15,6 +15,7 @@ export default function MorningBrief() {
   const { data: metricsMtd, isLoading: loadingMtd } = useDashboardMetrics(rangeMtd);
   const { data: cashMetrics } = useCashMetrics(range30d);
   const { data: trends } = useTrendData(range30d);
+  const { data: styleMetrics } = useSignStyleMetrics(range30d);
 
   const isLoading = loading30d || loading12m || loadingMtd;
 
