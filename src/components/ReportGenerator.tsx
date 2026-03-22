@@ -21,7 +21,7 @@ interface ReportData {
   healthScore: string;
 }
 
-export default function ReportGenerator({ metrics, cashMetrics, dateLabel }: ReportGeneratorProps) {
+export default function ReportGenerator({ metrics, cashMetrics, signStyleMetrics, dateLabel }: ReportGeneratorProps) {
   const [loading, setLoading] = useState(false);
 
   const generate = async () => {
