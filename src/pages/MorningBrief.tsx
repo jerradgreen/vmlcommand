@@ -1,5 +1,6 @@
 import { useDashboardMetrics, useTrendData, DateRange } from "@/hooks/useDashboardMetrics";
 import { useCashMetrics } from "@/hooks/useCashMetrics";
+import { useSignStyleMetrics } from "@/hooks/useSignStyleMetrics";
 import { format } from "date-fns";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
 import ReportGenerator from "@/components/ReportGenerator";
@@ -14,6 +15,7 @@ export default function MorningBrief() {
   const { data: metricsMtd, isLoading: loadingMtd } = useDashboardMetrics(rangeMtd);
   const { data: cashMetrics } = useCashMetrics(range30d);
   const { data: trends } = useTrendData(range30d);
+  const { data: styleMetrics } = useSignStyleMetrics(range30d);
 
   const isLoading = loading30d || loading12m || loadingMtd;
 
@@ -95,7 +97,7 @@ export default function MorningBrief() {
             costPerLead,
             revenuePerLead,
           };
-          return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} dateLabel="Daily Brief" />;
+          return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} signStyleMetrics={styleMetrics ?? null} dateLabel="Daily Brief" />;
         })()}
       </div>
 
