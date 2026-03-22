@@ -5,10 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatPercent, formatNumber } from "@/lib/format";
 import jsPDF from "jspdf";
+import type { SignStyleRow } from "@/hooks/useSignStyleMetrics";
 
 interface ReportGeneratorProps {
   metrics: Record<string, any>;
   cashMetrics?: Record<string, any> | null;
+  signStyleMetrics?: SignStyleRow[] | null;
   dateLabel: string;
 }
 
