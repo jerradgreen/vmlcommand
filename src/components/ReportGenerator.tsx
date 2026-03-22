@@ -205,6 +205,82 @@ export default function ReportGenerator({ metrics, cashMetrics, signStyleMetrics
     }
     y += 22;
 
+    // ── Sign Style Performance Table ──
+    if (signStyleMetrics && signStyleMetrics.length > 0) {
+      checkPage(80);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 16;
+      addText("", 14, "bold");
+      doc.text("Sign Style Performance", margin, y);
+      y += 18;
+
+      const colWidths = [130, 50, 55, 62, 62, 70, 65, 65];
+      const headers = ["Style", "Leads", "Sales", "Customers", "Close %", "Revenue", "Rev/Lead", "Avg Sale"];
+
+      // Header row
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, y - 10, contentW, 16, "F");
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      let cx = margin + 4;
+      for (let i = 0; i < headers.length; i++) {
+        doc.text(headers[i], cx, y);
+        cx += colWidths[i];
+      }
+      y += 14;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(8);
+
+      for (const row of signStyleMetrics) {
+        checkPage(16);
+        cx = margin + 4;
+        const vals = [
+          row.style,
+          String(row.leads),
+          String(row.sales),
+          String(row.customers),
+          row.closeRate != null ? `${(row.closeRate * 100).toFixed(1)}%` : "—",
+          formatCurrency(row.revenue),
+          row.revenuePerLead != null ? formatCurrency(row.revenuePerLead) : "—",
+          row.avgSaleValue != null ? formatCurrency(row.avgSaleValue) : "—",
+        ];
+        for (let i = 0; i < vals.length; i++) {
+          doc.text(vals[i], cx, y);
+          cx += colWidths[i];
+        }
+        y += 14;
+      }
+
+      // Totals row
+      checkPage(18);
+      doc.setFont("helvetica", "bold");
+      const totLeads = signStyleMetrics.reduce((s, r) => s + r.leads, 0);
+      const totSales = signStyleMetrics.reduce((s, r) => s + r.sales, 0);
+      const totCustomers = signStyleMetrics.reduce((s, r) => s + r.customers, 0);
+      const totRevenue = signStyleMetrics.reduce((s, r) => s + r.revenue, 0);
+      cx = margin + 4;
+      const totVals = [
+        "Total",
+        String(totLeads),
+        String(totSales),
+        String(totCustomers),
+        totLeads > 0 ? `${((totCustomers / totLeads) * 100).toFixed(1)}%` : "—",
+        formatCurrency(totRevenue),
+        totLeads > 0 ? formatCurrency(totRevenue / totLeads) : "—",
+        totSales > 0 ? formatCurrency(totRevenue / totSales) : "—",
+      ];
+      for (let i = 0; i < totVals.length; i++) {
+        doc.text(totVals[i], cx, y);
+        cx += colWidths[i];
+      }
+      y += 16;
+      doc.setFont("helvetica", "normal");
+    }
+
     // ── Quick Summary Bullets ──
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, y, pageW - margin, y);
