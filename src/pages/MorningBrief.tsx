@@ -1,5 +1,6 @@
 import { useDashboardMetrics, useTrendData, DateRange } from "@/hooks/useDashboardMetrics";
 import { useCashMetrics } from "@/hooks/useCashMetrics";
+import { useSignStyleMetrics } from "@/hooks/useSignStyleMetrics";
 import { format } from "date-fns";
 import CeoMorningBrief from "@/components/CeoMorningBrief";
 import ReportGenerator from "@/components/ReportGenerator";
