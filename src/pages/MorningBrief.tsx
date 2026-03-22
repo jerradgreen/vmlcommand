@@ -97,7 +97,7 @@ export default function MorningBrief() {
             costPerLead,
             revenuePerLead,
           };
-          return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} dateLabel="Daily Brief" />;
+          return <ReportGenerator metrics={reportMetrics} cashMetrics={cashMetrics} signStyleMetrics={styleMetrics ?? null} dateLabel="Daily Brief" />;
         })()}
       </div>
 
