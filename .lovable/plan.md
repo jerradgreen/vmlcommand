@@ -1,17 +1,12 @@
 
 
-## Fix: "No allocations to save" Error in Manual Mode
+## Plan: Update VML18423 to Wall Hanging + Recalculate YTD Accrual
 
-### Problem
-When you switch to Manual mode and click "Save Allocations" without typing an amount into the input field, `manualAmounts[id]` is `undefined`/`""`, which becomes `0`. The save logic then filters out all zero-amount allocations and throws "No allocations to save."
+### Step 1: Fix sale style (data update)
+Update `sales` table: set `sign_style = 'Wall Hanging'` for order_id `#VML18423`.
 
-There's also a UX issue: the manual amount input field only renders when a sale is checked **and** mode is manual — but if you switch to manual *after* checking sales, the inputs appear but are empty with no guidance.
+### Step 2: Recalculate YTD manufacturing accrual
+Re-run the accrual query for all manufactured styles (Layered/Logo, Wall Hanging, Mobile Vendor, Event Style) from 2026-01-01 onward, now including both VML18422 (Layered) and VML18423 (Wall Hanging) in their correct buckets.
 
-### Fix
-
-1. **Better error message**: Instead of the generic "No allocations to save", show "Please enter an amount for at least one selected sale" when in manual mode and all amounts are zero/empty.
-
-2. **Pre-fill manual amounts**: When switching to manual mode, auto-populate each selected sale's amount field with the auto-split value (remaining ÷ selected count) so the user has a starting point to adjust rather than blank fields.
-
-3. **Validate before mutating**: Check for empty/zero amounts client-side before calling the mutation, with a clear toast message.
+No code or schema changes needed — data update only.
 
