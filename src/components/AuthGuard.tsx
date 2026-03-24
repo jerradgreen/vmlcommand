@@ -29,14 +29,12 @@ export default function AuthGuard({ children, requiredRole }: { children: React.
     return <Navigate to="/login" replace />;
   }
 
-  // Role-based redirect
+  // Role-based redirects
   if (role === "sales_rep" && requiredRole === "admin") {
     return <Navigate to="/crm" replace />;
   }
 
-  if (role === "admin" && location.pathname === "/crm") {
-    return <Navigate to="/" replace />;
-  }
+  // Allow admin to access CRM route too (no redirect needed)
 
   return <>{children}</>;
 }
