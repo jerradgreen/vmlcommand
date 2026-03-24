@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Check, Copy, ChevronDown } from "lucide-react";
+import RepManagement from "@/components/RepManagement";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const BASE = `https://${PROJECT_ID}.supabase.co/functions/v1`;
@@ -178,8 +179,11 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Webhook endpoints for Zapier integration</p>
+        <p className="text-muted-foreground">Manage sales reps and webhook endpoints</p>
       </div>
+
+      {/* Sales Rep Management */}
+      <RepManagement />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <EndpointCard
