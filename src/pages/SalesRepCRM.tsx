@@ -205,10 +205,11 @@ function AdminRepDetail({ rep, onBack }: { rep: RepInfo; onBack: () => void }) {
         let from = 0;
         let done = false;
         while (!done) {
+          const orFilter = buildStyleOrFilter(rep.styles);
           const { data } = await supabase
             .from("leads")
             .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
-            .in("sign_style", rep.styles)
+            .or(orFilter)
             .order("submitted_at", { ascending: false })
             .range(from, from + PAGE_SIZE - 1);
           if (data && data.length > 0) {
