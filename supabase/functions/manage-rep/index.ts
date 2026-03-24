@@ -71,6 +71,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "add_existing_as_rep") {
+      const { email } = body;
+      if (!email) throw new Error("email required");
+
+      const { data: { users } } = await supabase.auth.admin.listUsers();
+      const found = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+      if (!found) throw new Error("No user found with that email");
+
+      await supabase.from("user_roles").upsert(
+        { user_id: found.id, role: "sales_rep" },
+        { onConflict: "user_id,role" }
+      );
+
+      return new Response(JSON.stringify({ ok: true, user_id: found.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "list_reps") {
       const { data: repRoles } = await supabase
         .from("user_roles")
