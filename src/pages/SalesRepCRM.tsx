@@ -19,7 +19,7 @@ interface Lead {
   budget_text: string | null;
   notes: string | null;
   submitted_at: string | null;
-  crm_status: string | null;
+  status: string | null;
   raw_payload: any;
 }
 
@@ -58,7 +58,7 @@ export default function SalesRepCRM() {
       setLoading(true);
       const { data } = await supabase
         .from("leads")
-        .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, crm_status, raw_payload")
+        .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
         .in("sign_style", allowedStyles)
         .order("submitted_at", { ascending: false });
       if (data) setLeads(data as Lead[]);
@@ -70,7 +70,7 @@ export default function SalesRepCRM() {
   const filtered = useMemo(() => {
     let result = leads;
     if (statusFilter !== "all") {
-      result = result.filter((l) => (l.crm_status || "new") === statusFilter);
+      result = result.filter((l) => (l.status || "new") === statusFilter);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -141,7 +141,7 @@ export default function SalesRepCRM() {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{lead.name || "No name"}</span>
                   <Badge variant="outline" className="text-xs">
-                    {lead.crm_status || "new"}
+                    {lead.status || "new"}
                   </Badge>
                 </div>
                 {lead.submitted_at && (

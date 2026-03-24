@@ -19,7 +19,7 @@ interface Lead {
   budget_text: string | null;
   notes: string | null;
   submitted_at: string | null;
-  crm_status: string | null;
+  status: string | null;
   raw_payload: any;
 }
 
@@ -106,9 +106,9 @@ export default function RepLeadCard({
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             {lead.name || "No name"}
-            {lead.crm_status && (
+            {lead.status && (
               <Badge variant="outline" className="text-xs">
-                {lead.crm_status}
+                {lead.status}
               </Badge>
             )}
           </CardTitle>
