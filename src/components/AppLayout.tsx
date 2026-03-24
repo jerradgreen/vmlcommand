@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Settings, Menu, X, LogOut, Factory, Sun } from "lucide-react";
+import { LayoutDashboard, Users, ShoppingCart, Inbox, Upload, Banknote, Settings, Menu, X, LogOut, Factory, Sun, Contact } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useEffect } from "react";
@@ -18,6 +18,7 @@ const navItems = [
   { to: "/transactions", label: "Transactions", icon: Banknote, badgeKey: "transactions" },
   
   { to: "/cogs-reconciliation", label: "COGS Reconciliation", icon: Factory },
+  { to: "/crm", label: "Sales Rep CRM", icon: Contact },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
