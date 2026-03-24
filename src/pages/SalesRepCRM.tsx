@@ -10,6 +10,32 @@ import { format } from "date-fns";
 import RepLeadCard from "@/components/RepLeadCard";
 import { useRepRole } from "@/hooks/useRepRole";
 
+// Maps simplified rep style names to ilike patterns for matching raw lead sign_style values
+const STYLE_TO_PATTERNS: Record<string, string[]> = {
+  "Rental Inventory Package": ["%rental%", "%package%"],
+  "Wall Hanging": ["%wall%hanging%"],
+  "Layered/Logo": ["%layered%", "%logo%"],
+  "Mobile Vendor": ["%mobile%vendor%"],
+  "Event Style": ["%event%style%"],
+  "Marquee Letters": ["%marquee%letter%"],
+  "Custom": ["%custom%"],
+};
+
+function buildStyleOrFilter(styles: string[]): string {
+  const clauses: string[] = [];
+  for (const style of styles) {
+    const patterns = STYLE_TO_PATTERNS[style];
+    if (patterns) {
+      for (const p of patterns) {
+        clauses.push(`sign_style.ilike.${p}`);
+      }
+    } else {
+      clauses.push(`sign_style.eq.${style}`);
+    }
+  }
+  return clauses.join(",");
+}
+
 interface Lead {
   id: string;
   name: string | null;
@@ -81,10 +107,11 @@ function AdminRepRoster({ onSelectRep }: { onSelectRep: (rep: RepInfo) => void }
           // Lead count (based on their styles)
           let leadCount = 0;
           if (rep.styles && rep.styles.length > 0) {
+            const orFilter = buildStyleOrFilter(rep.styles);
             const { count } = await supabase
               .from("leads")
               .select("id", { count: "exact", head: true })
-              .in("sign_style", rep.styles);
+              .or(orFilter);
             leadCount = count ?? 0;
           }
 
@@ -178,10 +205,11 @@ function AdminRepDetail({ rep, onBack }: { rep: RepInfo; onBack: () => void }) {
         let from = 0;
         let done = false;
         while (!done) {
+          const orFilter = buildStyleOrFilter(rep.styles);
           const { data } = await supabase
             .from("leads")
             .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
-            .in("sign_style", rep.styles)
+            .or(orFilter)
             .order("submitted_at", { ascending: false })
             .range(from, from + PAGE_SIZE - 1);
           if (data && data.length > 0) {
@@ -391,10 +419,11 @@ function RepLeadQueue() {
       let from = 0;
       let done = false;
       while (!done) {
+        const orFilter = buildStyleOrFilter(allowedStyles);
         const { data } = await supabase
           .from("leads")
           .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
-          .in("sign_style", allowedStyles)
+          .or(orFilter)
           .order("submitted_at", { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
         if (data && data.length > 0) {
