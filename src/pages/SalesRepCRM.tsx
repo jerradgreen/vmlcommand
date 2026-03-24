@@ -107,10 +107,11 @@ function AdminRepRoster({ onSelectRep }: { onSelectRep: (rep: RepInfo) => void }
           // Lead count (based on their styles)
           let leadCount = 0;
           if (rep.styles && rep.styles.length > 0) {
+            const orFilter = buildStyleOrFilter(rep.styles);
             const { count } = await supabase
               .from("leads")
               .select("id", { count: "exact", head: true })
-              .in("sign_style", rep.styles);
+              .or(orFilter);
             leadCount = count ?? 0;
           }
 
