@@ -495,6 +495,62 @@ export type Database = {
         }
         Relationships: []
       }
+      rep_lead_actions: {
+        Row: {
+          action_type: string
+          body: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_lead_actions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rep_style_access: {
+        Row: {
+          id: string
+          sign_style: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          sign_style: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          sign_style?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           created_at: string
@@ -684,6 +740,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -743,6 +817,13 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_free_email_domain: { Args: { domain: string }; Returns: boolean }
       match_sale_by_id: { Args: { p_sale_id: string }; Returns: Json }
       normalize_text: { Args: { t: string }; Returns: string }
@@ -762,7 +843,7 @@ export type Database = {
       tokenize_text: { Args: { t: string }; Returns: string[] }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "sales_rep"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -889,6 +970,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "sales_rep"],
+    },
   },
 } as const
