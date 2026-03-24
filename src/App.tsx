@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
 import MorningBrief from "./pages/MorningBrief";
 import SalesRepCRM from "./pages/SalesRepCRM";
+import CrmSummary from "./pages/CrmSummary";
 
 import CogsReconciliation from "./pages/CogsReconciliation";
 import Login from "./pages/Login";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/import" element={<Import />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/cogs-reconciliation" element={<CogsReconciliation />} />
+            <Route path="/crm-summary" element={<CrmSummary />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           {/* Sales rep route */}
