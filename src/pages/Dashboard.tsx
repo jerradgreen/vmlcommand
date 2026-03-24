@@ -22,7 +22,8 @@ import {
   Landmark, CreditCard, ArrowUpRight, ArrowDownRight, Wallet,
 } from "lucide-react";
 import { useCashMetrics } from "@/hooks/useCashMetrics";
-import { useSignStyleMetrics } from "@/hooks/useSignStyleMetrics";
+import { useSignStyleMetrics, getDateBounds, type StyleBucket } from "@/hooks/useSignStyleMetrics";
+import SignStyleLeadsDialog from "@/components/SignStyleLeadsDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -132,7 +133,7 @@ export default function Dashboard() {
   const [leadToSaleOpen, setLeadToSaleOpen] = useState(false);
   const [next7DueOpen, setNext7DueOpen] = useState(false);
   const [trendLeadDate, setTrendLeadDate] = useState<string | null>(null);
-  
+  const [styleLeadsDrill, setStyleLeadsDrill] = useState<StyleBucket | null>(null);
 
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics(dateRange);
   const { data: trends, isLoading: trendsLoading } = useTrendData(dateRange);
@@ -298,7 +299,7 @@ export default function Dashboard() {
             </TableHeader>
             <TableBody>
               {(styleMetrics ?? []).map((row) => (
-                <TableRow key={row.style}>
+                <TableRow key={row.style} className="cursor-pointer hover:bg-muted/50" onClick={() => setStyleLeadsDrill(row.style)}>
                   <TableCell className="font-medium">{row.style}</TableCell>
                   <TableCell className="text-right">{formatNumber(row.leads)}</TableCell>
                   <TableCell className="text-right">{formatNumber(row.sales)}</TableCell>
@@ -443,6 +444,13 @@ export default function Dashboard() {
       <LeadToSaleDetailDialog open={leadToSaleOpen} onOpenChange={setLeadToSaleOpen} rangeFrom={m.rangeFrom} rangeTo={m.rangeTo} rangeLabel={rangeLabel} />
       <Next7DueDetailDialog open={next7DueOpen} onOpenChange={setNext7DueOpen} />
       <TrendLeadDetailDialog open={!!trendLeadDate} onOpenChange={(open) => { if (!open) setTrendLeadDate(null); }} date={trendLeadDate} />
+      <SignStyleLeadsDialog
+        open={!!styleLeadsDrill}
+        onOpenChange={(open) => { if (!open) setStyleLeadsDrill(null); }}
+        style={styleLeadsDrill}
+        rangeFrom={getDateBounds(dateRange).from}
+        rangeTo={getDateBounds(dateRange).to}
+      />
 
       {/* ═══ Financial AI Chat ═══ */}
       <FinancialChat />

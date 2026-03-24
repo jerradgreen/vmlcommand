@@ -76,7 +76,7 @@ export interface SignStyleRow {
   avgSaleValue: number | null;
 }
 
-function getDateBounds(range: DateRange): { from: Date | null; to: Date | null } {
+export function getDateBounds(range: DateRange): { from: Date | null; to: Date | null } {
   const now = new Date();
   switch (range.preset) {
     case "all": return { from: null, to: null };
