@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AuthGuard from "./components/AuthGuard";
 import AppLayout from "./components/AppLayout";
+import RepLayout from "./components/RepLayout";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Sales from "./pages/Sales";
@@ -13,6 +14,7 @@ import Import from "./pages/Import";
 import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
 import MorningBrief from "./pages/MorningBrief";
+import SalesRepCRM from "./pages/SalesRepCRM";
 
 import CogsReconciliation from "./pages/CogsReconciliation";
 import Login from "./pages/Login";
@@ -30,7 +32,8 @@ const App = () => (
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
+          {/* Admin routes */}
+          <Route element={<AuthGuard requiredRole="admin"><AppLayout /></AuthGuard>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/morning-brief" element={<MorningBrief />} />
             <Route path="/leads" element={<Leads />} />
@@ -38,9 +41,12 @@ const App = () => (
             <Route path="/attribution" element={<Attribution />} />
             <Route path="/import" element={<Import />} />
             <Route path="/transactions" element={<Transactions />} />
-            
             <Route path="/cogs-reconciliation" element={<CogsReconciliation />} />
             <Route path="/settings" element={<Settings />} />
+          </Route>
+          {/* Sales rep route */}
+          <Route element={<AuthGuard requiredRole="sales_rep"><RepLayout /></AuthGuard>}>
+            <Route path="/crm" element={<SalesRepCRM />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

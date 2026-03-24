@@ -17,16 +17,29 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false);
   const { toast } = useToast();
 
-  // If already logged in, go to dashboard
+  const redirectByRole = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id);
+
+    if (roles && roles.some((r) => r.role === "sales_rep") && !roles.some((r) => r.role === "admin")) {
+      navigate("/crm", { replace: true });
+    } else {
+      navigate("/", { replace: true });
+    }
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/", { replace: true });
-    });
+    redirectByRole();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate("/", { replace: true });
+      if (session) redirectByRole();
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
