@@ -47,7 +47,7 @@ export default function SalesRepCRM() {
     fetchStyles();
   }, [userId]);
 
-  // Fetch leads matching allowed styles
+  // Fetch ALL leads matching allowed styles (paginated to bypass 1000 row limit)
   useEffect(() => {
     if (!allowedStyles.length) {
       setLeads([]);
@@ -56,12 +56,26 @@ export default function SalesRepCRM() {
     }
     const fetchLeads = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("leads")
-        .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
-        .in("sign_style", allowedStyles)
-        .order("submitted_at", { ascending: false });
-      if (data) setLeads(data as Lead[]);
+      const PAGE_SIZE = 1000;
+      let allLeads: Lead[] = [];
+      let from = 0;
+      let done = false;
+      while (!done) {
+        const { data } = await supabase
+          .from("leads")
+          .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
+          .in("sign_style", allowedStyles)
+          .order("submitted_at", { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (data && data.length > 0) {
+          allLeads = allLeads.concat(data as Lead[]);
+          from += PAGE_SIZE;
+          if (data.length < PAGE_SIZE) done = true;
+        } else {
+          done = true;
+        }
+      }
+      setLeads(allLeads);
       setLoading(false);
     };
     fetchLeads();
