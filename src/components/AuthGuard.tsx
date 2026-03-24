@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { useRepRole } from "@/hooks/useRepRole";
 
 export default function AuthGuard({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "admin" | "sales_rep" }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const { role, loading: roleLoading } = useRepRole();
-  const location = useLocation();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
