@@ -26,7 +26,8 @@ interface Lead {
 const STATUS_TABS = ["all", "new", "contacted", "quoted", "won", "lost"] as const;
 
 export default function SalesRepCRM() {
-  const { userId } = useRepRole();
+  const { userId, role } = useRepRole();
+  const isAdmin = role === "admin";
   const [leads, setLeads] = useState<Lead[]>([]);
   const [allowedStyles, setAllowedStyles] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -34,9 +35,9 @@ export default function SalesRepCRM() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch allowed styles
+  // Fetch allowed styles (admin skips this — sees all)
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || isAdmin) return;
     const fetchStyles = async () => {
       const { data } = await supabase
         .from("rep_style_access")
@@ -45,11 +46,11 @@ export default function SalesRepCRM() {
       if (data) setAllowedStyles(data.map((r) => r.sign_style));
     };
     fetchStyles();
-  }, [userId]);
+  }, [userId, isAdmin]);
 
-  // Fetch ALL leads matching allowed styles (paginated to bypass 1000 row limit)
+  // Fetch ALL leads (admin = all leads, rep = filtered by allowed styles)
   useEffect(() => {
-    if (!allowedStyles.length) {
+    if (!isAdmin && !allowedStyles.length) {
       setLeads([]);
       setLoading(false);
       return;
@@ -61,12 +62,17 @@ export default function SalesRepCRM() {
       let from = 0;
       let done = false;
       while (!done) {
-        const { data } = await supabase
+        let query = supabase
           .from("leads")
           .select("id, name, email, phone, phrase, sign_style, size_text, budget_text, notes, submitted_at, status, raw_payload")
-          .in("sign_style", allowedStyles)
           .order("submitted_at", { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
+
+        if (!isAdmin) {
+          query = query.in("sign_style", allowedStyles);
+        }
+
+        const { data } = await query;
         if (data && data.length > 0) {
           allLeads = allLeads.concat(data as Lead[]);
           from += PAGE_SIZE;
@@ -79,7 +85,7 @@ export default function SalesRepCRM() {
       setLoading(false);
     };
     fetchLeads();
-  }, [allowedStyles]);
+  }, [allowedStyles, isAdmin]);
 
   const filtered = useMemo(() => {
     let result = leads;
