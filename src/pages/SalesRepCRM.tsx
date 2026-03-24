@@ -10,6 +10,32 @@ import { format } from "date-fns";
 import RepLeadCard from "@/components/RepLeadCard";
 import { useRepRole } from "@/hooks/useRepRole";
 
+// Maps simplified rep style names to ilike patterns for matching raw lead sign_style values
+const STYLE_TO_PATTERNS: Record<string, string[]> = {
+  "Rental Inventory Package": ["%rental%", "%package%"],
+  "Wall Hanging": ["%wall%hanging%"],
+  "Layered/Logo": ["%layered%", "%logo%"],
+  "Mobile Vendor": ["%mobile%vendor%"],
+  "Event Style": ["%event%style%"],
+  "Marquee Letters": ["%marquee%letter%"],
+  "Custom": ["%custom%"],
+};
+
+function buildStyleOrFilter(styles: string[]): string {
+  const clauses: string[] = [];
+  for (const style of styles) {
+    const patterns = STYLE_TO_PATTERNS[style];
+    if (patterns) {
+      for (const p of patterns) {
+        clauses.push(`sign_style.ilike.${p}`);
+      }
+    } else {
+      clauses.push(`sign_style.eq.${style}`);
+    }
+  }
+  return clauses.join(",");
+}
+
 interface Lead {
   id: string;
   name: string | null;
