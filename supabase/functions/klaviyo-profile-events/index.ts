@@ -96,18 +96,15 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
 
     // Build lookup maps for included resources
     const metricMap: Record<string, string> = {};
-    const flowMap: Record<string, string> = {};
     const campaignMap: Record<string, string> = {};
 
     for (const inc of data?.included ?? []) {
       if (inc.type === "metric")   metricMap[inc.id]   = inc.attributes?.name ?? "";
-      if (inc.type === "flow")     flowMap[inc.id]     = inc.attributes?.name ?? "";
       if (inc.type === "campaign") campaignMap[inc.id] = inc.attributes?.name ?? "";
     }
 
     for (const ev of data?.data ?? []) {
       const metricId   = ev.relationships?.metric?.data?.id ?? "";
-      const flowId     = ev.relationships?.flow?.data?.id ?? "";
       const campaignId = ev.relationships?.campaign?.data?.id ?? "";
       const metricName = metricMap[metricId] ?? "Unknown Event";
       const meta       = METRIC_LABELS[metricName] ?? {
