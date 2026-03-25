@@ -81,8 +81,8 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
   const events: KlaviyoEvent[] = [];
   let nextUrl: string | null =
     `/events/?filter=equals(profile_id,"${profileId}")` +
-    `&include=metric` +
-    `&fields[event]=occurred_at,properties` +
+    `&include=metric,campaign` +
+    `&fields[event]=datetime,event_properties` +
     `&fields[metric]=name` +
     `&sort=-occurred_at` +
     `&page[size]=50`;
@@ -107,7 +107,7 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
         icon: "📌",
         category: "other",
       };
-      const props = ev.attributes?.properties ?? {};
+      const props = ev.attributes?.event_properties ?? {};
 
       events.push({
         id:            ev.id,
@@ -115,7 +115,7 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
         label:         meta.label,
         icon:          meta.icon,
         category:      meta.category,
-        occurred_at:   ev.attributes?.occurred_at ?? "",
+        occurred_at:   ev.attributes?.datetime ?? "",
         campaign_name: props["Campaign Name"] ?? props["campaign_name"] ?? null,
         flow_name:     props["Flow Name"] ?? props["flow_name"] ?? null,
         subject:       props["Subject"] ?? props["subject"] ?? null,
