@@ -11,6 +11,7 @@ import {
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import KlaviyoJourney from "@/components/KlaviyoJourney";
+import InvoiceModal from "@/components/InvoiceModal";
 
 interface Lead {
   id: string;
@@ -113,9 +114,10 @@ export default function RepLeadCard({
   userId: string;
   onBack: () => void;
 }) {
-  const [actions, setActions]   = useState<Action[]>([]);
-  const [noteText, setNoteText] = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [actions, setActions]       = useState<Action[]>([]);
+  const [noteText, setNoteText]     = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchActions = async () => {
@@ -242,7 +244,15 @@ export default function RepLeadCard({
             size="sm"
             variant={action.variant}
             className={action.className}
-            onClick={() => logAction(action.type)}
+            onClick={() => {
+              if (action.type === "invoice_requested") {
+                // Log the stage change AND open the invoice modal
+                logAction("invoice_requested");
+                setInvoiceOpen(true);
+              } else {
+                logAction(action.type);
+              }
+            }}
             disabled={loading}
           >
             {action.icon}
@@ -250,6 +260,21 @@ export default function RepLeadCard({
           </Button>
         ))}
       </div>
+
+      {/* ── Shopify Invoice Modal ── */}
+      <InvoiceModal
+        open={invoiceOpen}
+        onClose={() => setInvoiceOpen(false)}
+        onSuccess={() => { fetchActions(); setInvoiceOpen(false); }}
+        lead={{
+          id:         lead.id,
+          name:       lead.name,
+          email:      lead.email,
+          phrase:     lead.phrase,
+          sign_style: lead.sign_style,
+          size_text:  lead.size_text,
+        }}
+      />
 
       {/* ── Add Note ── */}
       <div className="flex gap-2">
