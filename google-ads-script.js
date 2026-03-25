@@ -11,20 +11,18 @@
  *   2. POSTs it to your VML Command Center ingest-expense webhook
  *   3. The dashboard automatically shows it — no manual entry needed!
  *
- * SETUP: Replace the two values below with your actual values.
- * You can find INGEST_API_KEY in your Supabase project secrets.
  */
 
 // ── CONFIGURATION ─────────────────────────────────────────────────────────────
 var WEBHOOK_URL  = "https://nydkfniwazndbaeciopr.supabase.co/functions/v1/ingest-expense";
-var INGEST_API_KEY = "PASTE_YOUR_INGEST_API_KEY_HERE"; // Get this from Supabase secrets
+var INGEST_API_KEY = "vml-ingest-2026-secure";
 // ─────────────────────────────────────────────────────────────────────────────
 
 function main() {
   // Get yesterday's date in YYYY-MM-DD format
   var yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  var dateStr = Utilities.formatDate(yesterday, "America/Chicago", "yyyy-MM-dd");
+  var dateStr = Utilities.formatDate(yesterday, "America/New_York", "yyyy-MM-dd");
 
   // Query yesterday's spend across all campaigns
   var report = AdsApp.report(
@@ -76,8 +74,8 @@ function main() {
   Logger.log("Ingest response (" + responseCode + "): " + responseText);
 
   if (responseCode === 200) {
-    Logger.log("✅ Successfully synced $" + totalSpend.toFixed(2) + " for " + dateStr);
+    Logger.log("SUCCESS: Synced $" + totalSpend.toFixed(2) + " for " + dateStr);
   } else {
-    Logger.log("❌ Ingest failed — check the response above.");
+    Logger.log("FAILED: Ingest failed — check the response above.");
   }
 }
