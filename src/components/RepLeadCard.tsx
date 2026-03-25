@@ -12,6 +12,7 @@ import {
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import KlaviyoJourney from "@/components/KlaviyoJourney";
+import SalesCheatSheet from "@/components/SalesCheatSheet";
 import InvoiceModal from "@/components/InvoiceModal";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -213,6 +214,9 @@ export default function RepLeadCard({
 
       {/* ── Klaviyo Journey Timeline ── */}
       <KlaviyoJourney email={lead.email} leadName={lead.name} />
+
+      {/* ── Sales Cheat Sheet ── */}
+      <SalesCheatSheet />
 
       {/* ── Pipeline Action Buttons ── */}
       <div className="space-y-2">
