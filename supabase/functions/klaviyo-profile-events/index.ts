@@ -84,7 +84,7 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
     `&include=metric` +
     `&fields[event]=datetime,event_properties` +
     `&fields[metric]=name` +
-    `&sort=-occurred_at` +
+    `&sort=-datetime` +
     `&page[size]=50`;
 
   // Fetch up to 3 pages (150 events max) to keep response fast
