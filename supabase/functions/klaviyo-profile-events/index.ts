@@ -81,7 +81,7 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
   const events: KlaviyoEvent[] = [];
   let nextUrl: string | null =
     `/events/?filter=equals(profile_id,"${profileId}")` +
-    `&include=metric,campaign` +
+    `&include=metric` +
     `&fields[event]=datetime,event_properties` +
     `&fields[metric]=name` +
     `&sort=-occurred_at` +
