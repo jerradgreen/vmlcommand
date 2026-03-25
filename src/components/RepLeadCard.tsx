@@ -1,17 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Phone, Mail, MessageSquare, XCircle, ArrowLeft,
+  Phone, Mail, MessageSquare, ArrowLeft,
   DollarSign, FileText, SendHorizonal, CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import KlaviyoJourney from "@/components/KlaviyoJourney";
 import InvoiceModal from "@/components/InvoiceModal";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Lead {
   id: string;
@@ -34,65 +40,6 @@ interface Action {
   body: string | null;
   created_at: string;
 }
-
-/**
- * Pipeline stage definitions — matches the real VML sales process.
- * "won" is intentionally removed; the rep moves a lead to
- * "invoice_requested" → "invoice_sent" → "paid_closed" instead.
- */
-const PIPELINE_ACTIONS: {
-  type: string;
-  label: string;
-  icon: React.ReactNode;
-  variant: "default" | "secondary" | "outline" | "destructive";
-  className?: string;
-}[] = [
-  {
-    type: "called",
-    label: "Log Call",
-    icon: <Phone className="h-4 w-4" />,
-    variant: "default",
-  },
-  {
-    type: "emailed",
-    label: "Log Email",
-    icon: <Mail className="h-4 w-4" />,
-    variant: "secondary",
-  },
-  {
-    type: "quoted",
-    label: "Mark Quoted",
-    icon: <DollarSign className="h-4 w-4" />,
-    variant: "outline",
-  },
-  {
-    type: "invoice_requested",
-    label: "Invoice Requested",
-    icon: <FileText className="h-4 w-4" />,
-    variant: "outline",
-    className: "border-amber-400 text-amber-700 hover:bg-amber-50",
-  },
-  {
-    type: "invoice_sent",
-    label: "Invoice Sent",
-    icon: <SendHorizonal className="h-4 w-4" />,
-    variant: "outline",
-    className: "border-blue-400 text-blue-700 hover:bg-blue-50",
-  },
-  {
-    type: "paid_closed",
-    label: "Paid / Closed ✓",
-    icon: <CheckCircle2 className="h-4 w-4" />,
-    variant: "default",
-    className: "bg-green-600 hover:bg-green-700 text-white",
-  },
-  {
-    type: "lost",
-    label: "Lost",
-    icon: <XCircle className="h-4 w-4" />,
-    variant: "destructive",
-  },
-];
 
 const ACTION_COLORS: Record<string, string> = {
   called:            "bg-blue-100 text-blue-800",
@@ -120,6 +67,10 @@ export default function RepLeadCard({
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const { toast } = useToast();
 
+  // Inline note state for call/email
+  const [inlineNoteFor, setInlineNoteFor] = useState<"called" | "emailed" | null>(null);
+  const [inlineNoteText, setInlineNoteText] = useState("");
+
   const fetchActions = async () => {
     const { data } = await supabase
       .from("rep_lead_actions")
@@ -146,12 +97,21 @@ export default function RepLeadCard({
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      const label = PIPELINE_ACTIONS.find(a => a.type === type)?.label ?? type;
-      toast({ title: `${label} logged` });
+      toast({ title: `${type.replace(/_/g, " ")} logged` });
       setNoteText("");
       fetchActions();
     }
   };
+
+  // Derived state
+  const hasInvoiceSent = useMemo(
+    () => actions.some((a) => a.action_type === "invoice_sent"),
+    [actions]
+  );
+  const hasPaidClosed = useMemo(
+    () => actions.some((a) => a.action_type === "paid_closed"),
+    [actions]
+  );
 
   // Extract extra fields from raw_payload
   const extra: Record<string, string> = {};
@@ -166,6 +126,24 @@ export default function RepLeadCard({
       }
     }
   }
+
+  const handleInlineNoteSave = (type: "called" | "emailed") => {
+    logAction(type, inlineNoteText.trim() || undefined);
+    setInlineNoteFor(null);
+    setInlineNoteText("");
+  };
+
+  const handleCallEmailClick = (type: "called" | "emailed") => {
+    if (inlineNoteFor === type) {
+      // Already open — toggle off and log without note
+      logAction(type);
+      setInlineNoteFor(null);
+      setInlineNoteText("");
+    } else {
+      setInlineNoteFor(type);
+      setInlineNoteText("");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -237,35 +215,140 @@ export default function RepLeadCard({
       <KlaviyoJourney email={lead.email} leadName={lead.name} />
 
       {/* ── Pipeline Action Buttons ── */}
-      <div className="flex flex-wrap gap-2">
-        {PIPELINE_ACTIONS.map((action) => (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {/* Log Call */}
           <Button
-            key={action.type}
             size="sm"
-            variant={action.variant}
-            className={action.className}
-            onClick={() => {
-              if (action.type === "invoice_requested") {
-                // Log the stage change AND open the invoice modal
-                logAction("invoice_requested");
-                setInvoiceOpen(true);
-              } else {
-                logAction(action.type);
-              }
-            }}
+            variant="default"
+            onClick={() => handleCallEmailClick("called")}
             disabled={loading}
           >
-            {action.icon}
-            <span className="ml-1">{action.label}</span>
+            <Phone className="h-4 w-4" />
+            <span className="ml-1">Log Call</span>
           </Button>
-        ))}
+
+          {/* Log Email */}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => handleCallEmailClick("emailed")}
+            disabled={loading}
+          >
+            <Mail className="h-4 w-4" />
+            <span className="ml-1">Log Email</span>
+          </Button>
+
+          {/* Mark Quoted */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => logAction("quoted")}
+            disabled={loading}
+          >
+            <DollarSign className="h-4 w-4" />
+            <span className="ml-1">Mark Quoted</span>
+          </Button>
+
+          {/* Send Invoice — progressive button */}
+          {hasInvoiceSent ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled
+              className="border-muted text-muted-foreground opacity-60"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="ml-1">Invoice Sent ✓</span>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400 text-amber-700 hover:bg-amber-50"
+              onClick={() => setInvoiceOpen(true)}
+              disabled={loading}
+            >
+              <FileText className="h-4 w-4" />
+              <span className="ml-1">Send Invoice</span>
+            </Button>
+          )}
+
+          {/* Mark Paid / Closed — only visible after invoice_sent */}
+          {hasInvoiceSent && !hasPaidClosed && (
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => logAction("paid_closed")}
+              disabled={loading}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="ml-1">Mark Paid / Closed ✓</span>
+            </Button>
+          )}
+          {hasPaidClosed && (
+            <Button
+              size="sm"
+              disabled
+              className="bg-green-600 text-white opacity-60"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="ml-1">Paid / Closed ✓</span>
+            </Button>
+          )}
+        </div>
+
+        {/* ── Inline note input for Call / Email ── */}
+        {inlineNoteFor && (
+          <div className="flex gap-2 items-center pl-1">
+            <Input
+              placeholder={
+                inlineNoteFor === "called"
+                  ? "What did you discuss?"
+                  : "Summarize the email"
+              }
+              value={inlineNoteText}
+              onChange={(e) => setInlineNoteText(e.target.value)}
+              className="flex-1 h-8 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleInlineNoteSave(inlineNoteFor);
+              }}
+              autoFocus
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={loading}
+              onClick={() => handleInlineNoteSave(inlineNoteFor)}
+            >
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-muted-foreground"
+              onClick={() => {
+                logAction(inlineNoteFor);
+                setInlineNoteFor(null);
+                setInlineNoteText("");
+              }}
+              disabled={loading}
+            >
+              Skip
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Shopify Invoice Modal ── */}
       <InvoiceModal
         open={invoiceOpen}
         onClose={() => setInvoiceOpen(false)}
-        onSuccess={() => { fetchActions(); setInvoiceOpen(false); }}
+        onSuccess={() => {
+          logAction("invoice_sent");
+          setInvoiceOpen(false);
+        }}
         lead={{
           id:         lead.id,
           name:       lead.name,
@@ -321,6 +404,34 @@ export default function RepLeadCard({
           </CardContent>
         </Card>
       )}
+
+      {/* ── Mark as Lost (subtle link with confirmation) ── */}
+      <div className="text-center pt-1">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button className="text-xs text-muted-foreground hover:text-destructive underline transition-colors">
+              Mark as Lost
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mark lead as lost?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will log the lead as lost. You can still view it in the activity log.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => logAction("lost")}
+              >
+                Yes, mark as lost
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }
