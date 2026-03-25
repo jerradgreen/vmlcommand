@@ -122,7 +122,7 @@ async function getProfileEvents(profileId: string, klaviyoKey: string): Promise<
         category:      meta.category,
         occurred_at:   ev.attributes?.occurred_at ?? "",
         campaign_name: campaignMap[campaignId] ?? null,
-        flow_name:     flowMap[flowId] ?? null,
+        flow_name:     null,
         subject:       props["Subject"] ?? props["subject"] ?? null,
         message_name:  props["Message Name"] ?? props["message_name"] ?? null,
       });
