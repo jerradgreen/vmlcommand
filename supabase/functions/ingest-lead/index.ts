@@ -306,6 +306,7 @@ Deno.serve(async (req) => {
     } catch (smsErr) {
       console.error("SMS alert error (non-blocking):", smsErr);
     }
+    */ // ── end TextMagic SMS block
 
     return new Response(
       JSON.stringify({ ok: true, external_id }),
