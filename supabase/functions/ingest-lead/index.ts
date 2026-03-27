@@ -131,7 +131,9 @@ Deno.serve(async (req) => {
       status: "ok",
     });
 
-    // Fire-and-forget SMS alert via TextMagic
+    // ── TextMagic SMS alert — DISABLED (switching to different notification source)
+    // To re-enable, uncomment the block below.
+    /*
     try {
       const tmUser = Deno.env.get("TEXTMAGIC_USERNAME");
       const tmKey = Deno.env.get("TEXTMAGIC_API_KEY");
